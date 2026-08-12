@@ -7,7 +7,13 @@ APP_SUPPORT="$HOME/Library/Application Support/TidyDrop"
 LOG_DIR="$HOME/Library/Logs/TidyDrop"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$LABEL.plist"
 CLI_LINK="$HOME/.local/bin/tidydrop"
+LAUNCHCTL_BIN=${TIDYDROP_LAUNCHCTL_BIN:-/bin/launchctl}
 PURGE=0
+
+[ -x "$LAUNCHCTL_BIN" ] || {
+    printf 'FALLO: launchctl no es ejecutable: %s\n' "$LAUNCHCTL_BIN" >&2
+    exit 1
+}
 
 if [ "${1:-}" = '--purge' ]; then
     PURGE=1
@@ -18,8 +24,8 @@ fi
 
 if [ "$(uname -s)" = 'Darwin' ]; then
     UID_VALUE=$(/usr/bin/id -u)
-    /bin/launchctl bootout "gui/$UID_VALUE/$LABEL" >/dev/null 2>&1 || true
-    /bin/launchctl bootout "gui/$UID_VALUE" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
+    "$LAUNCHCTL_BIN" bootout "gui/$UID_VALUE/$LABEL" >/dev/null 2>&1 || true
+    "$LAUNCHCTL_BIN" bootout "gui/$UID_VALUE" "$LAUNCH_AGENT" >/dev/null 2>&1 || true
 fi
 
 /bin/rm -f "$LAUNCH_AGENT"

@@ -1,1 +1,2 @@
+Uninstall launchctl boundary isolation: PASS
 Uninstall safety tests: PASS

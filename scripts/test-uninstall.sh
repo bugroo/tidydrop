@@ -4,6 +4,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(mktemp -d "/private/tmp/TidyDropIntegration.uninstall.XXXXXX")
 trap '/bin/rm -rf "$ROOT"' EXIT HUP INT TERM
+UID_VALUE=$(/usr/bin/id -u)
 
 TEST_HOME="$ROOT/Home with space"
 APP_BUNDLE="$TEST_HOME/Applications/TidyDrop.app"
@@ -13,6 +14,14 @@ LOG_DIR="$TEST_HOME/Library/Logs/TidyDrop"
 LAUNCH_AGENT="$TEST_HOME/Library/LaunchAgents/com.local.tidydrop.plist"
 CLI_LINK="$TEST_HOME/.local/bin/tidydrop"
 DOWNLOADS="$TEST_HOME/Downloads"
+LAUNCHCTL_STUB="$ROOT/launchctl-stub"
+LAUNCHCTL_LOG="$ROOT/launchctl.log"
+
+printf '%s\n' \
+    '#!/bin/sh' \
+    'printf "%s\\n" "$*" >>"$TIDYDROP_TEST_LAUNCHCTL_LOG"' \
+    >"$LAUNCHCTL_STUB"
+/bin/chmod 700 "$LAUNCHCTL_STUB"
 
 /bin/mkdir -p \
     "$APP_BUNDLE/Contents/MacOS" \
@@ -29,7 +38,10 @@ DOWNLOADS="$TEST_HOME/Downloads"
 : > "$DOWNLOADS/must-survive.txt"
 /bin/ln -s "$APP_EXECUTABLE" "$CLI_LINK"
 
-HOME="$TEST_HOME" "$SCRIPT_DIR/uninstall.sh" >/dev/null
+HOME="$TEST_HOME" \
+TIDYDROP_LAUNCHCTL_BIN="$LAUNCHCTL_STUB" \
+TIDYDROP_TEST_LAUNCHCTL_LOG="$LAUNCHCTL_LOG" \
+    "$SCRIPT_DIR/uninstall.sh" >/dev/null
 
 [ ! -e "$APP_BUNDLE" ]
 [ ! -e "$LAUNCH_AGENT" ]
@@ -37,19 +49,28 @@ HOME="$TEST_HOME" "$SCRIPT_DIR/uninstall.sh" >/dev/null
 [ -f "$APP_SUPPORT/config.json" ]
 [ -f "$LOG_DIR/audit.jsonl" ]
 [ -f "$DOWNLOADS/must-survive.txt" ]
+/usr/bin/grep -Fq "bootout gui/$UID_VALUE/com.local.tidydrop" "$LAUNCHCTL_LOG"
+/usr/bin/grep -Fq "bootout gui/$UID_VALUE $LAUNCH_AGENT" "$LAUNCHCTL_LOG"
 
 # A non-symlink command owned by the user must never be removed.
 : > "$CLI_LINK"
-HOME="$TEST_HOME" "$SCRIPT_DIR/uninstall.sh" --purge >/dev/null
+HOME="$TEST_HOME" \
+TIDYDROP_LAUNCHCTL_BIN="$LAUNCHCTL_STUB" \
+TIDYDROP_TEST_LAUNCHCTL_LOG="$LAUNCHCTL_LOG" \
+    "$SCRIPT_DIR/uninstall.sh" --purge >/dev/null
 
 [ ! -e "$APP_SUPPORT" ]
 [ ! -e "$LOG_DIR" ]
 [ -f "$CLI_LINK" ]
 [ -f "$DOWNLOADS/must-survive.txt" ]
 
-if HOME="$TEST_HOME" "$SCRIPT_DIR/uninstall.sh" --unknown >/dev/null 2>&1; then
+if HOME="$TEST_HOME" \
+   TIDYDROP_LAUNCHCTL_BIN="$LAUNCHCTL_STUB" \
+   TIDYDROP_TEST_LAUNCHCTL_LOG="$LAUNCHCTL_LOG" \
+   "$SCRIPT_DIR/uninstall.sh" --unknown >/dev/null 2>&1; then
     printf '%s\n' 'ERROR: una opción de desinstalación desconocida debería fallar.' >&2
     exit 1
 fi
 
+printf '%s\n' 'Uninstall launchctl boundary isolation: PASS'
 printf '%s\n' 'Uninstall safety tests: PASS'

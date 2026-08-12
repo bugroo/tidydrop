@@ -51,7 +51,9 @@ capture "$EVIDENCE_DIR/uninstall-safety.txt" "$SCRIPT_DIR/test-uninstall.sh"
 capture "$EVIDENCE_DIR/demo-dry-run.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRIPT_DIR/demo.sh"
 capture "$EVIDENCE_DIR/release-build.txt" swift build -c release -Xswiftc -warnings-as-errors
 capture "$EVIDENCE_DIR/static-audit.txt" "$SCRIPT_DIR/audit-project.sh"
-capture "$EVIDENCE_DIR/package-description.txt" swift package describe
+package_description=$(swift package describe)
+printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"
+/bin/cat "$EVIDENCE_DIR/package-description.txt"
 capture "$EVIDENCE_DIR/swift6-build.txt" swift build -c debug \
     -Xswiftc -warnings-as-errors \
     -Xswiftc -swift-version \
@@ -66,3 +68,12 @@ else
 fi
 
 printf '%s\n' 'Project validation: PASS' | tee "$EVIDENCE_DIR/validation-result.txt"
+
+# El manifiesto representa exactamente el árbol que queda después de generar
+# toda la evidencia. Se verifica una vez, se conserva el resultado y se
+# regenera para incluir también esa evidencia antes de la verificación final.
+"$SCRIPT_DIR/update-manifest.sh"
+manifest_result=$("$SCRIPT_DIR/verify-manifest.sh")
+printf '%s\n' "$manifest_result" >"$EVIDENCE_DIR/manifest-verification.txt"
+"$SCRIPT_DIR/update-manifest.sh"
+"$SCRIPT_DIR/verify-manifest.sh"
