@@ -1,5 +1,11 @@
 # TidyDrop 1.0.2
 
+<p align="center">
+  <img src="docs/assets/tidydrop-hero.png" alt="TidyDrop organiza archivos localmente mediante una ruta clara y reversible" width="100%">
+</p>
+
+**Organización local, decisiones transparentes y reversión conservadora para macOS.**
+
 TidyDrop organiza localmente el primer nivel de una carpeta elegida en subcarpetas por categoría. No sube contenido, no usa red, telemetría, servicios cloud ni dependencias externas.
 
 ## Requisitos
