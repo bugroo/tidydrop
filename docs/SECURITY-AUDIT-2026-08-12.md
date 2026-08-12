@@ -75,6 +75,15 @@ La mejora energética medible está en el dry-run programado: para 13 planes sin
 - Estado: riesgo residual aceptado.
 - Mitigación: patrones y cantidades están acotados y se aplican únicamente a nombres del primer nivel. La configuración privada pertenece al mismo usuario, que ya puede sustituir el binario. No se ofrece ejecución de scripts ni regex sobre contenido.
 
+### TD-AUD-010 — El test del desinstalador alcanzaba el dominio launchd real
+
+- Severidad inicial: media para disponibilidad y confianza de pruebas.
+- Estado: corregido y agente restaurado.
+- Riesgo: cambiar `HOME` aislaba los archivos de prueba, pero no la etiqueta `com.local.tidydrop` del dominio GUI. El test ejecutaba el `bootout` real y descargó el agente instalado durante una validación.
+- Corrección: `uninstall.sh` conserva `/bin/launchctl` por defecto y permite inyectar el ejecutable únicamente como frontera de test; `test-uninstall.sh` usa un stub temporal, verifica los argumentos y no llama al servicio real.
+- Impacto observado: no se borró app, configuración, estado o log real; `apply_enabled` permaneció en `false` y no hubo movimientos. El agente fue cargado de nuevo, ejecutó una pasada `success/dry-run/moved=0/errors=0` y terminó con código 0.
+- Regla: un HOME temporal no aísla servicios, TCC, Keychain u otros namespaces externos; cada frontera debe sustituirse expresamente.
+
 ## Energía y batería
 
 - Baseline instalado anterior: 0,99 s de pared, 0,02 s de usuario, 0,02 s de sistema y unos 15,5 MiB de RSS máximo en una pasada dry-run con 13 planes.
@@ -82,6 +91,16 @@ La mejora energética medible está en el dry-run programado: para 13 planes sin
 - Logs: 3.979/4.659 bytes después de la primera pasada y exactamente los mismos tamaños después de la segunda.
 - Power assertions propias: ninguna observada.
 - Conclusión: impacto por pasada bajo y notablemente reducido; no se afirma “cero consumo” porque permanecen el lanzamiento periódico, enumeración/lstat y reemplazo del estado programado.
+
+### Relectura del sistema instalado
+
+Una medición posterior sobre la instalación real confirmó dos pasadas directas de 0,09 s y 0,03 s, unos 15 MB de RSS máximo, cero swaps y cero crecimiento de `steward.log` o `audit.jsonl`. Una pasada forzada por `launchd` terminó con `success`, `dry-run`, 20 entradas escaneadas, 13 planificadas, 0 movidas y 0 errores; el proceso volvió a `not running`.
+
+La batería reportó condición `Normal`, 102 ciclos y 100 % de capacidad máxima. TidyDrop no poseía ninguna power assertion. El sistema sí tenía aserciones de Amphetamine y `caffeinate`, ajenas a TidyDrop, que pueden aumentar consumo si mantienen el Mac despierto. La salida sanitizada está en [runtime-power-audit-2026-08-12.md](evidence/runtime-power-audit-2026-08-12.md).
+
+### Integridad del worktree publicado
+
+La relectura descubrió que `MANIFEST.sha256` no había sido regenerado después de los commits de hardening y documentación. El binario instalado no se vio afectado, pero el manifiesto del repositorio dejó de ser evidencia válida. Se añadieron generación e inventario reproducibles mediante `scripts/update-manifest.sh` y `scripts/verify-manifest.sh`, y la validación completa termina regenerando y comprobando el árbol exacto.
 
 ## Alcance de carpetas
 

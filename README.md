@@ -8,6 +8,8 @@
 
 TidyDrop organiza localmente el primer nivel de una carpeta elegida en subcarpetas por categoría. No sube contenido, no usa red, telemetría, servicios cloud ni dependencias externas.
 
+Las decisiones duraderas de arquitectura, distribución, permisos y actualizaciones se conservan en el [registro de ADR](docs/adr/README.md). La aplicación macOS futura está definida en [ADR-0001](docs/adr/0001-native-macos-application-architecture.md) y la distribución firmada, las actualizaciones y la continuidad TCC en [ADR-0002](docs/adr/0002-distribution-updates-and-tcc-continuity.md).
+
 ## Requisitos
 
 - macOS 13 o posterior en Apple Silicon.
@@ -161,6 +163,7 @@ swift run tidydrop-self-test
 ./scripts/audit-project.sh
 ./scripts/validate-project.sh
 ./scripts/demo.sh
+./scripts/verify-manifest.sh
 ```
 
 La suite es un ejecutable Swift/Foundation independiente y no importa XCTest.
@@ -173,3 +176,5 @@ La suite es un ejecutable Swift/Foundation independiente y no importa XCTest.
 - Las carpetas cloud dependen de archivos disponibles localmente, permisos TCC y semántica del proveedor.
 - El polling de `launchd` sigue despertando una pasada cada 300 segundos; la caché reduce el trabajo, pero la arquitectura FSEvents pertenece a la futura aplicación nativa.
 - La ventana TOCTOU del escritor se reduce con snapshots y rename exclusivo, pero no desaparece completamente.
+
+La última medición local de ejecución, recursos y batería está en [Evidencia de ejecución, energía y batería](docs/evidence/runtime-power-audit-2026-08-12.md).
