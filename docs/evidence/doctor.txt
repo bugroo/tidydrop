@@ -1,0 +1,30 @@
+TidyDrop — inspección previa de macOS
+Sistema operativo macOS                                          [OK]
+ProductName:		macOS
+ProductVersion:		26.5.2
+BuildVersion:		25F84
+macOS 13 o posterior (detectado: 26.5.2)                         [OK]
+Arquitectura: arm64
+Utilidad /usr/bin/file                                           [OK]
+Utilidad /usr/bin/plutil                                         [OK]
+Utilidad /bin/launchctl                                          [OK]
+Utilidad /usr/bin/codesign                                       [OK]
+Utilidad /usr/bin/xcrun                                          [OK]
+Utilidad /usr/bin/xcode-select                                   [OK]
+Developer directory: /Library/Developer/CommandLineTools         [OK]
+Swift Package Manager: /Library/Developer/CommandLineTools/usr/bin/swift [OK]
+Compilador Swift: /Library/Developer/CommandLineTools/usr/bin/swiftc [OK]
+swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)
+Target: arm64-apple-macosx26.0
+SDK macOS: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk   [OK]
+Versión SDK macOS: 26.5                                         [OK]
+Proyecto sin XCTest; Xcode completo no es necesario              [OK]
+Comando probe: SDKROOT=<SDK> swiftc -sdk <SDK> -warnings-as-errors FoundationProbe.swift
+Compilación Swift/Foundation con SDK explícito                 [OK]
+Ejecución del probe Swift/Foundation                            [OK]
+Swift Package Manager puede interpretar el proyecto              [OK]
+Carpeta ~/Downloads                                              [OK]
+Lectura de Downloads desde el proceso de instalación            [OK]
+Detección MIME nativa: text/plain                               [OK]
+
+Resultado: entorno apto sin Xcode completo ni XCTest. No se ha instalado ni activado nada.

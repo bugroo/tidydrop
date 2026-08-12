@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>es</string>
+  <key>CFBundleDisplayName</key>
+  <string>TidyDrop</string>
+  <key>CFBundleExecutable</key>
+  <string>tidydrop</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.local.tidydrop</string>
+  <key>CFBundleName</key>
+  <string>TidyDrop</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0.2</string>
+  <key>CFBundleVersion</key>
+  <string>3</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>TidyDrop clasifica localmente los archivos de la carpeta Downloads elegida y no transmite ningún dato.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>TidyDrop clasifica localmente los archivos de la carpeta Documents elegida y no transmite ningún dato.</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>TidyDrop clasifica localmente los archivos de la carpeta Desktop elegida y no transmite ningún dato.</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>TidyDrop clasifica localmente los archivos de la carpeta elegida en un volumen extraíble y no transmite ningún dato.</string>
+  <key>NSNetworkVolumesUsageDescription</key>
+  <string>TidyDrop clasifica localmente los archivos de la carpeta elegida en un volumen de red y no transmite ningún dato.</string>
+</dict>
+</plist>

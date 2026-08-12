@@ -1,0 +1,409 @@
+{
+  "automation" : {
+    "apply_enabled" : false,
+    "interval_seconds" : 300
+  },
+  "classification" : {
+    "categories" : [
+      {
+        "extensions" : [
+          "pdf",
+          "doc",
+          "docx",
+          "odt",
+          "rtf",
+          "txt",
+          "md",
+          "markdown",
+          "pages",
+          "xls",
+          "xlsx",
+          "ods",
+          "numbers",
+          "ppt",
+          "pptx",
+          "odp",
+          "key",
+          "epub",
+          "mobi",
+          "azw",
+          "azw3"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "application/pdf",
+          "application/rtf",
+          "text/rtf",
+          "text/plain",
+          "application/vnd.oasis.opendocument.text",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        ],
+        "name" : "Documentos",
+        "name_patterns" : [
+          "(?i)^(readme|license|licence|changelog|changes)(\\..*)?$"
+        ]
+      },
+      {
+        "extensions" : [
+          "jpg",
+          "jpeg",
+          "png",
+          "gif",
+          "webp",
+          "heic",
+          "heif",
+          "tif",
+          "tiff",
+          "bmp",
+          "svg",
+          "ico",
+          "avif",
+          "dng",
+          "cr2",
+          "cr3",
+          "nef",
+          "arw",
+          "orf"
+        ],
+        "mime_prefixes" : [
+          "image/"
+        ],
+        "mime_types" : [
+
+        ],
+        "name" : "Imágenes",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "mp4",
+          "mov",
+          "mkv",
+          "avi",
+          "webm",
+          "m4v",
+          "mpg",
+          "mpeg",
+          "mts",
+          "m2ts",
+          "3gp",
+          "ogv"
+        ],
+        "mime_prefixes" : [
+          "video/"
+        ],
+        "mime_types" : [
+
+        ],
+        "name" : "Vídeos",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "mp3",
+          "m4a",
+          "wav",
+          "flac",
+          "aac",
+          "ogg",
+          "oga",
+          "opus",
+          "aif",
+          "aiff",
+          "wma",
+          "alac"
+        ],
+        "mime_prefixes" : [
+          "audio/"
+        ],
+        "mime_types" : [
+
+        ],
+        "name" : "Audio",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "zip",
+          "7z",
+          "rar",
+          "tar",
+          "tar.gz",
+          "tgz",
+          "tar.bz2",
+          "tbz2",
+          "tar.xz",
+          "txz",
+          "gz",
+          "bz2",
+          "xz",
+          "zst",
+          "cab"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "application/zip",
+          "application/x-7z-compressed",
+          "application/vnd.rar",
+          "application/x-rar-compressed",
+          "application/x-tar",
+          "application/gzip",
+          "application/x-bzip2",
+          "application/x-xz",
+          "application/zstd"
+        ],
+        "name" : "Archivos comprimidos",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "dmg",
+          "pkg",
+          "mpkg",
+          "exe",
+          "msi",
+          "deb",
+          "rpm",
+          "apk",
+          "xip"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "application/x-apple-diskimage",
+          "application/vnd.apple.installer+xml",
+          "application/x-msdownload",
+          "application/vnd.microsoft.portable-executable",
+          "application/vnd.android.package-archive"
+        ],
+        "name" : "Instaladores",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "swift",
+          "py",
+          "pyw",
+          "js",
+          "mjs",
+          "cjs",
+          "ts",
+          "tsx",
+          "jsx",
+          "html",
+          "htm",
+          "css",
+          "scss",
+          "sass",
+          "less",
+          "sh",
+          "zsh",
+          "bash",
+          "fish",
+          "c",
+          "h",
+          "m",
+          "mm",
+          "cc",
+          "cpp",
+          "cxx",
+          "hpp",
+          "hh",
+          "rs",
+          "go",
+          "java",
+          "kt",
+          "kts",
+          "rb",
+          "php",
+          "pl",
+          "lua",
+          "r",
+          "sql",
+          "vue",
+          "svelte"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "text/x-python",
+          "text/x-shellscript",
+          "text/x-c",
+          "text/x-c++",
+          "application/javascript",
+          "text/javascript",
+          "text/html",
+          "text/css"
+        ],
+        "name" : "Código",
+        "name_patterns" : [
+          "(?i)^(dockerfile|containerfile|makefile|justfile|rakefile|gemfile|podfile)$"
+        ]
+      },
+      {
+        "extensions" : [
+          "iso",
+          "img",
+          "vhd",
+          "vhdx",
+          "qcow",
+          "qcow2"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "application/x-iso9660-image",
+          "application/x-raw-disk-image"
+        ],
+        "name" : "ISOs",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "csv",
+          "tsv",
+          "json",
+          "jsonl",
+          "ndjson",
+          "xml",
+          "yaml",
+          "yml",
+          "toml",
+          "plist",
+          "sqlite",
+          "sqlite3",
+          "db",
+          "parquet",
+          "avro",
+          "orc",
+          "feather"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "text/csv",
+          "text/tab-separated-values",
+          "application/json",
+          "application/x-ndjson",
+          "application/xml",
+          "text/xml",
+          "application/x-yaml",
+          "application/toml",
+          "application/x-sqlite3"
+        ],
+        "name" : "Datos",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+          "torrent"
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+          "application/x-bittorrent"
+        ],
+        "name" : "Torrents",
+        "name_patterns" : [
+
+        ]
+      },
+      {
+        "extensions" : [
+
+        ],
+        "mime_prefixes" : [
+
+        ],
+        "mime_types" : [
+
+        ],
+        "name" : "Otros",
+        "name_patterns" : [
+
+        ]
+      }
+    ],
+    "fallback_category" : "Otros",
+    "use_mime_fallback" : true
+  },
+  "collision" : {
+    "max_attempts" : 10000,
+    "strategy" : "numbered_suffix"
+  },
+  "exclusions" : {
+    "extensions" : [
+      "crdownload",
+      "download",
+      "part",
+      "partial",
+      "tmp",
+      "temp",
+      "opdownload",
+      "filepart",
+      "aria2",
+      "icloud"
+    ],
+    "filenames" : [
+      ".DS_Store",
+      ".localized",
+      "Icon\r"
+    ],
+    "ignore_hidden" : true,
+    "ignore_symlinks" : true,
+    "name_patterns" : [
+      "(?i)^~\\$.*",
+      "(?i)^\\.com\\.google\\.Chrome\\..*",
+      "(?i).*\\.(crdownload|download|part|partial|tmp|temp|opdownload|filepart|aria2|icloud)$"
+    ]
+  },
+  "logging" : {
+    "log_skipped_files" : false,
+    "max_file_bytes" : 5242880,
+    "rotated_file_count" : 3,
+    "suppress_scheduled_noop_audit" : true,
+    "transaction_manifest_limit" : 100
+  },
+  "paths" : {
+    "destination_root" : "~/Downloads",
+    "log_directory" : "~/Library/Logs/TidyDrop",
+    "source_directory" : "~/Downloads",
+    "state_directory" : "~/Library/Application Support/TidyDrop/state"
+  },
+  "safety" : {
+    "max_files_per_run" : 5000,
+    "require_destination_inside_source" : true
+  },
+  "stability" : {
+    "minimum_age_seconds" : 45,
+    "minimum_stable_observations" : 2,
+    "probe_delay_milliseconds" : 750,
+    "state_retention_seconds" : 86400
+  },
+  "version" : 1
+}

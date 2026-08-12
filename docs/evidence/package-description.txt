@@ -1,0 +1,74 @@
+Name: TidyDrop
+Manifest display name: TidyDrop
+Path: $PROJECT_ROOT
+Tools version: 5.7
+Dependencies:
+Platforms:
+    Name: macos
+    Version: 13.0
+
+Products:
+    Name: TidyDropCore
+    Type:
+        Library:
+            automatic
+    Targets:
+        TidyDropCore
+
+    Name: tidydrop
+    Type:
+        Executable: nil
+    Targets:
+        TidyDrop
+
+    Name: tidydrop-self-test
+    Type:
+        Executable: nil
+    Targets:
+        TidyDropSelfTests
+
+Targets:
+    Name: TidyDropSelfTests
+    Type: executable
+    C99name: TidyDropSelfTests
+    Module type: SwiftTarget
+    Path: SelfTests/TidyDropSelfTests
+    Sources:
+        main.swift
+    Target dependencies:
+        TidyDropCore
+    Product memberships:
+        tidydrop-self-test
+
+    Name: TidyDropCore
+    Type: library
+    C99name: TidyDropCore
+    Module type: SwiftTarget
+    Path: Sources/TidyDropCore
+    Sources:
+        ActiveFolder.swift
+        Audit.swift
+        Classifier.swift
+        Configuration.swift
+        FileSystem.swift
+        Models.swift
+        Stability.swift
+        StewardEngine.swift
+        Transactions.swift
+    Product memberships:
+        TidyDropCore
+        tidydrop
+        tidydrop-self-test
+
+    Name: TidyDrop
+    Type: executable
+    C99name: TidyDrop
+    Module type: SwiftTarget
+    Path: Sources/TidyDrop
+    Sources:
+        main.swift
+    Target dependencies:
+        TidyDropCore
+    Product memberships:
+        tidydrop
+
