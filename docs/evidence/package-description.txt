@@ -1,6 +1,6 @@
 Name: TidyDrop
 Manifest display name: TidyDrop
-Path: $PROJECT_ROOT
+Path: /Users/rootml/TidyDrop-1.0.2-work/tidydrop
 Tools version: 5.7
 Dependencies:
 Platforms:
@@ -71,4 +71,3 @@ Targets:
         TidyDropCore
     Product memberships:
         tidydrop
-

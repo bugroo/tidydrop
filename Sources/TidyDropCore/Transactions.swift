@@ -163,6 +163,7 @@ public struct TransactionRecoveryEvent: Equatable, Sendable {
 }
 
 public final class TransactionStore {
+    private static let maximumManifestBytes: UInt64 = 16_777_216
     public let directory: URL
 
     public init(directory: URL) throws {
@@ -184,12 +185,16 @@ public final class TransactionStore {
         guard manifest.mode == .apply else {
             throw StewardError.commandFailed("Solo se persisten transacciones apply")
         }
-        try JSONFile.save(manifest, to: try url(for: manifest.runID))
+        try JSONFile.save(
+            manifest,
+            to: try url(for: manifest.runID),
+            maximumBytes: Self.maximumManifestBytes
+        )
     }
 
     public func load(runID: String) throws -> TransactionManifest {
         let manifestURL = try url(for: runID)
-        guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+        guard try FileSystemSecurity.pathEntryExists(manifestURL) else {
             throw StewardError.configurationNotFound(manifestURL.path)
         }
         return try decodeManifest(at: manifestURL)
@@ -458,7 +463,10 @@ public final class TransactionStore {
     private func decodeManifest(at file: URL) throws -> TransactionManifest {
         let data: Data
         do {
-            data = try Data(contentsOf: file)
+            data = try FileSystemSecurity.readRegularFile(
+                file,
+                maximumBytes: Self.maximumManifestBytes
+            )
         } catch {
             throw StewardError.commandFailed(
                 "No se pudo leer el manifiesto de transacción \(file.path): \(error)"
@@ -498,17 +506,16 @@ public final class TransactionStore {
     }
 
     private func manifestFiles(fileManager: FileManager) throws -> [URL] {
-        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey]
         return try fileManager.contentsOfDirectory(
             at: directory,
-            includingPropertiesForKeys: Array(keys),
+            includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         ).filter { file in
             guard file.pathExtension.lowercased() == "json",
-                  let values = try? file.resourceValues(forKeys: keys) else {
+                  let metadata = try? FileSystemSecurity.freshPOSIXMetadata(of: file) else {
                 return false
             }
-            return values.isRegularFile == true && values.isSymbolicLink != true
+            return metadata.kind == .regularFile
         }
     }
 

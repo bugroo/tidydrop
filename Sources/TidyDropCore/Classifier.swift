@@ -1,4 +1,9 @@
 import Foundation
+#if os(macOS)
+import Darwin
+#else
+import Glibc
+#endif
 
 public protocol MIMETypeDetecting {
     func mimeType(for url: URL) -> String?
@@ -6,9 +11,14 @@ public protocol MIMETypeDetecting {
 
 public struct SystemMIMETypeDetector: MIMETypeDetecting {
     private let executableURL: URL
+    private let timeoutSeconds: TimeInterval
 
-    public init(executableURL: URL = URL(fileURLWithPath: "/usr/bin/file")) {
+    public init(
+        executableURL: URL = URL(fileURLWithPath: "/usr/bin/file"),
+        timeoutSeconds: TimeInterval = 2
+    ) {
         self.executableURL = executableURL
+        self.timeoutSeconds = max(0.05, min(timeoutSeconds, 10))
     }
 
     public func mimeType(for url: URL) -> String? {
@@ -18,14 +28,29 @@ public struct SystemMIMETypeDetector: MIMETypeDetecting {
 
         let process = Process()
         process.executableURL = executableURL
-        process.arguments = ["--brief", "--mime-type", "--", url.path]
+        process.arguments = ["--brief", "--mime-type", "--no-dereference", "--", url.path]
         let output = Pipe()
-        let errors = Pipe()
         process.standardOutput = output
-        process.standardError = errors
+        process.standardError = FileHandle.nullDevice
 
         do {
             try process.run()
+            let deadline = Date().addingTimeInterval(timeoutSeconds)
+            while process.isRunning, Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+            if process.isRunning {
+                process.terminate()
+                let terminationDeadline = Date().addingTimeInterval(0.2)
+                while process.isRunning, Date() < terminationDeadline {
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
+                if process.isRunning {
+                    _ = kill(process.processIdentifier, SIGKILL)
+                }
+                process.waitUntilExit()
+                return nil
+            }
             process.waitUntilExit()
             guard process.terminationStatus == 0 else { return nil }
             let data = output.fileHandleForReading.readDataToEndOfFile()

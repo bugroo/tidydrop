@@ -13,13 +13,21 @@ public final class StewardEngine {
     private let nowProvider: () -> Date
     private let sleepProvider: (TimeInterval) -> Void
     private let fileManager: FileManager
+    private let moveOperation: (URL, URL, FileSnapshot) throws -> Void
 
     public init(
         configuration: ResolvedConfiguration,
         mimeDetector: MIMETypeDetecting = SystemMIMETypeDetector(),
         nowProvider: @escaping () -> Date = Date.init,
         sleepProvider: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        moveOperation: @escaping (URL, URL, FileSnapshot) throws -> Void = {
+            try FileSystemSecurity.moveRegularFileExclusively(
+                from: $0,
+                to: $1,
+                expectedSnapshot: $2
+            )
+        }
     ) throws {
         self.resolved = configuration
         self.classifier = try FileClassifier(config: configuration.config.classification, detector: mimeDetector)
@@ -27,9 +35,14 @@ public final class StewardEngine {
         self.nowProvider = nowProvider
         self.sleepProvider = sleepProvider
         self.fileManager = fileManager
+        self.moveOperation = moveOperation
     }
 
-    public func run(mode: ExecutionMode, recordEmptyRun: Bool = true) throws -> RunSummary {
+    public func run(
+        mode: ExecutionMode,
+        recordEmptyRun: Bool = true,
+        suppressUnchangedDryRunPlans: Bool = false
+    ) throws -> RunSummary {
         try preflightSource()
         try FileSystemSecurity.ensurePrivateDirectory(resolved.paths.stateDirectory)
         try FileSystemSecurity.ensurePrivateDirectory(resolved.paths.logDirectory)
@@ -45,6 +58,16 @@ public final class StewardEngine {
             rotatedFileCount: resolved.config.logging.rotatedFileCount
         )
         let stability = try StabilityStore(url: resolved.paths.stabilityStateFile)
+        let dryRunCache: ScheduledDryRunCache?
+        if mode == .dryRun, suppressUnchangedDryRunPlans {
+            dryRunCache = try ScheduledDryRunCache(
+                url: resolved.paths.scheduledDryRunCacheFile,
+                planSignature: try scheduledDryRunPlanSignature()
+            )
+        } else {
+            dryRunCache = nil
+        }
+        var retainedDryRunCachePaths = Set<String>()
         let transactionStore = try TransactionStore(directory: resolved.paths.transactionsDirectory)
         let start = nowProvider()
 
@@ -139,6 +162,18 @@ public final class StewardEngine {
 
                 guard let snapshot = facts.snapshot else {
                     summary.skipped += 1
+                    continue
+                }
+
+                // A cached entry can only come from an earlier, fully stable dry-run
+                // under the same configuration signature. Consult it before touching
+                // stability.json so an unchanged scheduled pass performs no needless
+                // probe, classification, log, or state write. Apply mode never creates
+                // or reads this cache.
+                if let dryRunCache,
+                   dryRunCache.contains(path: item.path, snapshot: snapshot) {
+                    summary.planned += 1
+                    retainedDryRunCachePaths.insert(item.path)
                     continue
                 }
 
@@ -269,7 +304,14 @@ public final class StewardEngine {
                     reason: candidate.decision.reason
                 ))
 
-                guard mode == .apply else { continue }
+                guard mode == .apply else {
+                    dryRunCache?.remember(
+                        path: candidate.url.path,
+                        snapshot: currentSnapshot
+                    )
+                    retainedDryRunCachePaths.insert(candidate.url.path)
+                    continue
+                }
                 guard var manifest = transaction else {
                     throw StewardError.commandFailed("Falta el manifiesto transaccional")
                 }
@@ -330,9 +372,28 @@ public final class StewardEngine {
                 }
 
                 do {
-                    try fileManager.moveItem(at: candidate.url, to: destination)
+                    try moveOperation(candidate.url, destination, immediatelyBeforeRename)
+                } catch StewardError.commandFailed(let detail) where detail == "changed_before_move" {
+                    if let index = manifest.moves.firstIndex(where: { $0.id == moveRecord.id }) {
+                        manifest.moves[index].executionStatus = .failed
+                        manifest.moves[index].executionError = detail
+                    }
+                    transaction = manifest
+                    try transactionStore.save(manifest)
+                    summary.deferred += 1
+                    try logger.record(AuditEvent(
+                        runID: runID,
+                        level: "info",
+                        mode: mode.rawValue,
+                        action: "deferred",
+                        source: candidate.url.path,
+                        destination: destination.path,
+                        category: candidate.decision.category,
+                        reason: detail
+                    ))
+                    continue
                 } catch {
-                    // FileManager may report an error after the filesystem has
+                    // The move primitive may report an error after the filesystem has
                     // already renamed the item. Keep the journal entry planned;
                     // the next reconciliation determines the physical outcome.
                     if let index = manifest.moves.firstIndex(where: { $0.id == moveRecord.id }) {
@@ -385,6 +446,8 @@ public final class StewardEngine {
         }
 
         try stability.save()
+        dryRunCache?.retain(paths: retainedDryRunCachePaths)
+        try dryRunCache?.save()
 
         if var manifest = transaction {
             if manifest.moves.contains(where: { $0.executionStatus == .planned }) {
@@ -547,7 +610,7 @@ public final class StewardEngine {
 
                 guard mode == .apply else { continue }
                 do {
-                    try fileManager.moveItem(at: destination, to: source)
+                    try moveOperation(destination, source, destinationSnapshot)
                 } catch {
                     // As with apply, keep the state pending until path and
                     // identity reconciliation can determine whether rename ran.
@@ -743,5 +806,17 @@ public final class StewardEngine {
             return (String(filename.dropLast(suffix.count)), suffix)
         }
         return (filename, "")
+    }
+
+    private func scheduledDryRunPlanSignature() throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let data = try encoder.encode(resolved.config)
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return String(hash, radix: 16)
     }
 }

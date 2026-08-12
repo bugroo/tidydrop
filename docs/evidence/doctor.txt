@@ -23,7 +23,7 @@ Comando probe: SDKROOT=<SDK> swiftc -sdk <SDK> -warnings-as-errors FoundationPro
 Compilación Swift/Foundation con SDK explícito                 [OK]
 Ejecución del probe Swift/Foundation                            [OK]
 Swift Package Manager puede interpretar el proyecto              [OK]
-Carpeta ~/Downloads                                              [OK]
+Carpeta /Users/rootml/Downloads                                  [OK]
 Lectura de Downloads desde el proceso de instalación            [OK]
 Detección MIME nativa: text/plain                               [OK]
 

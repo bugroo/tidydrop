@@ -1,11 +1,12 @@
 TidyDrop — auditoría estática local
 [OK] Sintaxis POSIX sh
-$PROJECT_ROOT/app/Info.plist: OK
-$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example: OK
+/Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/Info.plist: OK
+/Users/rootml/TidyDrop-1.0.2-work/tidydrop/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
 [OK] Sin APIs de red detectadas en Sources
 [OK] Sin utilidades de red ejecutadas por scripts
 [OK] Sin borrado en la carpeta activa; solo retención de logs/manifiestos propios
+[OK] Apply/undo con rename exclusivo y archivos propios abiertos con O_NOFOLLOW
 [OK] Sin ejecución de sudo
 [OK] Swift Package sin dependencias externas declaradas
 [OK] Self-tests ejecutables sin XCTest ni Xcode completo

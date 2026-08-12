@@ -6,7 +6,7 @@ Gates obligatorios:
 
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
-3. Self-tests propios, con total superior a 40.
+3. Self-tests propios: 61 en la revisión de hardening, sin reducir las 52 regresiones anteriores.
 4. Veinte repeticiones de las carreras de estabilidad.
 5. Selector AppKit real abierto y cancelado automáticamente por un seam de prueba, con checksum de configuración invariable.
 6. Integración CLI temporal: dry-run, apply, colisiones, undo, carpeta activa y `source_unavailable`.
@@ -15,5 +15,7 @@ Gates obligatorios:
 9. Auditoría estática de red, dependencias, XCTest, `sudo`, borrado y stdout/stderr.
 10. Demo dry-run temporal.
 11. Distribución extraída y revalidada desde cero.
+12. Regresiones de rename exclusivo, colisión tardía, sustitución de categoría por symlink, lock/JSON sin seguimiento, timeout MIME y reutilización silenciosa del dry-run.
+13. Build adicional en modo de lenguaje Swift 6 estricto.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.

@@ -289,6 +289,7 @@ private func printFolderValidation(
     print("acceso LaunchAgent: \(launchAgentAccessStatus(for: resolved))")
 }
 
+@MainActor
 private func runFolderCommand(_ arguments: Arguments, configurationURL: URL) throws {
     guard let subcommand = arguments.values.first else {
         throw StewardError.commandFailed("Falta el subcomando de folder")
@@ -509,7 +510,13 @@ private var exitCode: Int32 = 0
         let engine = try StewardEngine(configuration: resolved)
         do {
             let recordEmptyRun = !(scheduled && resolved.config.logging.suppressScheduledNoopAudit)
-            let summary = try engine.run(mode: mode, recordEmptyRun: recordEmptyRun)
+            let summary = try engine.run(
+                mode: mode,
+                recordEmptyRun: recordEmptyRun,
+                suppressUnchangedDryRunPlans: scheduled
+                    && mode == .dryRun
+                    && resolved.config.logging.suppressScheduledNoopAudit
+            )
             if scheduled {
                 let outcome: ScheduledRunOutcome = summary.errors == 0 ? .success : .error
                 let record = ScheduledRunRecord(
@@ -574,7 +581,9 @@ private var exitCode: Int32 = 0
         try printStatus(configurationURL: configurationURL, asJSON: arguments.contains("--json"))
 
     case "folder":
-        try runFolderCommand(arguments, configurationURL: configurationURL)
+        try MainActor.assumeIsolated {
+            try runFolderCommand(arguments, configurationURL: configurationURL)
+        }
 
     default:
         throw StewardError.commandFailed("Comando desconocido: \(arguments.command)")

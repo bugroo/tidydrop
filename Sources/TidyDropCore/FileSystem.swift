@@ -32,6 +32,7 @@ public struct POSIXMetadata: Equatable, Sendable {
     public let creationNanoseconds: Int64?
     public let deviceID: UInt64
     public let inode: UInt64
+    public let isHidden: Bool
 
     public var modificationTime: TimeInterval {
         TimeInterval(modificationSeconds) + TimeInterval(modificationNanoseconds) / 1_000_000_000
@@ -44,6 +45,8 @@ public struct POSIXMetadata: Equatable, Sendable {
 }
 
 public enum FileSystemSecurity {
+    public static let defaultJSONMaximumBytes: UInt64 = 67_108_864
+
     public static func freshPOSIXMetadata(of url: URL) throws -> POSIXMetadata {
         var information = stat()
         let result = url.path.withCString { pointer -> Int32 in
@@ -80,11 +83,13 @@ public enum FileSystemSecurity {
         let modificationNanoseconds = Int64(information.st_mtimespec.tv_nsec)
         let birthSeconds: Int64? = Int64(information.st_birthtimespec.tv_sec)
         let birthNanoseconds: Int64? = Int64(information.st_birthtimespec.tv_nsec)
+        let isHidden = information.st_flags & UInt32(UF_HIDDEN) != 0
 #else
         let modificationSeconds = Int64(information.st_mtim.tv_sec)
         let modificationNanoseconds = Int64(information.st_mtim.tv_nsec)
         let birthSeconds: Int64? = nil
         let birthNanoseconds: Int64? = nil
+        let isHidden = false
 #endif
 
         return POSIXMetadata(
@@ -95,7 +100,8 @@ public enum FileSystemSecurity {
             creationSeconds: birthSeconds,
             creationNanoseconds: birthNanoseconds,
             deviceID: UInt64(information.st_dev),
-            inode: UInt64(information.st_ino)
+            inode: UInt64(information.st_ino),
+            isHidden: isHidden
         )
     }
 
@@ -117,21 +123,59 @@ public enum FileSystemSecurity {
         } else {
             try manager.createDirectory(at: url, withIntermediateDirectories: true)
         }
-        try manager.setAttributes([.posixPermissions: NSNumber(value: Int16(0o700))], ofItemAtPath: url.path)
+        let descriptor = try openDirectoryWithoutFollowingSymlinks(url)
+        defer { close(descriptor) }
+        var information = stat()
+        guard fstat(descriptor, &information) == 0,
+              information.st_uid == geteuid() else {
+            throw StewardError.unsafePath("el directorio privado no pertenece al usuario actual: \(url.path)")
+        }
+        guard fchmod(descriptor, mode_t(S_IRWXU)) == 0 else {
+            throw StewardError.commandFailed(
+                "No se pudieron fijar permisos privados en \(url.path): \(String(cString: strerror(errno)))"
+            )
+        }
     }
 
     public static func setPrivateFilePermissions(_ url: URL) throws {
-        try FileManager.default.setAttributes(
-            [.posixPermissions: NSNumber(value: Int16(0o600))],
-            ofItemAtPath: url.path
-        )
+        let descriptor = url.path.withCString { path in
+            open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        }
+        guard descriptor >= 0 else {
+            throw StewardError.commandFailed(
+                "No se pudo abrir para fijar permisos \(url.path): \(String(cString: strerror(errno)))"
+            )
+        }
+        defer { close(descriptor) }
+        var information = stat()
+        guard fstat(descriptor, &information) == 0,
+              information.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+              information.st_uid == geteuid() else {
+            throw StewardError.unsafePath("archivo no regular o de otro usuario: \(url.path)")
+        }
+        guard fchmod(descriptor, mode_t(S_IRUSR | S_IWUSR)) == 0 else {
+            throw StewardError.commandFailed(
+                "No se pudieron fijar permisos privados en \(url.path): \(String(cString: strerror(errno)))"
+            )
+        }
     }
 
     public static func ensureRegularFileExists(_ url: URL) throws {
         try ensurePrivateDirectory(url.deletingLastPathComponent())
         if try !pathEntryExists(url) {
-            guard FileManager.default.createFile(atPath: url.path, contents: Data()) else {
-                throw StewardError.commandFailed("No se pudo crear \(url.path)")
+            let descriptor = url.path.withCString { path in
+                open(
+                    path,
+                    O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC,
+                    mode_t(S_IRUSR | S_IWUSR)
+                )
+            }
+            if descriptor >= 0 {
+                close(descriptor)
+            } else if errno != EEXIST {
+                throw StewardError.commandFailed(
+                    "No se pudo crear de forma segura \(url.path): \(String(cString: strerror(errno)))"
+                )
             }
         }
         _ = try regularFileSize(url)
@@ -172,7 +216,7 @@ public enum FileSystemSecurity {
         return metadata.size
     }
 
-    private static func pathEntryExists(_ url: URL) throws -> Bool {
+    public static func pathEntryExists(_ url: URL) throws -> Bool {
         var information = stat()
         let result = url.path.withCString { pointer -> Int32 in
 #if os(macOS)
@@ -188,12 +232,296 @@ public enum FileSystemSecurity {
         )
     }
 
+    public static func readRegularFile(
+        _ url: URL,
+        maximumBytes: UInt64 = defaultJSONMaximumBytes,
+        requireCurrentUserOwner: Bool = true
+    ) throws -> Data {
+        guard maximumBytes > 0, maximumBytes < UInt64(Int.max) else {
+            throw StewardError.commandFailed("Límite de lectura no válido para \(url.path)")
+        }
+
+        let descriptor = url.path.withCString { path in
+            open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        }
+        guard descriptor >= 0 else {
+            let errorNumber = errno
+            if errorNumber == ENOENT {
+                throw StewardError.sourceUnavailable(url.path)
+            }
+            throw StewardError.commandFailed(
+                "No se pudo abrir de forma segura \(url.path): \(String(cString: strerror(errorNumber)))"
+            )
+        }
+
+        var information = stat()
+        guard fstat(descriptor, &information) == 0 else {
+            let errorNumber = errno
+            close(descriptor)
+            throw StewardError.commandFailed(
+                "No se pudo inspeccionar el descriptor de \(url.path): \(String(cString: strerror(errorNumber)))"
+            )
+        }
+        guard information.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) else {
+            close(descriptor)
+            throw StewardError.unsafePath("se esperaba un archivo regular sin symlink: \(url.path)")
+        }
+        if requireCurrentUserOwner, information.st_uid != geteuid() {
+            close(descriptor)
+            throw StewardError.unsafePath("el archivo no pertenece al usuario actual: \(url.path)")
+        }
+        guard information.st_mode & mode_t(0o022) == 0 else {
+            close(descriptor)
+            throw StewardError.unsafePath("el archivo permite escritura de grupo u otros: \(url.path)")
+        }
+        guard information.st_size >= 0, UInt64(information.st_size) <= maximumBytes else {
+            close(descriptor)
+            throw StewardError.commandFailed(
+                "Archivo demasiado grande para lectura segura (máximo \(maximumBytes) bytes): \(url.path)"
+            )
+        }
+
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        let data: Data
+        do {
+            data = try handle.read(upToCount: Int(maximumBytes) + 1) ?? Data()
+            try handle.close()
+        } catch {
+            try? handle.close()
+            throw StewardError.commandFailed("No se pudo leer \(url.path): \(error)")
+        }
+        guard UInt64(data.count) <= maximumBytes else {
+            throw StewardError.commandFailed(
+                "El archivo creció durante la lectura y superó \(maximumBytes) bytes: \(url.path)"
+            )
+        }
+        return data
+    }
+
+    public static func atomicWritePrivate(
+        _ data: Data,
+        to url: URL,
+        maximumBytes: UInt64 = defaultJSONMaximumBytes
+    ) throws {
+        guard UInt64(data.count) <= maximumBytes else {
+            throw StewardError.commandFailed(
+                "Datos demasiado grandes para escritura segura (máximo \(maximumBytes) bytes): \(url.path)"
+            )
+        }
+        try ensurePrivateDirectory(url.deletingLastPathComponent())
+        let filename = url.lastPathComponent
+        guard isSafeDirectChildName(filename) else {
+            throw StewardError.unsafePath("nombre no válido para escritura atómica: \(url.path)")
+        }
+        if try pathEntryExists(url) {
+            _ = try readRegularFile(url, maximumBytes: maximumBytes)
+        }
+
+        let directoryDescriptor = try openDirectoryWithoutFollowingSymlinks(
+            url.deletingLastPathComponent()
+        )
+        defer { close(directoryDescriptor) }
+        let temporaryName = ".\(filename).tmp.\(UUID().uuidString)"
+        let descriptor = temporaryName.withCString { name in
+            openat(
+                directoryDescriptor,
+                name,
+                O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC,
+                mode_t(S_IRUSR | S_IWUSR)
+            )
+        }
+        guard descriptor >= 0 else {
+            throw StewardError.commandFailed(
+                "No se pudo crear el archivo temporal privado: \(String(cString: strerror(errno)))"
+            )
+        }
+
+        var writeError: Int32?
+        data.withUnsafeBytes { rawBuffer in
+            guard let base = rawBuffer.baseAddress else { return }
+            var offset = 0
+            while offset < rawBuffer.count {
+                let count = write(descriptor, base.advanced(by: offset), rawBuffer.count - offset)
+                if count < 0 {
+                    if errno == EINTR { continue }
+                    writeError = errno
+                    break
+                }
+                offset += count
+            }
+        }
+        if writeError == nil, fsync(descriptor) != 0 {
+            writeError = errno
+        }
+        close(descriptor)
+
+        if let writeError {
+            temporaryName.withCString { _ = unlinkat(directoryDescriptor, $0, 0) }
+            throw StewardError.commandFailed(
+                "No se pudo persistir el archivo temporal privado: \(String(cString: strerror(writeError)))"
+            )
+        }
+
+        let renameResult = temporaryName.withCString { temporaryPointer in
+            filename.withCString { filenamePointer in
+                renameat(directoryDescriptor, temporaryPointer, directoryDescriptor, filenamePointer)
+            }
+        }
+        guard renameResult == 0 else {
+            let errorNumber = errno
+            temporaryName.withCString { _ = unlinkat(directoryDescriptor, $0, 0) }
+            throw StewardError.commandFailed(
+                "No se pudo publicar el archivo privado: \(String(cString: strerror(errorNumber)))"
+            )
+        }
+        _ = fsync(directoryDescriptor)
+    }
+
+    public static func moveRegularFileExclusively(
+        from source: URL,
+        to destination: URL,
+        expectedSnapshot: FileSnapshot
+    ) throws {
+        let sourceParent = source.deletingLastPathComponent()
+        let destinationParent = destination.deletingLastPathComponent()
+        let sourceName = source.lastPathComponent
+        let destinationName = destination.lastPathComponent
+        guard isSafeDirectChildName(sourceName), isSafeDirectChildName(destinationName) else {
+            throw StewardError.unsafePath("nombre de archivo no válido para movimiento exclusivo")
+        }
+
+        let sourceDirectoryDescriptor = try openDirectoryWithoutFollowingSymlinks(sourceParent)
+        defer { close(sourceDirectoryDescriptor) }
+        let destinationDirectoryDescriptor = try openDirectoryWithoutFollowingSymlinks(destinationParent)
+        defer { close(destinationDirectoryDescriptor) }
+
+        var sourceDirectoryInfo = stat()
+        var destinationDirectoryInfo = stat()
+        guard fstat(sourceDirectoryDescriptor, &sourceDirectoryInfo) == 0,
+              fstat(destinationDirectoryDescriptor, &destinationDirectoryInfo) == 0 else {
+            throw StewardError.commandFailed("No se pudieron validar los directorios del movimiento")
+        }
+        guard sourceDirectoryInfo.st_dev == destinationDirectoryInfo.st_dev else {
+            throw StewardError.unsafePath("el movimiento exclusivo cruza sistemas de archivos")
+        }
+
+        var sourceInfo = stat()
+        let sourceResult = sourceName.withCString { name in
+            fstatat(sourceDirectoryDescriptor, name, &sourceInfo, AT_SYMLINK_NOFOLLOW)
+        }
+        guard sourceResult == 0 else {
+            throw StewardError.commandFailed(
+                "No se pudo validar el origen justo antes del rename: \(String(cString: strerror(errno)))"
+            )
+        }
+        guard sourceInfo.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) else {
+            throw StewardError.unsafePath("el origen dejó de ser un archivo regular")
+        }
+        guard expectedSnapshot.matchesFreshPOSIXStat(sourceInfo) else {
+            throw StewardError.commandFailed("changed_before_move")
+        }
+
+#if os(macOS)
+        let result = sourceName.withCString { sourcePointer in
+            destinationName.withCString { destinationPointer in
+                renameatx_np(
+                    sourceDirectoryDescriptor,
+                    sourcePointer,
+                    destinationDirectoryDescriptor,
+                    destinationPointer,
+                    UInt32(RENAME_EXCL)
+                )
+            }
+        }
+#else
+        // Linux validation fallback: linkat is exclusive and never overwrites.
+        // Both paths are regular files on one filesystem, so linking preserves
+        // identity; unlinking the source completes the move.
+        let result = sourceName.withCString { sourcePointer in
+            destinationName.withCString { destinationPointer in
+                let linked = linkat(
+                    sourceDirectoryDescriptor,
+                    sourcePointer,
+                    destinationDirectoryDescriptor,
+                    destinationPointer,
+                    0
+                )
+                guard linked == 0 else { return linked }
+                let unlinked = unlinkat(sourceDirectoryDescriptor, sourcePointer, 0)
+                if unlinked != 0 {
+                    _ = unlinkat(destinationDirectoryDescriptor, destinationPointer, 0)
+                }
+                return unlinked
+            }
+        }
+#endif
+        guard result == 0 else {
+            let errorNumber = errno
+            if errorNumber == EEXIST {
+                throw StewardError.commandFailed("destination_collision")
+            }
+            throw StewardError.commandFailed(
+                "El movimiento exclusivo falló: \(String(cString: strerror(errorNumber)))"
+            )
+        }
+    }
+
+    private static func openDirectoryWithoutFollowingSymlinks(_ url: URL) throws -> Int32 {
+        let descriptor = url.path.withCString { path in
+            open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        }
+        guard descriptor >= 0 else {
+            throw StewardError.unsafePath(
+                "no se pudo abrir el directorio sin seguir symlinks: \(url.path): \(String(cString: strerror(errno)))"
+            )
+        }
+        return descriptor
+    }
+
+    private static func isSafeDirectChildName(_ value: String) -> Bool {
+        !value.isEmpty && value != "." && value != ".." && !value.contains("/") && !value.contains("\0")
+    }
+
     private static func appendWithoutRotation(_ data: Data, to url: URL) throws {
-        let handle = try FileHandle(forWritingTo: url)
-        defer { try? handle.close() }
-        try handle.seekToEnd()
-        try handle.write(contentsOf: data)
-        try handle.synchronize()
+        let descriptor = url.path.withCString { path in
+            open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC)
+        }
+        guard descriptor >= 0 else {
+            throw StewardError.commandFailed(
+                "No se pudo abrir el log de forma segura: \(url.path): \(String(cString: strerror(errno)))"
+            )
+        }
+        defer { close(descriptor) }
+        var information = stat()
+        guard fstat(descriptor, &information) == 0,
+              information.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+              information.st_uid == geteuid() else {
+            throw StewardError.unsafePath("el log no es regular o no pertenece al usuario: \(url.path)")
+        }
+        var writeError: Int32?
+        data.withUnsafeBytes { rawBuffer in
+            guard let base = rawBuffer.baseAddress else { return }
+            var offset = 0
+            while offset < rawBuffer.count {
+                let count = write(descriptor, base.advanced(by: offset), rawBuffer.count - offset)
+                if count < 0 {
+                    if errno == EINTR { continue }
+                    writeError = errno
+                    break
+                }
+                offset += count
+            }
+        }
+        if let writeError {
+            throw StewardError.commandFailed(
+                "No se pudo escribir el log: \(String(cString: strerror(writeError)))"
+            )
+        }
+        guard fsync(descriptor) == 0 else {
+            throw StewardError.commandFailed(
+                "No se pudo sincronizar el log: \(String(cString: strerror(errno)))"
+            )
+        }
     }
 
     private static func rotateRegularFile(_ url: URL, retainedFiles: Int) throws {
@@ -224,11 +552,6 @@ public enum FileSystemSecurity {
             throw StewardError.commandFailed("No es un archivo regular sin symlink: \(url.path)")
         }
 
-        var freshURL = URL(fileURLWithPath: url.path)
-        freshURL.removeAllCachedResourceValues()
-        let secondaryValues = try? freshURL.resourceValues(
-            forKeys: [.documentIdentifierKey, .fileResourceIdentifierKey]
-        )
         return FileSnapshot(
             size: metadata.size,
             modificationTime: metadata.modificationTime,
@@ -237,8 +560,8 @@ public enum FileSystemSecurity {
             creationTime: metadata.creationTime,
             creationSeconds: metadata.creationSeconds,
             creationNanoseconds: metadata.creationNanoseconds,
-            documentIdentifier: secondaryValues?.documentIdentifier.map(Int64.init),
-            fileIdentifier: secondaryValues?.fileResourceIdentifier.map { String(describing: $0) },
+            documentIdentifier: nil,
+            fileIdentifier: nil,
             deviceID: metadata.deviceID,
             inode: metadata.inode
         )
@@ -250,15 +573,12 @@ public enum FileSystemSecurity {
 
     public static func itemFacts(for url: URL) throws -> ItemFacts {
         let metadata = try freshPOSIXMetadata(of: URL(fileURLWithPath: url.path))
-        var freshURL = URL(fileURLWithPath: url.path)
-        freshURL.removeAllCachedResourceValues()
-        let hidden = (try? freshURL.resourceValues(forKeys: [.isHiddenKey]).isHidden) == true
-        let snapshot = metadata.kind == .regularFile ? try freshSnapshot(of: freshURL) : nil
+        let snapshot = metadata.kind == .regularFile ? try freshSnapshot(of: url) : nil
         return ItemFacts(
             isRegularFile: metadata.kind == .regularFile,
             isDirectory: metadata.kind == .directory,
             isSymbolicLink: metadata.kind == .symbolicLink,
-            isHidden: hidden || url.lastPathComponent.hasPrefix("."),
+            isHidden: metadata.isHidden || url.lastPathComponent.hasPrefix("."),
             snapshot: snapshot
         )
     }
@@ -296,11 +616,21 @@ public final class ProcessFileLock {
 
         let mode = mode_t(S_IRUSR | S_IWUSR)
         descriptor = url.path.withCString { path in
-            open(path, O_CREAT | O_RDWR, mode)
+            open(path, O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, mode)
         }
         guard descriptor >= 0 else {
             throw StewardError.commandFailed("No se pudo abrir el lock \(url.path): \(String(cString: strerror(errno)))")
         }
+
+        var information = stat()
+        guard fstat(descriptor, &information) == 0,
+              information.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+              information.st_uid == geteuid() else {
+            close(descriptor)
+            descriptor = -1
+            throw StewardError.unsafePath("el lock no es un archivo regular propiedad del usuario: \(url.path)")
+        }
+        _ = fchmod(descriptor, mode)
 
         if flock(descriptor, LOCK_EX | LOCK_NB) != 0 {
             let errorNumber = errno
@@ -331,23 +661,30 @@ public final class ProcessFileLock {
 }
 
 public enum JSONFile {
-    public static func load<T: Decodable>(_ type: T.Type, from url: URL, default defaultValue: @autoclosure () -> T) throws -> T {
-        guard FileManager.default.fileExists(atPath: url.path) else {
+    public static func load<T: Decodable>(
+        _ type: T.Type,
+        from url: URL,
+        default defaultValue: @autoclosure () -> T,
+        maximumBytes: UInt64 = FileSystemSecurity.defaultJSONMaximumBytes
+    ) throws -> T {
+        guard try FileSystemSecurity.pathEntryExists(url) else {
             return defaultValue()
         }
-        let data = try Data(contentsOf: url)
+        let data = try FileSystemSecurity.readRegularFile(url, maximumBytes: maximumBytes)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(T.self, from: data)
     }
 
-    public static func save<T: Encodable>(_ value: T, to url: URL) throws {
-        try FileSystemSecurity.ensurePrivateDirectory(url.deletingLastPathComponent())
+    public static func save<T: Encodable>(
+        _ value: T,
+        to url: URL,
+        maximumBytes: UInt64 = FileSystemSecurity.defaultJSONMaximumBytes
+    ) throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         let data = try encoder.encode(value)
-        try data.write(to: url, options: .atomic)
-        try FileSystemSecurity.setPrivateFilePermissions(url)
+        try FileSystemSecurity.atomicWritePrivate(data, to: url, maximumBytes: maximumBytes)
     }
 }

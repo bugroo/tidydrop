@@ -66,11 +66,23 @@ tidydrop undo --apply
 
 ## Estabilidad y snapshots POSIX
 
-Las decisiones críticas usan un `lstat(2)` nuevo en cada lectura. El snapshot conserva tipo, tamaño, `st_dev`, `st_ino`, mtime con segundos y nanosegundos y, en macOS, birth time. Foundation solo aporta metadatos secundarios como estado oculto o identificadores adicionales, después de invalidar su caché.
+Las decisiones críticas usan un `lstat(2)` nuevo en cada lectura. El snapshot conserva tipo, tamaño, `st_dev`, `st_ino`, mtime con segundos y nanosegundos y, en macOS, birth time y el flag oculto. No se usan metadatos Foundation para tamaño, tiempos, identidad, tipo ni estado oculto.
 
 El motor lee el archivo durante la enumeración, antes de esperar, después de esperar y otra vez inmediatamente antes del `rename`. Los cambios producen `changed_before_probe`, `changed_during_probe` o `changed_before_move`; el archivo queda en origen y se actualiza su observación de estabilidad.
 
-Existe una ventana TOCTOU residual entre el último `lstat` y `rename`. No puede eliminarse universalmente sin coordinación o bloqueo del proceso escritor.
+Apply y undo abren los directorios sin seguir symlinks, vuelven a comprobar el origen mediante `fstatat(2)` y usan `renameatx_np(..., RENAME_EXCL)` en macOS. Esto impide sobrescribir una colisión creada en el último instante y bloquea el intercambio del directorio de categoría por un symlink. Sigue existiendo una ventana TOCTOU residual para que el proceso escritor cambie el mismo archivo entre el último snapshot y el rename; no puede eliminarse universalmente sin coordinación con ese escritor.
+
+## Carpetas importantes
+
+TidyDrop 1.0.2 mantiene **una sola carpeta activa**. No vigila simultáneamente todas estas ubicaciones:
+
+- `~/Downloads`: predeterminada y compatible.
+- `/Users/rootml`: rechazada deliberadamente por ser el home completo y abarcar datos y rutas internas.
+- `~/Documents`: seleccionable si TCC permite acceso; cambiarla vuelve a dry-run.
+- iCloud Drive: su carpeta local puede validarse, pero el acceso del LaunchAgent debe comprobarse después y los archivos no descargados (`.icloud`) se ignoran.
+- Google Drive: la raíz del proveedor puede ser de solo lectura y rechazarse; una subcarpeta local escribible puede seleccionarse. Los conflictos y la sincronización del proveedor quedan fuera del control de TidyDrop.
+
+Para ubicaciones cloud, empieza siempre en dry-run. La validación de ruta no equivale a una garantía sobre TCC, disponibilidad offline o semántica de sincronización.
 
 ## Privacidad y permisos TCC
 
@@ -86,7 +98,7 @@ No concedas Full Disk Access. No se modifica TCC automáticamente.
 
 ## LaunchAgent y logs
 
-El agente `com.local.tidydrop` ejecuta una pasada breve cada 300 segundos y al iniciar sesión. No queda un daemon propio residente. Las pasadas vacías son silenciosas y sobrescriben únicamente `last-scheduled-run.json`.
+El agente `com.local.tidydrop` ejecuta una pasada breve cada 300 segundos y al iniciar sesión. No queda un daemon propio residente. Las pasadas vacías son silenciosas. Un plan dry-run ya auditado se conserva en una caché privada: mientras su snapshot y configuración no cambien, se omiten la sonda de 750 ms y nuevas líneas de log. `last-scheduled-run.json` se reemplaza para mantener el último estado verificable.
 
 ```text
 ~/Library/Logs/TidyDrop/steward.log
@@ -94,6 +106,7 @@ El agente `com.local.tidydrop` ejecuta una pasada breve cada 300 segundos y al i
 ~/Library/Logs/TidyDrop/agent-errors.log
 ~/Library/Application Support/TidyDrop/state/last-scheduled-run.json
 ~/Library/Application Support/TidyDrop/state/stability.json
+~/Library/Application Support/TidyDrop/state/scheduled-dry-run-cache.json
 ~/Library/Application Support/TidyDrop/state/transactions/
 ```
 
@@ -101,7 +114,7 @@ Cada familia de logs conserva el archivo actual y tres copias rotadas, con 5 MiB
 
 ## Clasificación y protección
 
-La clasificación usa primero extensiones —incluidas compuestas—, después patrones de nombre y finalmente MIME mediante `/usr/bin/file`. Ignora directorios, paquetes `.app`, symlinks, ocultos y formatos incompletos como `.crdownload`, `.part`, `.download` y `.aria2`. No sobrescribe: crea sufijos numerados y exige el mismo filesystem para usar `rename`.
+La clasificación usa primero extensiones —incluidas compuestas—, después patrones de nombre y finalmente MIME mediante `/usr/bin/file`. La sonda MIME no sigue symlinks y tiene un timeout de dos segundos. Ignora directorios, paquetes `.app`, symlinks, ocultos y formatos incompletos como `.crdownload`, `.part`, `.download` y `.aria2`. No sobrescribe: crea sufijos numerados, exige el mismo filesystem y publica el rename con exclusión.
 
 ## Configuración
 
@@ -109,7 +122,7 @@ La clasificación usa primero extensiones —incluidas compuestas—, después p
 ~/Library/Application Support/TidyDrop/config.json
 ```
 
-La configuración se guarda atómicamente con permisos `0600`. Estado y logs usan directorios `0700`. `require_destination_inside_source` debe permanecer en `true`.
+La configuración y el estado se leen con tamaño acotado y sin seguir symlinks, y se guardan mediante archivo temporal `0600`, `fsync` y rename atómico. Estado y logs usan directorios `0700`. `require_destination_inside_source` debe permanecer en `true`.
 
 ## Desinstalación
 
@@ -151,4 +164,6 @@ La suite es un ejecutable Swift/Foundation independiente y no importa XCTest.
 - Firma ad hoc: una actualización puede originar una nueva solicitud TCC.
 - Una sola carpeta activa en 1.0.2.
 - Los volúmenes desmontados producen `source_unavailable` hasta reaparecer.
-- La ventana TOCTOU final se reduce con snapshots POSIX frescos, pero no desaparece completamente.
+- Las carpetas cloud dependen de archivos disponibles localmente, permisos TCC y semántica del proveedor.
+- El polling de `launchd` sigue despertando una pasada cada 300 segundos; la caché reduce el trabajo, pero la arquitectura FSEvents pertenece a la futura aplicación nativa.
+- La ventana TOCTOU del escritor se reduce con snapshots y rename exclusivo, pero no desaparece completamente.

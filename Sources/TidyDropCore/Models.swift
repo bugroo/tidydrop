@@ -1,4 +1,9 @@
 import Foundation
+#if os(macOS)
+import Darwin
+#else
+import Glibc
+#endif
 
 public enum StewardError: Error, CustomStringConvertible {
     case invalidConfiguration(String)
@@ -309,6 +314,7 @@ public struct ResolvedPaths: Equatable, Sendable {
     public let auditLogFile: URL
     public let agentErrorLogFile: URL
     public let scheduledStatusFile: URL
+    public let scheduledDryRunCacheFile: URL
 
     public init(
         sourceDirectory: URL,
@@ -327,6 +333,7 @@ public struct ResolvedPaths: Equatable, Sendable {
         self.auditLogFile = logDirectory.appendingPathComponent("audit.jsonl")
         self.agentErrorLogFile = logDirectory.appendingPathComponent("agent-errors.log")
         self.scheduledStatusFile = stateDirectory.appendingPathComponent("last-scheduled-run.json")
+        self.scheduledDryRunCacheFile = stateDirectory.appendingPathComponent("scheduled-dry-run-cache.json")
     }
 }
 
@@ -423,6 +430,26 @@ public struct FileSnapshot: Codable, Equatable, Sendable {
         // identity keys. It remains deliberately conservative because size and
         // modification time must still be unchanged.
         return true
+    }
+
+    public func matchesFreshPOSIXStat(_ information: stat) -> Bool {
+#if os(macOS)
+        let seconds = Int64(information.st_mtimespec.tv_sec)
+        let nanoseconds = Int64(information.st_mtimespec.tv_nsec)
+#else
+        let seconds = Int64(information.st_mtim.tv_sec)
+        let nanoseconds = Int64(information.st_mtim.tv_nsec)
+#endif
+        guard information.st_size >= 0,
+              size == UInt64(information.st_size),
+              deviceID == UInt64(information.st_dev),
+              inode == UInt64(information.st_ino) else {
+            return false
+        }
+        if let modificationSeconds, let modificationNanoseconds {
+            return modificationSeconds == seconds && modificationNanoseconds == nanoseconds
+        }
+        return modificationTime == TimeInterval(seconds) + TimeInterval(nanoseconds) / 1_000_000_000
     }
 
     private func modificationMatches(_ other: FileSnapshot) -> Bool {

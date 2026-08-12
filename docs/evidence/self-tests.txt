@@ -51,4 +51,13 @@ PASS  testFolderResetDownloadsUsesIsolatedHomeAndReturnsToDryRun
 PASS  testDangerousActiveFolderRootsAreRejected
 PASS  testActiveFolderRejectsRootSymlinkAndTraversal
 PASS  testUnavailableSourceFailsSafely
-Resultado: 52 PASS, 0 SKIP, 0 FAIL; total=52
+PASS  testExclusiveMoveNeverOverwritesLateCollision
+PASS  testEngineNeverOverwritesCollisionCreatedAtRename
+PASS  testExclusiveMoveRejectsCategoryReplacedBySymlink
+PASS  testLockRejectsSymbolicLink
+PASS  testJSONReaderRejectsSymbolicLinkAndOversizedInput
+PASS  testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth
+PASS  testMIMEDetectorTimesOutBoundedHelper
+PASS  testConfigurationBoundsRuleCountsAndLengths
+PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
+Resultado: 61 PASS, 0 SKIP, 0 FAIL; total=61

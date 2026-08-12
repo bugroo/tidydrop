@@ -52,6 +52,10 @@ capture "$EVIDENCE_DIR/demo-dry-run.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRI
 capture "$EVIDENCE_DIR/release-build.txt" swift build -c release -Xswiftc -warnings-as-errors
 capture "$EVIDENCE_DIR/static-audit.txt" "$SCRIPT_DIR/audit-project.sh"
 capture "$EVIDENCE_DIR/package-description.txt" swift package describe
+capture "$EVIDENCE_DIR/swift6-build.txt" swift build -c debug \
+    -Xswiftc -warnings-as-errors \
+    -Xswiftc -swift-version \
+    -Xswiftc 6
 
 "$DEBUG_BINARY" print-default-config >"$EVIDENCE_DIR/generated-default-config.json"
 if /usr/bin/cmp -s "$PROJECT_ROOT/config/config.example.json" "$EVIDENCE_DIR/generated-default-config.json"; then

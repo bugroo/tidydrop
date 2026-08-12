@@ -11,6 +11,11 @@
 - Estado seguro `source_unavailable` para volúmenes ausentes.
 - Claves TCC para carpetas personales, volúmenes extraíbles y de red.
 - Regresiones ampliadas y repetición de carreras.
+- Auditoría de hardening: apply/undo con rename exclusivo anclado a descriptores.
+- Lock, logs y JSON protegidos con `O_NOFOLLOW`, propiedad/permisos y escrituras atómicas privadas.
+- Lecturas JSON, reglas y sonda MIME acotadas contra consumo accidental de recursos.
+- Caché privada de planes dry-run: planes sin cambios ya no repiten la sonda ni hacen crecer logs.
+- Gate adicional compatible con el modo de lenguaje Swift 6 estricto.
 
 ## Origen 1.0.1
 

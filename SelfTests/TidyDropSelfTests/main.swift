@@ -12,7 +12,8 @@ private struct XCTSkip: Error, CustomStringConvertible {
 }
 
 private enum TestRuntime {
-    static var failures: [String] = []
+    // The custom harness executes tests serially on the process main thread.
+    nonisolated(unsafe) static var failures: [String] = []
 
     static func reset() {
         failures.removeAll(keepingCapacity: true)
@@ -171,16 +172,19 @@ private struct StubMIMETypeDetector: MIMETypeDetecting {
     func mimeType(for url: URL) -> String? { value }
 }
 
-private final class RenameThenThrowFileManager: FileManager, @unchecked Sendable {
+private final class RenameThenThrowMover {
     private var throwsRemaining: Int
 
     init(throws: Int = 1) {
         self.throwsRemaining = `throws`
-        super.init()
     }
 
-    override func moveItem(at srcURL: URL, to dstURL: URL) throws {
-        try super.moveItem(at: srcURL, to: dstURL)
+    func move(from source: URL, to destination: URL, snapshot: FileSnapshot) throws {
+        try FileSystemSecurity.moveRegularFileExclusively(
+            from: source,
+            to: destination,
+            expectedSnapshot: snapshot
+        )
         if throwsRemaining > 0 {
             throwsRemaining -= 1
             throw NSError(
@@ -677,7 +681,7 @@ private final class TidyDropCoreTests {
         let faultingEngine = try StewardEngine(
             configuration: resolved,
             mimeDetector: NullMIMETypeDetector(),
-            fileManager: RenameThenThrowFileManager()
+            moveOperation: RenameThenThrowMover().move
         )
 
         let firstRun = try faultingEngine.run(mode: .apply)
@@ -721,7 +725,7 @@ private final class TidyDropCoreTests {
         let faultingEngine = try StewardEngine(
             configuration: resolved,
             mimeDetector: NullMIMETypeDetector(),
-            fileManager: RenameThenThrowFileManager()
+            moveOperation: RenameThenThrowMover().move
         )
         let firstUndo = try faultingEngine.undoLatest(mode: .apply)
         let destination = workspace.source.appendingPathComponent("Documentos/undo-rename-then-error.pdf")
@@ -1270,6 +1274,231 @@ private final class TidyDropCoreTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: missing.path))
     }
 
+    func testExclusiveMoveNeverOverwritesLateCollision() throws {
+        let workspace = try TemporaryWorkspace()
+        let source = try workspace.createFile("exclusive-source.txt", contents: "source")
+        let destination = workspace.source.appendingPathComponent("exclusive-destination.txt")
+        try Data("destination".utf8).write(to: destination)
+        let snapshot = try FileSystemSecurity.freshSnapshot(of: source)
+
+        XCTAssertThrowsError(try FileSystemSecurity.moveRegularFileExclusively(
+            from: source,
+            to: destination,
+            expectedSnapshot: snapshot
+        ))
+        XCTAssertEqual(String(decoding: try Data(contentsOf: source), as: UTF8.self), "source")
+        XCTAssertEqual(String(decoding: try Data(contentsOf: destination), as: UTF8.self), "destination")
+    }
+
+    func testEngineNeverOverwritesCollisionCreatedAtRename() throws {
+        let workspace = try TemporaryWorkspace()
+        let source = try workspace.createFile("late-collision.pdf", contents: "source")
+        let destination = workspace.source.appendingPathComponent("Documentos/late-collision.pdf")
+        let resolved = try workspace.makeConfig()
+        let engine = try StewardEngine(
+            configuration: resolved,
+            mimeDetector: NullMIMETypeDetector(),
+            moveOperation: { from, to, snapshot in
+                try Data("late destination".utf8).write(to: to)
+                try FileSystemSecurity.moveRegularFileExclusively(
+                    from: from,
+                    to: to,
+                    expectedSnapshot: snapshot
+                )
+            }
+        )
+
+        let summary = try engine.run(mode: .apply)
+
+        XCTAssertEqual(summary.moved, 0)
+        XCTAssertEqual(summary.errors, 1)
+        XCTAssertEqual(String(decoding: try Data(contentsOf: source), as: UTF8.self), "source")
+        XCTAssertEqual(String(decoding: try Data(contentsOf: destination), as: UTF8.self), "late destination")
+    }
+
+    func testExclusiveMoveRejectsCategoryReplacedBySymlink() throws {
+        let workspace = try TemporaryWorkspace()
+        let source = try workspace.createFile("category-race.pdf", contents: "source")
+        let category = workspace.source.appendingPathComponent("Documentos", isDirectory: true)
+        let outside = workspace.root.appendingPathComponent("outside", isDirectory: true)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        let resolved = try workspace.makeConfig()
+        let engine = try StewardEngine(
+            configuration: resolved,
+            mimeDetector: NullMIMETypeDetector(),
+            moveOperation: { from, to, snapshot in
+                try FileManager.default.removeItem(at: category)
+                try FileManager.default.createSymbolicLink(at: category, withDestinationURL: outside)
+                try FileSystemSecurity.moveRegularFileExclusively(
+                    from: from,
+                    to: to,
+                    expectedSnapshot: snapshot
+                )
+            }
+        )
+
+        let summary = try engine.run(mode: .apply)
+
+        XCTAssertEqual(summary.moved, 0)
+        XCTAssertEqual(summary.errors, 1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: outside.appendingPathComponent("category-race.pdf").path
+        ))
+    }
+
+    func testLockRejectsSymbolicLink() throws {
+        let workspace = try TemporaryWorkspace()
+        let target = workspace.root.appendingPathComponent("lock-target")
+        try Data("do not touch".utf8).write(to: target)
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let lock = workspace.state.appendingPathComponent("run.lock")
+        try FileManager.default.createSymbolicLink(at: lock, withDestinationURL: target)
+
+        XCTAssertThrowsError(try ProcessFileLock(url: lock))
+        XCTAssertEqual(String(decoding: try Data(contentsOf: target), as: UTF8.self), "do not touch")
+    }
+
+    func testJSONReaderRejectsSymbolicLinkAndOversizedInput() throws {
+        let workspace = try TemporaryWorkspace()
+        let target = workspace.root.appendingPathComponent("target.json")
+        try Data("{}".utf8).write(to: target)
+        let link = workspace.root.appendingPathComponent("link.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        XCTAssertThrowsError(try JSONFile.load(
+            StabilityDatabase.self,
+            from: link,
+            default: StabilityDatabase()
+        ))
+
+        let oversized = workspace.root.appendingPathComponent("oversized.json")
+        XCTAssertTrue(FileManager.default.createFile(atPath: oversized.path, contents: Data()))
+        let handle = try FileHandle(forWritingTo: oversized)
+        try handle.truncate(atOffset: 1_025)
+        try handle.close()
+        XCTAssertThrowsError(try JSONFile.load(
+            StabilityDatabase.self,
+            from: oversized,
+            default: StabilityDatabase(),
+            maximumBytes: 1_024
+        ))
+
+        let boundedSave = workspace.root.appendingPathComponent("bounded-save.json")
+        XCTAssertThrowsError(try JSONFile.save(
+            String(repeating: "x", count: 1_024),
+            to: boundedSave,
+            maximumBytes: 128
+        ))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: boundedSave.path))
+    }
+
+    func testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth() throws {
+        let workspace = try TemporaryWorkspace()
+        let file = try workspace.createFile("cached-plan.pdf", contents: "stable")
+        let resolved = try workspace.makeConfig(probeDelayMilliseconds: 1)
+        var probeCount = 0
+        let firstEngine = try StewardEngine(
+            configuration: resolved,
+            mimeDetector: NullMIMETypeDetector(),
+            sleepProvider: { _ in probeCount += 1 }
+        )
+        let first = try firstEngine.run(
+            mode: .dryRun,
+            recordEmptyRun: false,
+            suppressUnchangedDryRunPlans: true
+        )
+        XCTAssertEqual(first.planned, 1)
+        XCTAssertEqual(probeCount, 1)
+        let firstHumanSize = try FileSystemSecurity.regularFileSize(resolved.paths.humanLogFile)
+        let firstAuditSize = try FileSystemSecurity.regularFileSize(resolved.paths.auditLogFile)
+        let firstStability = try FileSystemSecurity.readRegularFile(resolved.paths.stabilityStateFile)
+        let firstCache = try FileSystemSecurity.readRegularFile(resolved.paths.scheduledDryRunCacheFile)
+
+        let secondEngine = try StewardEngine(
+            configuration: resolved,
+            mimeDetector: NullMIMETypeDetector(),
+            sleepProvider: { _ in probeCount += 1 }
+        )
+        let second = try secondEngine.run(
+            mode: .dryRun,
+            recordEmptyRun: false,
+            suppressUnchangedDryRunPlans: true
+        )
+        XCTAssertEqual(second.planned, 1)
+        XCTAssertEqual(probeCount, 1)
+        XCTAssertEqual(try FileSystemSecurity.regularFileSize(resolved.paths.humanLogFile), firstHumanSize)
+        XCTAssertEqual(try FileSystemSecurity.regularFileSize(resolved.paths.auditLogFile), firstAuditSize)
+        XCTAssertEqual(try FileSystemSecurity.readRegularFile(resolved.paths.stabilityStateFile), firstStability)
+        XCTAssertEqual(try FileSystemSecurity.readRegularFile(resolved.paths.scheduledDryRunCacheFile), firstCache)
+
+        try Data("changed".utf8).write(to: file)
+        let thirdEngine = try StewardEngine(
+            configuration: resolved,
+            mimeDetector: NullMIMETypeDetector(),
+            sleepProvider: { _ in probeCount += 1 }
+        )
+        let third = try thirdEngine.run(
+            mode: .dryRun,
+            recordEmptyRun: false,
+            suppressUnchangedDryRunPlans: true
+        )
+        XCTAssertEqual(third.planned, 1)
+        XCTAssertEqual(probeCount, 2)
+        XCTAssertTrue(try FileSystemSecurity.regularFileSize(resolved.paths.auditLogFile) > firstAuditSize)
+    }
+
+    func testMIMEDetectorTimesOutBoundedHelper() throws {
+        let workspace = try TemporaryWorkspace()
+        let helper = workspace.root.appendingPathComponent("slow-file-helper")
+        try Data("#!/bin/sh\nexec /bin/sleep 5\n".utf8).write(to: helper)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: helper.path
+        )
+        let candidate = try workspace.createFile("unknown-content")
+        let detector = SystemMIMETypeDetector(
+            executableURL: helper,
+            timeoutSeconds: 0.05
+        )
+        let started = Date()
+        let result = detector.mimeType(for: candidate)
+        let elapsed = Date().timeIntervalSince(started)
+
+        XCTAssertEqual(result, nil)
+        XCTAssertTrue(elapsed < 1.0, "el helper MIME tardó \(elapsed) segundos")
+    }
+
+    func testConfigurationBoundsRuleCountsAndLengths() throws {
+        var config = DefaultConfiguration.make()
+        config.classification.categories = (0..<129).map { CategoryRule(name: "Category\($0)") }
+        XCTAssertThrowsError(try ConfigurationIO.validate(config))
+
+        config = DefaultConfiguration.make()
+        config.classification.categories[0].namePatterns = [String(repeating: "a", count: 1_025)]
+        XCTAssertThrowsError(try ConfigurationIO.validate(config))
+
+        config = DefaultConfiguration.make()
+        config.exclusions.extensions = [String(repeating: "x", count: 65)]
+        XCTAssertThrowsError(try ConfigurationIO.validate(config))
+    }
+
+    func testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions() throws {
+        let workspace = try TemporaryWorkspace()
+        let target = workspace.root.appendingPathComponent("outside.json")
+        try Data("outside".utf8).write(to: target)
+        let link = workspace.state.appendingPathComponent("state.json")
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        XCTAssertThrowsError(try JSONFile.save(StabilityDatabase(), to: link))
+        XCTAssertEqual(String(decoding: try Data(contentsOf: target), as: UTF8.self), "outside")
+
+        try FileManager.default.removeItem(at: link)
+        try JSONFile.save(StabilityDatabase(), to: link)
+        let attributes = try FileManager.default.attributesOfItem(atPath: link.path)
+        let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(permissions, 0o600)
+    }
+
 }
 
 
@@ -1327,6 +1556,15 @@ private let tests: [(String, () throws -> Void)] = [
     ("testDangerousActiveFolderRootsAreRejected", suite.testDangerousActiveFolderRootsAreRejected),
     ("testActiveFolderRejectsRootSymlinkAndTraversal", suite.testActiveFolderRejectsRootSymlinkAndTraversal),
     ("testUnavailableSourceFailsSafely", suite.testUnavailableSourceFailsSafely),
+    ("testExclusiveMoveNeverOverwritesLateCollision", suite.testExclusiveMoveNeverOverwritesLateCollision),
+    ("testEngineNeverOverwritesCollisionCreatedAtRename", suite.testEngineNeverOverwritesCollisionCreatedAtRename),
+    ("testExclusiveMoveRejectsCategoryReplacedBySymlink", suite.testExclusiveMoveRejectsCategoryReplacedBySymlink),
+    ("testLockRejectsSymbolicLink", suite.testLockRejectsSymbolicLink),
+    ("testJSONReaderRejectsSymbolicLinkAndOversizedInput", suite.testJSONReaderRejectsSymbolicLinkAndOversizedInput),
+    ("testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth", suite.testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth),
+    ("testMIMEDetectorTimesOutBoundedHelper", suite.testMIMEDetectorTimesOutBoundedHelper),
+    ("testConfigurationBoundsRuleCountsAndLengths", suite.testConfigurationBoundsRuleCountsAndLengths),
+    ("testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions", suite.testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions),
 ]
 
 var passed = 0

@@ -1,6 +1,8 @@
 import Foundation
 
 public enum ConfigurationIO {
+    private static let maximumConfigurationBytes: UInt64 = 4_194_304
+
     public static func defaultConfigPath(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         homeDirectory
             .appendingPathComponent("Library", isDirectory: true)
@@ -10,10 +12,13 @@ public enum ConfigurationIO {
     }
 
     public static func load(from url: URL, homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) throws -> ResolvedConfiguration {
-        guard FileManager.default.fileExists(atPath: url.path) else {
+        guard try FileSystemSecurity.pathEntryExists(url) else {
             throw StewardError.configurationNotFound(url.path)
         }
-        let data = try Data(contentsOf: url)
+        let data = try FileSystemSecurity.readRegularFile(
+            url,
+            maximumBytes: maximumConfigurationBytes
+        )
         let decoder = JSONDecoder()
         let config: StewardConfig
         do {
@@ -25,13 +30,17 @@ public enum ConfigurationIO {
     }
 
     public static func save(_ config: StewardConfig, to url: URL) throws {
-        let parent = url.deletingLastPathComponent()
-        try FileSystemSecurity.ensurePrivateDirectory(parent)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         let data = try encoder.encode(config)
-        try data.write(to: url, options: .atomic)
-        try FileSystemSecurity.setPrivateFilePermissions(url)
+        guard UInt64(data.count) <= maximumConfigurationBytes else {
+            throw StewardError.invalidConfiguration("la configuración supera 4 MiB")
+        }
+        try FileSystemSecurity.atomicWritePrivate(
+            data,
+            to: url,
+            maximumBytes: maximumConfigurationBytes
+        )
     }
 
     public static func resolve(
@@ -150,9 +159,16 @@ public enum ConfigurationIO {
         guard !config.classification.categories.isEmpty else {
             throw StewardError.invalidConfiguration("debe existir al menos una categoría")
         }
+        guard config.classification.categories.count <= 128 else {
+            throw StewardError.invalidConfiguration("no puede haber más de 128 categorías")
+        }
+        guard config.classification.fallbackCategory.count <= 120 else {
+            throw StewardError.invalidConfiguration("fallback_category es demasiado largo")
+        }
 
         var categoryNames = Set<String>()
         var extensionOwners: [String: String] = [:]
+        var totalPatterns = 0
         for category in config.classification.categories {
             let name = category.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard name == category.name else {
@@ -167,10 +183,19 @@ public enum ConfigurationIO {
             guard categoryNames.insert(foldedName).inserted else {
                 throw StewardError.invalidConfiguration("categoría duplicada: \(category.name)")
             }
+            guard category.extensions.count <= 2_048,
+                  category.mimeTypes.count <= 2_048,
+                  category.mimePrefixes.count <= 2_048,
+                  category.namePatterns.count <= 256 else {
+                throw StewardError.invalidConfiguration(
+                    "demasiadas reglas en la categoría \(category.name)"
+                )
+            }
 
             for ext in category.extensions {
                 let normalizedExtension = normalizeExtension(ext)
                 guard !normalizedExtension.isEmpty,
+                      normalizedExtension.count <= 64,
                       !normalizedExtension.contains("/"),
                       !normalizedExtension.contains("\\") else {
                     throw StewardError.invalidConfiguration("extensión insegura en \(category.name): \(ext)")
@@ -183,7 +208,24 @@ public enum ConfigurationIO {
                 extensionOwners[normalizedExtension] = category.name
             }
 
+            for mime in category.mimeTypes + category.mimePrefixes {
+                guard !mime.isEmpty,
+                      mime.count <= 256,
+                      !mime.contains("\0"),
+                      mime.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+                    throw StewardError.invalidConfiguration(
+                        "tipo MIME inseguro en \(category.name)"
+                    )
+                }
+            }
+
             for pattern in category.namePatterns {
+                guard pattern.count <= 1_024 else {
+                    throw StewardError.invalidConfiguration(
+                        "regex demasiado larga en \(category.name)"
+                    )
+                }
+                totalPatterns += 1
                 do {
                     _ = try NSRegularExpression(pattern: pattern)
                 } catch {
@@ -193,6 +235,9 @@ public enum ConfigurationIO {
                 }
             }
         }
+        guard totalPatterns <= 1_024 else {
+            throw StewardError.invalidConfiguration("demasiadas regex de clasificación")
+        }
 
         guard categoryNames.contains(normalized(config.classification.fallbackCategory)) else {
             throw StewardError.invalidConfiguration(
@@ -200,7 +245,29 @@ public enum ConfigurationIO {
             )
         }
 
+        guard config.exclusions.filenames.count <= 4_096,
+              config.exclusions.extensions.count <= 4_096,
+              config.exclusions.namePatterns.count <= 1_024 else {
+            throw StewardError.invalidConfiguration("demasiadas reglas de exclusión")
+        }
+        for value in config.exclusions.filenames {
+            guard value.count <= 255, !value.contains("\0") else {
+                throw StewardError.invalidConfiguration("nombre de exclusión inseguro")
+            }
+        }
+        for value in config.exclusions.extensions {
+            let normalizedExtension = normalizeExtension(value)
+            guard !normalizedExtension.isEmpty,
+                  normalizedExtension.count <= 64,
+                  !normalizedExtension.contains("/"),
+                  !normalizedExtension.contains("\\") else {
+                throw StewardError.invalidConfiguration("extensión de exclusión insegura: \(value)")
+            }
+        }
         for pattern in config.exclusions.namePatterns {
+            guard pattern.count <= 1_024 else {
+                throw StewardError.invalidConfiguration("regex de exclusión demasiado larga")
+            }
             do {
                 _ = try NSRegularExpression(pattern: pattern)
             } catch {

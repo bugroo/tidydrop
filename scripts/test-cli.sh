@@ -81,6 +81,15 @@ SCHEDULED_STDERR="$ROOT/scheduled.stderr"
 [ -f "$STATE/last-scheduled-run.json" ]
 grep -q '"outcome"[[:space:]]*:[[:space:]]*"success"' "$STATE/last-scheduled-run.json"
 grep -q '"mode"[[:space:]]*:[[:space:]]*"dry-run"' "$STATE/last-scheduled-run.json"
+[ -f "$STATE/scheduled-dry-run-cache.json" ]
+human_before=$(/usr/bin/wc -c < "$LOGS/steward.log" | /usr/bin/tr -d ' ')
+audit_before=$(/usr/bin/wc -c < "$LOGS/audit.jsonl" | /usr/bin/tr -d ' ')
+"$BINARY" run --scheduled --config "$CONFIG" >"$SCHEDULED_STDOUT" 2>"$SCHEDULED_STDERR"
+[ ! -s "$SCHEDULED_STDOUT" ]
+[ ! -s "$SCHEDULED_STDERR" ]
+[ "$(/usr/bin/wc -c < "$LOGS/steward.log" | /usr/bin/tr -d ' ')" = "$human_before" ]
+[ "$(/usr/bin/wc -c < "$LOGS/audit.jsonl" | /usr/bin/tr -d ' ')" = "$audit_before" ]
+grep -q '"planned"[[:space:]]*:[[:space:]]*1' "$STATE/last-scheduled-run.json"
 
 "$BINARY" run --dry-run --config "$CONFIG" >/dev/null
 [ -f "$DOWNLOADS/CLI prueba.pdf" ]

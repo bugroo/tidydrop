@@ -57,6 +57,21 @@ if /usr/bin/grep -n 'removeItem' "$PROJECT_ROOT/Sources/TidyDropCore/StewardEngi
 fi
 printf '%s\n' '[OK] Sin borrado en la carpeta activa; solo retención de logs/manifiestos propios'
 
+if ! /usr/bin/grep -q 'renameatx_np' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift" \
+   || ! /usr/bin/grep -q 'RENAME_EXCL' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift"; then
+    printf '%s\n' '[FALLO] Falta el rename exclusivo de macOS.' >&2
+    exit 1
+fi
+if /usr/bin/grep -n 'moveItem' "$PROJECT_ROOT/Sources/TidyDropCore/StewardEngine.swift" >/dev/null 2>&1; then
+    printf '%s\n' '[FALLO] El motor no debe depender de moveItem para apply/undo.' >&2
+    exit 1
+fi
+if ! /usr/bin/grep -q 'O_NOFOLLOW' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift"; then
+    printf '%s\n' '[FALLO] Faltan aperturas POSIX sin seguimiento de symlinks.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Apply/undo con rename exclusivo y archivos propios abiertos con O_NOFOLLOW'
+
 if /usr/bin/grep -RInE '^[[:space:]]*sudo[[:space:]]' "$PROJECT_ROOT/scripts" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] Se detectó una ejecución de sudo.' >&2
     exit 1
