@@ -2,6 +2,8 @@
 
 TidyDrop organiza localmente el primer nivel de una carpeta elegida en subcarpetas por categoría. No sube contenido, no usa red, telemetría, servicios cloud ni dependencias externas.
 
+La evolución hacia una aplicación macOS AppKit-first con agente FSEvents está documentada en [ADR-0001](docs/adr/0001-native-macos-application-architecture.md). Es una dirección aceptada para una fase futura, no una reescritura ni un requisito de Xcode para la versión 1.0.2.
+
 ## Requisitos
 
 - macOS 13 o posterior en Apple Silicon.
