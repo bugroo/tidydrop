@@ -2,17 +2,17 @@
 set -eu
 
 if [ "$#" -ne 2 ]; then
-    printf 'Uso: %s DMG (development|distribution-pre-notary|distribution)\n' "$0" >&2
+    printf 'Uso: %s DMG (development|community|distribution-pre-notary|distribution)\n' "$0" >&2
     exit 2
 fi
 
 DMG=$1
 MODE=$2
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-case "$MODE" in development|distribution-pre-notary|distribution) ;; *) printf '%s\n' 'ERROR: modo inválido.' >&2; exit 2 ;; esac
+case "$MODE" in development|community|distribution-pre-notary|distribution) ;; *) printf '%s\n' 'ERROR: modo inválido.' >&2; exit 2 ;; esac
 [ -f "$DMG" ] && [ ! -L "$DMG" ] || { printf '%s\n' 'ERROR: DMG ausente o inseguro.' >&2; exit 1; }
 
-if [ "$MODE" != 'development' ]; then
+if [ "$MODE" = 'distribution-pre-notary' ] || [ "$MODE" = 'distribution' ]; then
     DMG_SIGNATURE=$(/usr/bin/codesign --display --verbose=4 "$DMG" 2>&1)
     printf '%s\n' "$DMG_SIGNATURE" | /usr/bin/grep -q '^Authority=Developer ID Application:' || {
         printf '%s\n' 'ERROR: el DMG no tiene firma Developer ID Application.' >&2

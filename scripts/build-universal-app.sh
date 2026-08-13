@@ -3,18 +3,39 @@ set -eu
 
 umask 077
 
-if [ "$#" -ne 2 ]; then
-    printf 'Uso: %s APP_SALIDA BUNDLE_ID\n' "$0" >&2
+if [ "$#" -lt 2 ] || [ "$#" -gt 4 ]; then
+    printf 'Uso: %s APP_SALIDA BUNDLE_ID [development|community|distribution] [BUILD_IDENTITY]\n' "$0" >&2
     exit 2
 fi
 
 OUTPUT_APP=$1
 BUNDLE_ID=$2
+CHANNEL=${3:-development}
+BUILD_IDENTITY=${4:-}
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 INFO_PLIST_SOURCE="$PROJECT_ROOT/app/Distribution-Info.plist"
 AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
 DEPLOYMENT_TARGET='13.0'
+[ -n "$BUILD_IDENTITY" ] || BUILD_IDENTITY="$(/bin/cat "$PROJECT_ROOT/VERSION")-$CHANNEL"
+
+case "$CHANNEL" in
+    development|community|distribution) ;;
+    *)
+        printf 'ERROR: canal de distribución desconocido: %s\n' "$CHANNEL" >&2
+        exit 2
+        ;;
+esac
+case "$BUILD_IDENTITY" in
+    ''|*[!A-Za-z0-9._-]*)
+        printf 'ERROR: identidad de build inválida: %s\n' "$BUILD_IDENTITY" >&2
+        exit 2
+        ;;
+esac
+[ "${#BUILD_IDENTITY}" -le 96 ] || {
+    printf '%s\n' 'ERROR: identidad de build demasiado larga.' >&2
+    exit 2
+}
 
 if [ "$(uname -s)" != 'Darwin' ]; then
     printf '%s\n' 'ERROR: el build Universal 2 requiere macOS.' >&2
@@ -126,6 +147,8 @@ printf '%s\n' '[4/5] Ensamblando bundle Universal 2...'
     "$STAGING_APP/Contents/Library/LaunchAgents"
 /bin/cp "$INFO_PLIST_SOURCE" "$STAGING_APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" "$STAGING_APP/Contents/Info.plist"
+/usr/bin/plutil -replace TidyDropDistributionChannel -string "$CHANNEL" "$STAGING_APP/Contents/Info.plist"
+/usr/bin/plutil -replace TidyDropBuildIdentity -string "$BUILD_IDENTITY" "$STAGING_APP/Contents/Info.plist"
 /bin/cp "$AGENT_PLIST_SOURCE" \
     "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
 

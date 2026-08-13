@@ -24,9 +24,15 @@ Gates obligatorios:
     AppKit y ServiceManagement.
 16. La ruta `distribution` rechaza firma ad hoc, Team ID inválido, falta de
     timestamp y ausencia de credenciales antes de cualquier publicación.
+17. La ruta `community` exige su marcador de canal, bundle ID público, firma ad
+    hoc y Hardened Runtime, y nunca se acepta como `distribution`.
+18. El workflow comunitario está fijado por SHA, no consume secretos Apple,
+    genera checksum y atestación, crea un draft, vuelve a descargarlo y publica
+    únicamente como prerelease con `latest=false`.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 
-El DMG de desarrollo verifica estructura y portabilidad, pero no sustituye los
-gates Developer ID, notarización, `stapler`, Gatekeeper, Intel real y Mac limpio.
-No se publica como Release para usuarios finales.
+El DMG de desarrollo verifica estructura y portabilidad y no se publica. El DMG
+Community Preview añade procedencia y una instalación explícitamente no
+notarizada; tampoco sustituye los gates Developer ID, `stapler`, Gatekeeper sin
+excepción, Intel real y Mac limpio exigidos para una release estable.

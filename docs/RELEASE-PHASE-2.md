@@ -32,6 +32,14 @@ Pendiente externo o de producto:
 - ejecución en Intel y prueba en un Mac limpio sin herramientas de desarrollo;
 - descarga y revalidación de una GitHub Release pública.
 
+Canal temporal aprobado:
+
+- [ADR-0004](adr/0004-community-preview-without-developer-id.md) permite una
+  Community Preview gratuita, ad hoc y claramente no notarizada;
+- no sustituye la release estable Developer ID de esta fase;
+- el pipeline exige prerelease, checksum, procedencia y revalidación de la
+  descarga antes de publicar.
+
 ## Backlog priorizado
 
 ### P2-1 · Fijar identidad pública
@@ -124,6 +132,10 @@ Criterios de aceptación:
 - el artefacto publicado se descarga y revalida desde cero.
 
 Estimación: 3 puntos. Dependencias: P2-1 a P2-4. Prioridad: alta.
+
+Estado: una Community Preview puede satisfacer la descarga temprana para
+contribuidores bajo ADR-0004. P2-5 permanece abierto para la primera release
+estable firmada y notarizada.
 
 ## Orden de ejecución
 

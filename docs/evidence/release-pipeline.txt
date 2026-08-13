@@ -15,7 +15,7 @@ Building for production...
 [17/19] Compiling TidyDrop main.swift
 [17/19] Write Objects.LinkFileList
 [18/19] Linking tidydrop
-Build complete! (37.67s)
+Build complete! (82.38s)
 [2/5] Compilando x86_64 con advertencias como errores...
 Building for production...
 [0/14] Write sources
@@ -33,7 +33,7 @@ Building for production...
 [17/19] Compiling TidyDrop main.swift
 [17/19] Write Objects.LinkFileList
 [18/19] Linking tidydrop
-Build complete! (41.86s)
+Build complete! (70.57s)
 [3/5] Ejecutando self-tests nativos antes de ensamblar...
 TidyDrop self-tests — sin XCTest
 PASS  testExtensionClassificationUsesLongestCompoundExtension
@@ -103,49 +103,98 @@ PASS  testScheduledExecutionUnavailableSourceFailsClosed
 Resultado: 64 PASS, 0 SKIP, 0 FAIL; total=64
 [4/5] Ensamblando bundle Universal 2...
 [5/5] Verificando arquitectura, versión mínima y dependencias...
-/private/tmp/TidyDropUniversal.build.UYUGMA/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropUniversal.build.UYUGMA/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
-Universal app preparada: /private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app (arm64 x86_64; app + CLI + agent)
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Resources/tidydrop: replacing existing signature
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Resources/tidydrop-agent: replacing existing signature
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: replacing existing signature
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropUniversal.build.iuqwst/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropUniversal.build.iuqwst/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+Universal app preparada: /private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app (arm64 x86_64; app + CLI + agent)
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Resources/tidydrop: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Resources/tidydrop-agent: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: satisfies its Designated Requirement
 Firma aplicada y verificada: --adhoc
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Resources/tidydrop: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Resources/tidydrop-agent: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: satisfies its Designated Requirement
+Firma aplicada y verificada: --adhoc
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDistribution.app/Contents/Resources/tidydrop: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDistribution.app/Contents/Resources/tidydrop-agent: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDistribution.app: replacing existing signature
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDistribution.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDistribution.app: satisfies its Designated Requirement
+Firma aplicada y verificada: --adhoc
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: satisfies its Designated Requirement
+TidyDrop bundle self-check: PASS
+Release verification: PASS mode=community bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: satisfies its Designated Requirement
 TidyDrop bundle self-check: PASS
 Release verification: PASS mode=development bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: satisfies its Designated Requirement
+TidyDrop bundle self-check: PASS
+Release verification: PASS mode=community bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDrop.app: satisfies its Designated Requirement
+TidyDrop bundle self-check: PASS
+Release verification: PASS mode=community bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
+/private/tmp/TidyDropDMG.verify.F6rltJ/mount/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropDMG.verify.F6rltJ/mount/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropDMG.verify.F6rltJ/mount/TidyDrop.app: valid on disk
+/private/tmp/TidyDropDMG.verify.F6rltJ/mount/TidyDrop.app: satisfies its Designated Requirement
+TidyDrop bundle self-check: PASS
+Release verification: PASS mode=community bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
+DMG verification: PASS mode=community
+DMG creado y verificado: /private/tmp/TidyDropIntegration.release.Y6JyKJ/artifacts/TidyDrop-1.1.0-community-preview-macos-universal.dmg
+/private/tmp/TidyDropDMG.verify.SyjLwR/mount/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropDMG.verify.SyjLwR/mount/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropDMG.verify.SyjLwR/mount/TidyDrop.app: valid on disk
+/private/tmp/TidyDropDMG.verify.SyjLwR/mount/TidyDrop.app: satisfies its Designated Requirement
+TidyDrop bundle self-check: PASS
+Release verification: PASS mode=community bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
+DMG verification: PASS mode=community
+TidyDrop-1.1.0-community-preview-macos-universal.dmg: OK
+Artefacto: /private/tmp/TidyDropIntegration.release.Y6JyKJ/artifacts/TidyDrop-1.1.0-community-preview-macos-universal.dmg
+Checksum: /private/tmp/TidyDropIntegration.release.Y6JyKJ/artifacts/TidyDrop-1.1.0-community-preview-macos-universal.sha256
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: satisfies its Designated Requirement
 TidyDrop bundle self-check: PASS
 Release verification: PASS mode=development bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.UhbS3Y/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: valid on disk
+/private/tmp/TidyDropIntegration.release.Y6JyKJ/TidyDropDevelopment.app: satisfies its Designated Requirement
 TidyDrop bundle self-check: PASS
 Release verification: PASS mode=development bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
-/private/tmp/TidyDropDMG.verify.3qhw1Q/mount/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropDMG.verify.3qhw1Q/mount/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
-/private/tmp/TidyDropDMG.verify.3qhw1Q/mount/TidyDrop.app: valid on disk
-/private/tmp/TidyDropDMG.verify.3qhw1Q/mount/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropDMG.verify.AW2WLi/mount/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropDMG.verify.AW2WLi/mount/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropDMG.verify.AW2WLi/mount/TidyDrop.app: valid on disk
+/private/tmp/TidyDropDMG.verify.AW2WLi/mount/TidyDrop.app: satisfies its Designated Requirement
 TidyDrop bundle self-check: PASS
 Release verification: PASS mode=development bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
 DMG verification: PASS mode=development
-DMG creado y verificado: /private/tmp/TidyDropIntegration.release.UhbS3Y/artifacts/TidyDrop-1.1.0-macos-universal-development.dmg
-/private/tmp/TidyDropDMG.verify.BMjSGA/mount/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropDMG.verify.BMjSGA/mount/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
-/private/tmp/TidyDropDMG.verify.BMjSGA/mount/TidyDrop.app: valid on disk
-/private/tmp/TidyDropDMG.verify.BMjSGA/mount/TidyDrop.app: satisfies its Designated Requirement
+DMG creado y verificado: /private/tmp/TidyDropIntegration.release.Y6JyKJ/development-artifacts/TidyDrop-1.1.0-macos-universal-development.dmg
+/private/tmp/TidyDropDMG.verify.jpuY7p/mount/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropDMG.verify.jpuY7p/mount/TidyDrop.app/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist: OK
+/private/tmp/TidyDropDMG.verify.jpuY7p/mount/TidyDrop.app: valid on disk
+/private/tmp/TidyDropDMG.verify.jpuY7p/mount/TidyDrop.app: satisfies its Designated Requirement
 TidyDrop bundle self-check: PASS
 Release verification: PASS mode=development bundle=io.github.bugroo.tidydrop archs=arm64,x86_64 components=3
 DMG verification: PASS mode=development
 TidyDrop-1.1.0-macos-universal-development.dmg: OK
-Artefacto: /private/tmp/TidyDropIntegration.release.UhbS3Y/artifacts/TidyDrop-1.1.0-macos-universal-development.dmg
-Checksum: /private/tmp/TidyDropIntegration.release.UhbS3Y/artifacts/TidyDrop-1.1.0-macos-universal-development.sha256
-Release pipeline tests: PASS (Universal 2 DMG + hardened ad hoc; distribution fail-closed)
+Artefacto: /private/tmp/TidyDropIntegration.release.Y6JyKJ/development-artifacts/TidyDrop-1.1.0-macos-universal-development.dmg
+Checksum: /private/tmp/TidyDropIntegration.release.Y6JyKJ/development-artifacts/TidyDrop-1.1.0-macos-universal-development.sha256
+Community Preview workflow: PASS (prerelease + checksum + provenance + revalidation)
+Release pipeline tests: PASS (development + Community Preview DMGs; distribution fail-closed)

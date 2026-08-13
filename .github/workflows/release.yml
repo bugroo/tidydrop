@@ -110,7 +110,7 @@ jobs:
           set -eu
           app="$TIDYDROP_RELEASE_ROOT/TidyDrop.app"
           artifacts="$TIDYDROP_RELEASE_ROOT/artifacts"
-          ./scripts/build-universal-app.sh "$app" "$TIDYDROP_RELEASE_BUNDLE_ID"
+          ./scripts/build-universal-app.sh "$app" "$TIDYDROP_RELEASE_BUNDLE_ID" distribution
           ./scripts/sign-app.sh "$app" --developer-id "$TIDYDROP_RELEASE_SIGNING_IDENTITY"
           ./scripts/notarize-app.sh "$app" --keychain-profile "$TIDYDROP_NOTARY_PROFILE"
           ./scripts/package-release.sh "$app" "$artifacts" distribution

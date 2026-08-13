@@ -44,24 +44,50 @@ needed:
 
 TidyDrop never reorganizes subfolders recursively.
 
-## Current availability
+## Download
 
-TidyDrop 1.0.2 is the current source-installed version. TidyDrop 1.1.0 is in
-release preparation with a native setup app and a bundled background agent, but
-there is not yet a Developer ID signed and notarized download for non-technical
-users. GitHub currently has no approved TidyDrop Release asset.
+TidyDrop 1.1.0 Community Preview is available as a Universal 2 DMG from
+[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.1.0-community.1).
+It contains a native setup app and a bundled background agent, so recipients do
+not need Terminal or development tools.
+
+This preview is not signed with Apple Developer ID and is not notarized by
+Apple. macOS therefore requires a one-time manual exception. The notarized
+general-public release remains a later milestone.
 
 Requirements:
 
 - macOS 13 or later. The current installed-source path has been verified on
   Apple silicon; the Universal 2 release candidate still requires a real Intel
   installation test.
-- Apple Command Line Tools.
+- Apple Command Line Tools only when building or installing from source.
 
-Full Xcode, Homebrew, Python, administrator privileges, and Full Disk Access are
-not required.
+The DMG requires neither Xcode nor Apple Command Line Tools. Full Xcode,
+Homebrew, Python, administrator privileges, and Full Disk Access are not
+required.
 
-## Install
+## Install the Community Preview
+
+1. Download the DMG and checksum from the
+   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.1.0-community.1).
+2. Open the DMG and drag `TidyDrop.app` to Applications.
+3. Try to open TidyDrop once. macOS is expected to block the first launch.
+4. Open **System Settings → Privacy & Security** and select **Open Anyway**.
+5. Open TidyDrop, register its background agent, and run the safe preview.
+6. Enable automatic organization only after the preview reports zero errors.
+
+Never disable Gatekeeper, remove quarantine attributes, grant Full Disk Access,
+or install TidyDrop through a remote `curl | sh` command.
+
+The DMG and checksum can be verified with:
+
+```sh
+shasum -a 256 -c TidyDrop-1.1.0-community-preview-macos-universal.sha256
+```
+
+## Install from source
+
+The source installation remains available for contributors and auditors:
 
 ```sh
 git clone https://github.com/bugroo/tidydrop.git
@@ -186,7 +212,8 @@ Uninstalling TidyDrop never removes organized files or category folders.
 ## Known limitations
 
 - One active folder is supported at a time.
-- The current public version is installed from source and signed locally.
+- The Community Preview is ad hoc signed and requires a manual Gatekeeper
+  exception; it is not Apple notarized.
 - A macOS or TidyDrop update may require Files & Folders permission again.
 - Cloud and removable-volume files must be available locally before they can be
   organized.

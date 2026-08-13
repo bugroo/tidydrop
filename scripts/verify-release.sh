@@ -2,7 +2,7 @@
 set -eu
 
 if [ "$#" -ne 2 ]; then
-    printf 'Uso: %s APP (development|distribution)\n' "$0" >&2
+    printf 'Uso: %s APP (development|community|distribution)\n' "$0" >&2
     exit 2
 fi
 
@@ -15,7 +15,7 @@ AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.
 INFO_PLIST="$APP/Contents/Info.plist"
 
 case "$MODE" in
-    development|distribution) ;;
+    development|community|distribution) ;;
     *) printf 'ERROR: modo desconocido: %s\n' "$MODE" >&2; exit 2 ;;
 esac
 
@@ -46,6 +46,8 @@ fi
 BUNDLE_ID=$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$INFO_PLIST")
 BUNDLE_VERSION=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")
 MINIMUM_SYSTEM=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$INFO_PLIST")
+CHANNEL=$(/usr/bin/plutil -extract TidyDropDistributionChannel raw -o - "$INFO_PLIST")
+BUILD_IDENTITY=$(/usr/bin/plutil -extract TidyDropBuildIdentity raw -o - "$INFO_PLIST")
 [ "$BUNDLE_VERSION" = "$(/bin/cat "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/VERSION")" ] || {
     printf '%s\n' 'ERROR: la versión del bundle no coincide con VERSION.' >&2
     exit 1
@@ -54,6 +56,45 @@ MINIMUM_SYSTEM=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$INFO
     printf 'ERROR: versión mínima inesperada: %s\n' "$MINIMUM_SYSTEM" >&2
     exit 1
 }
+[ "$CHANNEL" = "$MODE" ] || {
+    printf 'ERROR: canal del bundle %s; se esperaba %s.\n' "$CHANNEL" "$MODE" >&2
+    exit 1
+}
+case "$BUILD_IDENTITY" in
+    ''|*[!A-Za-z0-9._-]*)
+        printf 'ERROR: identidad de build inválida: %s\n' "$BUILD_IDENTITY" >&2
+        exit 1
+        ;;
+esac
+[ "${#BUILD_IDENTITY}" -le 96 ] || {
+    printf '%s\n' 'ERROR: identidad de build demasiado larga.' >&2
+    exit 1
+}
+
+case "$MODE" in
+    development|distribution)
+        [ "$BUILD_IDENTITY" = "$BUNDLE_VERSION-$MODE" ] || {
+            printf 'ERROR: identidad %s no corresponde al canal %s.\n' "$BUILD_IDENTITY" "$MODE" >&2
+            exit 1
+        }
+        ;;
+    community)
+        if [ "$BUILD_IDENTITY" != "$BUNDLE_VERSION-community" ]; then
+            COMMUNITY_PREFIX="v$BUNDLE_VERSION-community."
+            case "$BUILD_IDENTITY" in "$COMMUNITY_PREFIX"*) ;; *)
+                printf 'ERROR: identidad comunitaria inesperada: %s.\n' "$BUILD_IDENTITY" >&2
+                exit 1
+                ;;
+            esac
+            COMMUNITY_SEQUENCE=${BUILD_IDENTITY#"$COMMUNITY_PREFIX"}
+            case "$COMMUNITY_SEQUENCE" in ''|*[!0-9]*)
+                printf 'ERROR: secuencia comunitaria inválida: %s.\n' "$BUILD_IDENTITY" >&2
+                exit 1
+                ;;
+            esac
+        fi
+        ;;
+esac
 
 for release_binary in "$EXECUTABLE" "$CLI_EXECUTABLE" "$AGENT_EXECUTABLE"; do
     ARCHS=$(/usr/bin/lipo -archs "$release_binary")
@@ -110,6 +151,32 @@ ENTITLEMENTS=$(/usr/bin/codesign --display --entitlements - "$APP" 2>&1 || true)
 if printf '%s\n' "$ENTITLEMENTS" | /usr/bin/grep -q 'com.apple.security.get-task-allow'; then
     printf '%s\n' 'ERROR: get-task-allow no puede distribuirse.' >&2
     exit 1
+fi
+
+if [ "$MODE" = 'community' ]; then
+    [ "$BUNDLE_ID" = 'io.github.bugroo.tidydrop' ] || {
+        printf 'ERROR: bundle ID comunitario inesperado: %s.\n' "$BUNDLE_ID" >&2
+        exit 1
+    }
+    printf '%s\n' "$SIGNATURE_INFO" | /usr/bin/grep -q '^Signature=adhoc$' || {
+        printf '%s\n' 'ERROR: Community Preview requiere firma ad hoc explícita.' >&2
+        exit 1
+    }
+    if printf '%s\n' "$SIGNATURE_INFO" | /usr/bin/grep -q '^Authority='; then
+        printf '%s\n' 'ERROR: Community Preview no debe aparentar una identidad Apple.' >&2
+        exit 1
+    fi
+    for community_binary in "$CLI_EXECUTABLE" "$AGENT_EXECUTABLE"; do
+        COMMUNITY_SIGNATURE=$(/usr/bin/codesign --display --verbose=4 "$community_binary" 2>&1)
+        printf '%s\n' "$COMMUNITY_SIGNATURE" | /usr/bin/grep -q '^Signature=adhoc$' || {
+            printf 'ERROR: componente comunitario sin firma ad hoc: %s\n' "$community_binary" >&2
+            exit 1
+        }
+        if printf '%s\n' "$COMMUNITY_SIGNATURE" | /usr/bin/grep -q '^Authority='; then
+            printf 'ERROR: componente comunitario con autoridad inesperada: %s\n' "$community_binary" >&2
+            exit 1
+        fi
+    done
 fi
 
 if [ "$MODE" = 'distribution' ]; then

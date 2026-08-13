@@ -24,6 +24,10 @@
   <string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
+  <key>TidyDropDistributionChannel</key>
+  <string>development</string>
+  <key>TidyDropBuildIdentity</key>
+  <string>1.1.0-development</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSDownloadsFolderUsageDescription</key>

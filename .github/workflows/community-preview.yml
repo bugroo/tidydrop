@@ -1,0 +1,132 @@
+name: Publish Community Preview
+
+on:
+  push:
+    tags:
+      - "v*-community.*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: tidydrop-community-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  community-preview:
+    name: Community Preview DMG
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the exact tagged commit without persisted credentials
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fail closed on tag, ancestry and existing release
+        run: |
+          set -eu
+          release_tag=${GITHUB_REF#refs/tags/}
+          expected_prefix="v$(cat VERSION)-community."
+          case "$release_tag" in "$expected_prefix"[0-9]*) ;; *) exit 1 ;; esac
+          sequence=${release_tag#"$expected_prefix"}
+          case "$sequence" in ''|*[!0-9]*) exit 1 ;; esac
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
+          test -z "$(git status --porcelain)"
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists: $release_tag" >&2
+            exit 1
+          fi
+
+      - name: Validate source and Community Preview pipeline
+        run: |
+          set -eu
+          ./scripts/doctor.sh
+          swift build -c debug -Xswiftc -warnings-as-errors
+          swift build -c release -Xswiftc -warnings-as-errors
+          swift run tidydrop-self-test
+          ./scripts/test-doctor.sh
+          ./scripts/test-stability-race.sh
+          ./scripts/test-folder-chooser.sh
+          ./scripts/test-cli.sh
+          ./scripts/test-launchagent.sh
+          ./scripts/test-uninstall.sh
+          ./scripts/audit-project.sh
+          ./scripts/demo.sh
+          ./scripts/test-community-preview-workflow.sh
+          git diff --check
+
+      - name: Build, sign ad hoc and package Universal 2 app
+        run: |
+          set -eu
+          release_root=$(mktemp -d "$RUNNER_TEMP/TidyDropCommunity.XXXXXX")
+          release_tag=${GITHUB_REF#refs/tags/}
+          app="$release_root/TidyDrop.app"
+          artifacts="$release_root/artifacts"
+          ./scripts/build-universal-app.sh \
+            "$app" \
+            io.github.bugroo.tidydrop \
+            community \
+            "$release_tag"
+          ./scripts/sign-app.sh "$app" --adhoc
+          ./scripts/package-release.sh "$app" "$artifacts" community
+          echo "TIDYDROP_COMMUNITY_ROOT=$release_root" >>"$GITHUB_ENV"
+          echo "TIDYDROP_COMMUNITY_ARTIFACTS=$artifacts" >>"$GITHUB_ENV"
+          echo "TIDYDROP_VERSION=$(cat VERSION)" >>"$GITHUB_ENV"
+
+      - name: Generate GitHub build provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: |
+            ${{ env.TIDYDROP_COMMUNITY_ARTIFACTS }}/TidyDrop-${{ env.TIDYDROP_VERSION }}-community-preview-macos-universal.dmg
+            ${{ env.TIDYDROP_COMMUNITY_ARTIFACTS }}/TidyDrop-${{ env.TIDYDROP_VERSION }}-community-preview-macos-universal.sha256
+
+      - name: Create a draft prerelease
+        run: |
+          set -eu
+          release_tag=${GITHUB_REF#refs/tags/}
+          version=$(cat VERSION)
+          dmg="$TIDYDROP_COMMUNITY_ARTIFACTS/TidyDrop-$version-community-preview-macos-universal.dmg"
+          checksum="$TIDYDROP_COMMUNITY_ARTIFACTS/TidyDrop-$version-community-preview-macos-universal.sha256"
+          gh release create "$release_tag" \
+            "$dmg" \
+            "$checksum" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "TidyDrop $version Community Preview" \
+            --notes-file docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md \
+            --prerelease \
+            --draft
+
+      - name: Re-download and revalidate the draft assets
+        run: |
+          set -eu
+          release_tag=${GITHUB_REF#refs/tags/}
+          version=$(cat VERSION)
+          verify_root=$(mktemp -d "$RUNNER_TEMP/TidyDropCommunityPublished.XXXXXX")
+          gh release download "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$verify_root"
+          downloaded_dmg="$verify_root/TidyDrop-$version-community-preview-macos-universal.dmg"
+          downloaded_checksum="$verify_root/TidyDrop-$version-community-preview-macos-universal.sha256"
+          cd "$verify_root"
+          shasum -a 256 -c "$(basename "$downloaded_checksum")"
+          "$GITHUB_WORKSPACE/scripts/verify-dmg.sh" "$downloaded_dmg" community
+          gh attestation verify "$downloaded_dmg" \
+            --repo "$GITHUB_REPOSITORY"
+
+      - name: Publish only after public-asset revalidation
+        run: |
+          set -eu
+          release_tag=${GITHUB_REF#refs/tags/}
+          gh release edit "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --prerelease \
+            --latest=false

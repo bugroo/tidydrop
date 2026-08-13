@@ -46,11 +46,22 @@ antiguo reaparezca silenciosamente en el siguiente inicio de sesión.
 ## Firma y confianza
 
 La aplicación instalada actual 1.0.2 se firma ad hoc localmente. No es Developer
-ID ni está notarizada. El candidato 1.1.0 todavía no sustituye esa instalación.
-Cambiar el binario puede provocar una nueva decisión TCC. El checksum externo y
-`MANIFEST.sha256` permiten comprobar la distribución de código fuente.
+ID ni está notarizada. El canal Community Preview 1.1.0 conserva explícitamente
+esa limitación: macOS exige una excepción manual y una actualización puede
+provocar nuevas decisiones Gatekeeper o TCC. El DMG se construye desde un tag de
+`main`, se publica como prerelease y se acompaña de SHA-256 y GitHub Artifact
+Attestation. La atestación prueba procedencia del build, no seguridad ni revisión
+de Apple.
 
-La cadena de fase 1 separa explícitamente artefactos `development` de `distribution`. Esta última exige Developer ID, Hardened Runtime, timestamp seguro, Team ID, bundle ID definitivo, aceptación de notarización, ticket grapado, Gatekeeper y verificación posterior a la extracción. Ninguna credencial se almacena en el repositorio.
+Las instrucciones comunitarias no desactivan Gatekeeper, no eliminan cuarentena,
+no usan scripts remotos, no solicitan Full Disk Access y mantienen dry-run hasta
+verificar una pasada del agente con cero movimientos y errores.
+
+La cadena separa explícitamente `development`, `community` y `distribution`.
+`community` exige bundle ID público, canal marcado dentro del Info.plist, firma ad
+hoc, Hardened Runtime, Universal 2 y ausencia de una autoridad Apple simulada.
+`distribution` exige Developer ID, timestamp seguro, Team ID, notarización,
+ticket grapado y Gatekeeper. Ninguna credencial se almacena en el repositorio.
 
 El runtime continúa sin red. La única operación de red nueva pertenece al proceso de release del mantenedor: `notarytool` envía el artefacto firmado al servicio de Apple. No se ejecuta durante instalación, vigilancia, clasificación o undo.
 
