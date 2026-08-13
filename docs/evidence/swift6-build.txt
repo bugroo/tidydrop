@@ -1,18 +1,18 @@
 [0/1] Planning build
 Building for debugging...
 [0/7] Write swift-version--1AB21518FC5DEDBE.txt
-[2/17] Compiling TidyDropCore ActiveFolder.swift
-[3/17] Compiling TidyDropCore Configuration.swift
-[4/17] Compiling TidyDropCore Stability.swift
-[5/17] Compiling TidyDropCore Transactions.swift
-[6/17] Compiling TidyDropCore Audit.swift
-[7/17] Emitting module TidyDropCore
-[8/17] Compiling TidyDropCore StewardEngine.swift
-[9/17] Compiling TidyDropCore Models.swift
-[10/17] Compiling TidyDropCore Classifier.swift
-[11/17] Compiling TidyDropCore FileSystem.swift
-[12/21] Emitting module TidyDrop
-[13/21] Compiling TidyDrop main.swift
+[2/17] Compiling TidyDropCore FileSystem.swift
+[3/17] Compiling TidyDropCore Models.swift
+[4/17] Compiling TidyDropCore Transactions.swift
+[5/17] Compiling TidyDropCore Classifier.swift
+[6/17] Compiling TidyDropCore Stability.swift
+[7/17] Compiling TidyDropCore Configuration.swift
+[8/17] Compiling TidyDropCore ActiveFolder.swift
+[9/17] Emitting module TidyDropCore
+[10/17] Compiling TidyDropCore Audit.swift
+[11/17] Compiling TidyDropCore StewardEngine.swift
+[12/21] Compiling TidyDrop main.swift
+[13/21] Emitting module TidyDrop
 [13/21] Write Objects.LinkFileList
 [15/21] Emitting module TidyDropSelfTests
 [16/21] Compiling TidyDropSelfTests main.swift

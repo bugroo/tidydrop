@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 61 en la revisión de hardening, sin reducir las 52 regresiones anteriores.
+4. Self-tests propios: 62, incluidas las fronteras balanceadas de auditoría programada, sin reducir las 52 regresiones anteriores.
 5. Veinte repeticiones de las carreras de estabilidad.
 6. Selector AppKit real abierto y cancelado automáticamente por un seam de prueba, con checksum de configuración invariable.
 7. Integración CLI temporal: dry-run, apply, colisiones, undo, carpeta activa y `source_unavailable`.

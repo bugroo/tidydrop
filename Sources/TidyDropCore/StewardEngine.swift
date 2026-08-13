@@ -70,8 +70,10 @@ public final class StewardEngine {
         var retainedDryRunCachePaths = Set<String>()
         let transactionStore = try TransactionStore(directory: resolved.paths.transactionsDirectory)
         let start = nowProvider()
+        var didRecordRunStart = false
 
-        if recordEmptyRun {
+        func recordRunStartIfNeeded() throws {
+            guard !didRecordRunStart else { return }
             try logger.record(AuditEvent(
                 timestamp: start,
                 runID: runID,
@@ -80,6 +82,16 @@ public final class StewardEngine {
                 action: "run_started",
                 detail: "source=\(resolved.paths.sourceDirectory.path)"
             ))
+            didRecordRunStart = true
+        }
+
+        func recordRunEvent(_ event: AuditEvent) throws {
+            try recordRunStartIfNeeded()
+            try logger.record(event)
+        }
+
+        if recordEmptyRun {
+            try recordRunStartIfNeeded()
         }
 
         let recoveryEvents = try transactionStore.reconcileInterruptedTransactions(
@@ -87,11 +99,14 @@ public final class StewardEngine {
             now: nowProvider()
         )
         let ambiguousRecoveryCount = recoveryEvents.filter { $0.outcome == .ambiguous }.count
+        if !recoveryEvents.isEmpty {
+            try recordRunStartIfNeeded()
+        }
         try recordRecoveryEvents(recoveryEvents, logger: logger, operationRunID: runID, mode: mode.rawValue)
         if ambiguousRecoveryCount > 0 {
             summary.errors += ambiguousRecoveryCount
             if mode == .apply {
-                try logger.record(AuditEvent(
+                try recordRunEvent(AuditEvent(
                     runID: runID,
                     level: "error",
                     mode: mode.rawValue,
@@ -132,7 +147,7 @@ public final class StewardEngine {
         for item in items {
             if summary.scanned >= maximum {
                 summary.errors += 1
-                try logger.record(AuditEvent(
+                try recordRunEvent(AuditEvent(
                     runID: runID,
                     level: "error",
                     mode: mode.rawValue,
@@ -148,7 +163,7 @@ public final class StewardEngine {
                 if let reason = exclusions.exclusionReason(url: item, facts: facts) {
                     summary.skipped += 1
                     if resolved.config.logging.logSkippedFiles {
-                        try logger.record(AuditEvent(
+                        try recordRunEvent(AuditEvent(
                             runID: runID,
                             level: "info",
                             mode: mode.rawValue,
@@ -187,7 +202,7 @@ public final class StewardEngine {
                 )
                 if !evaluation.isStable {
                     summary.deferred += 1
-                    try logger.record(AuditEvent(
+                    try recordRunEvent(AuditEvent(
                         timestamp: observedAt,
                         runID: runID,
                         level: "info",
@@ -210,7 +225,7 @@ public final class StewardEngine {
                         minimumObservations: resolved.config.stability.minimumStableObservations,
                         minimumAgeSeconds: resolved.config.stability.minimumAgeSeconds
                     )
-                    try logger.record(AuditEvent(
+                    try recordRunEvent(AuditEvent(
                         runID: runID,
                         level: "info",
                         mode: mode.rawValue,
@@ -230,7 +245,7 @@ public final class StewardEngine {
                 )
             } catch {
                 summary.errors += 1
-                try logger.record(AuditEvent(
+                try recordRunEvent(AuditEvent(
                     runID: runID,
                     level: "error",
                     mode: mode.rawValue,
@@ -267,7 +282,7 @@ public final class StewardEngine {
                         minimumObservations: resolved.config.stability.minimumStableObservations,
                         minimumAgeSeconds: resolved.config.stability.minimumAgeSeconds
                     )
-                    try logger.record(AuditEvent(
+                    try recordRunEvent(AuditEvent(
                         runID: runID,
                         level: "info",
                         mode: mode.rawValue,
@@ -293,7 +308,7 @@ public final class StewardEngine {
                 )
 
                 summary.planned += 1
-                try logger.record(AuditEvent(
+                try recordRunEvent(AuditEvent(
                     runID: runID,
                     level: "info",
                     mode: mode.rawValue,
@@ -319,7 +334,7 @@ public final class StewardEngine {
                 let finalSnapshot = try FileSystemSecurity.freshSnapshot(of: candidate.url)
                 guard finalSnapshot == currentSnapshot else {
                     summary.deferred += 1
-                    try logger.record(AuditEvent(
+                    try recordRunEvent(AuditEvent(
                         runID: runID,
                         level: "info",
                         mode: mode.rawValue,
@@ -358,7 +373,7 @@ public final class StewardEngine {
                     transaction = manifest
                     try transactionStore.save(manifest)
                     summary.deferred += 1
-                    try logger.record(AuditEvent(
+                    try recordRunEvent(AuditEvent(
                         runID: runID,
                         level: "info",
                         mode: mode.rawValue,
@@ -381,7 +396,7 @@ public final class StewardEngine {
                     transaction = manifest
                     try transactionStore.save(manifest)
                     summary.deferred += 1
-                    try logger.record(AuditEvent(
+                    try recordRunEvent(AuditEvent(
                         runID: runID,
                         level: "info",
                         mode: mode.rawValue,
@@ -416,7 +431,7 @@ public final class StewardEngine {
                 try transactionStore.save(manifest)
 
                 stability.remove(path: candidate.url.path)
-                try logger.record(AuditEvent(
+                try recordRunEvent(AuditEvent(
                     runID: runID,
                     level: "info",
                     mode: mode.rawValue,
@@ -433,7 +448,7 @@ public final class StewardEngine {
                     transaction = manifest
                     try? transactionStore.save(manifest)
                 }
-                try logger.record(AuditEvent(
+                try recordRunEvent(AuditEvent(
                     runID: runID,
                     level: "error",
                     mode: mode.rawValue,
@@ -469,8 +484,8 @@ public final class StewardEngine {
             fileManager: fileManager
         )
 
-        if recordEmptyRun || logger.recordCount > 0 || summary.errors > 0 {
-            try logger.record(AuditEvent(
+        if didRecordRunStart || logger.recordCount > 0 || summary.errors > 0 {
+            try recordRunEvent(AuditEvent(
                 runID: runID,
                 level: summary.errors == 0 ? "info" : "error",
                 mode: mode.rawValue,

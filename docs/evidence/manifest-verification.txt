@@ -1,4 +1,5 @@
 .github/CODEOWNERS: OK
+.github/SECURITY.md: OK
 .github/dependabot.yml: OK
 .github/workflows/release-readiness.yml: OK
 .gitignore: OK
@@ -21,6 +22,7 @@ VERSION: OK
 app/Info.plist: OK
 config/config.example.json: OK
 docs/RELEASE-PHASE-1.md: OK
+docs/RUNTIME-AUDIT-2026-08-13.md: OK
 docs/SECURITY-AUDIT-2026-08-12.md: OK
 docs/SECURITY.md: OK
 docs/VALIDATION.md: OK
@@ -72,4 +74,4 @@ scripts/validate-project.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 74 archivos
+Manifest verificado: 76 archivos

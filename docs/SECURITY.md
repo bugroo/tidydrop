@@ -25,6 +25,8 @@ Lock, JSON y logs se abren con `O_NOFOLLOW`, se comprueban mediante descriptor y
 
 La caché de dry-run solo suprime trabajo de previsualización ya auditado. Nunca se consulta en apply y no autoriza movimientos.
 
+Una pasada programada con actividad abre y cierra siempre una unidad de auditoría balanceada (`run_started` → eventos → `run_finished`). La supresión solo elimina por completo las pasadas sin acontecimientos; nunca deja un cierre sin su inicio correspondiente.
+
 ## TCC
 
 El bundle declara las claves de Downloads, Documents, Desktop, volúmenes extraíbles y red. El acceso manual y mediante LaunchAgent se verifica por separado. No se solicita Full Disk Access, no se modifica la base TCC y seleccionar una carpeta no se presenta como garantía de acceso persistente para `launchd`.

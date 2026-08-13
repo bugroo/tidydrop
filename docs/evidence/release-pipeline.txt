@@ -9,7 +9,7 @@ Building for production...
 [9/11] Compiling TidyDrop main.swift
 [9/11] Write Objects.LinkFileList
 [10/11] Linking tidydrop
-Build complete! (34.52s)
+Build complete! (34.77s)
 [2/5] Compilando x86_64 con advertencias como errores...
 Building for production...
 [0/8] Write sources
@@ -21,7 +21,7 @@ Building for production...
 [9/11] Compiling TidyDrop main.swift
 [9/11] Write Objects.LinkFileList
 [10/11] Linking tidydrop
-Build complete! (32.96s)
+Build complete! (35.54s)
 [3/5] Ejecutando self-tests nativos antes de ensamblar...
 TidyDrop self-tests — sin XCTest
 PASS  testExtensionClassificationUsesLongestCompoundExtension
@@ -62,6 +62,7 @@ PASS  testTransactionRunIDCannotEscapeStateDirectory
 PASS  testVersion100LoggingConfigDecodesWithSafeDefaults
 PASS  testBoundedLogsRotateAndRemainLimited
 PASS  testScheduledNoopCanAvoidAuditAndStabilityWrites
+PASS  testScheduledEventfulRunWritesBalancedAuditBoundaries
 PASS  testTransactionRetentionPreservesInProgressAndNewestTerminalFiles
 PASS  testLogWriterRejectsSymbolicLinkPath
 PASS  testFreshSnapshotChangesWhenReusingSameURL
@@ -85,28 +86,28 @@ PASS  testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth
 PASS  testMIMEDetectorTimesOutBoundedHelper
 PASS  testConfigurationBoundsRuleCountsAndLengths
 PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
-Resultado: 61 PASS, 0 SKIP, 0 FAIL; total=61
+Resultado: 62 PASS, 0 SKIP, 0 FAIL; total=62
 [4/5] Ensamblando bundle Universal 2...
 [5/5] Verificando arquitectura, versión mínima y dependencias...
-/private/tmp/TidyDropUniversal.build.Q9EJIm/TidyDrop.app/Contents/Info.plist: OK
-Universal app preparada: /private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app (x86_64 arm64)
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: replacing existing signature
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropUniversal.build.z3HMoK/TidyDrop.app/Contents/Info.plist: OK
+Universal app preparada: /private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app (x86_64 arm64)
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: replacing existing signature
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: satisfies its Designated Requirement
 Firma aplicada y verificada: --adhoc
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: satisfies its Designated Requirement
 Release verification: PASS mode=development bundle=invalid.test.tidydrop archs=x86_64 arm64
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: valid on disk
-/private/tmp/TidyDropIntegration.release.fb2vJN/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: valid on disk
+/private/tmp/TidyDropIntegration.release.29J9N0/TidyDrop.app: satisfies its Designated Requirement
 Release verification: PASS mode=development bundle=invalid.test.tidydrop archs=x86_64 arm64
-/private/tmp/TidyDropRelease.extract.lOxFV0/TidyDrop.app/Contents/Info.plist: OK
-/private/tmp/TidyDropRelease.extract.lOxFV0/TidyDrop.app: valid on disk
-/private/tmp/TidyDropRelease.extract.lOxFV0/TidyDrop.app: satisfies its Designated Requirement
+/private/tmp/TidyDropRelease.extract.NEIsun/TidyDrop.app/Contents/Info.plist: OK
+/private/tmp/TidyDropRelease.extract.NEIsun/TidyDrop.app: valid on disk
+/private/tmp/TidyDropRelease.extract.NEIsun/TidyDrop.app: satisfies its Designated Requirement
 Release verification: PASS mode=development bundle=invalid.test.tidydrop archs=x86_64 arm64
 TidyDrop-1.0.2-macos-universal-development.zip: OK
-Artefacto: /private/tmp/TidyDropIntegration.release.fb2vJN/artifacts/TidyDrop-1.0.2-macos-universal-development.zip
-Checksum: /private/tmp/TidyDropIntegration.release.fb2vJN/artifacts/TidyDrop-1.0.2-macos-universal-development.sha256
+Artefacto: /private/tmp/TidyDropIntegration.release.29J9N0/artifacts/TidyDrop-1.0.2-macos-universal-development.zip
+Checksum: /private/tmp/TidyDropIntegration.release.29J9N0/artifacts/TidyDrop-1.0.2-macos-universal-development.sha256
 Release pipeline tests: PASS (Universal 2 + hardened ad hoc; distribution fail-closed)

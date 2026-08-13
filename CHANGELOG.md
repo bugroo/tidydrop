@@ -2,6 +2,9 @@
 
 ## Sin publicar — fase 1 de distribución
 
+- Public README rewritten in English around the user problem, installation, privacy, and safe operation.
+- Eventful scheduled passes now always record balanced `run_started` and `run_finished` boundaries while true no-op passes remain silent.
+- Added a sanitized overnight runtime audit with transaction, log, permission, and resource evidence.
 - Build reproducible como procedimiento para un bundle Universal 2 `arm64` + `x86_64`.
 - Gates separados para firma ad hoc de desarrollo y Developer ID de distribución.
 - Hardened Runtime, timestamp, Team ID, bundle ID, Gatekeeper y ticket de notarización verificados de forma fail-closed.

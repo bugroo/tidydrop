@@ -37,6 +37,7 @@ PASS  testTransactionRunIDCannotEscapeStateDirectory
 PASS  testVersion100LoggingConfigDecodesWithSafeDefaults
 PASS  testBoundedLogsRotateAndRemainLimited
 PASS  testScheduledNoopCanAvoidAuditAndStabilityWrites
+PASS  testScheduledEventfulRunWritesBalancedAuditBoundaries
 PASS  testTransactionRetentionPreservesInProgressAndNewestTerminalFiles
 PASS  testLogWriterRejectsSymbolicLinkPath
 PASS  testFreshSnapshotChangesWhenReusingSameURL
@@ -60,4 +61,4 @@ PASS  testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth
 PASS  testMIMEDetectorTimesOutBoundedHelper
 PASS  testConfigurationBoundsRuleCountsAndLengths
 PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
-Resultado: 61 PASS, 0 SKIP, 0 FAIL; total=61
+Resultado: 62 PASS, 0 SKIP, 0 FAIL; total=62
