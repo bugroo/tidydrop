@@ -1,7 +1,8 @@
 # Changelog
 
-## Sin publicar — fase 1 de distribución
+## Unreleased — distribution readiness and phase 2
 
+- Phase 2 started with an accepted ADR and testable backlog for a notarized DMG and native, shell-free onboarding.
 - Public README rewritten in English around the user problem, installation, privacy, and safe operation.
 - Eventful scheduled passes now always record balanced `run_started` and `run_finished` boundaries while true no-op passes remain silent.
 - Added a sanitized overnight runtime audit with transaction, log, permission, and resource evidence.
