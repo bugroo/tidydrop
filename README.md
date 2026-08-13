@@ -10,6 +10,8 @@ TidyDrop organiza localmente el primer nivel de una carpeta elegida en subcarpet
 
 Las decisiones duraderas de arquitectura, distribución, permisos y actualizaciones se conservan en el [registro de ADR](docs/adr/README.md). La aplicación macOS futura está definida en [ADR-0001](docs/adr/0001-native-macos-application-architecture.md) y la distribución firmada, las actualizaciones y la continuidad TCC en [ADR-0002](docs/adr/0002-distribution-updates-and-tcc-continuity.md).
 
+Las vulnerabilidades deben comunicarse mediante el [reporte privado de seguridad](https://github.com/bugroo/tidydrop/security/advisories/new), no en un issue público.
+
 La [fase 1 de distribución](docs/RELEASE-PHASE-1.md) ya contiene build Universal 2, gates de Hardened Runtime, notarización fail-closed y CI sin secretos. Sigue siendo preparación técnica: no existe todavía una release Developer ID/notarizada apta para entregar a un amigo.
 
 ## Requisitos

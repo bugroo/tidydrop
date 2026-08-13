@@ -127,7 +127,7 @@ TIDYDROP_RELEASE_TEAM_ID="TEAMID" \
 
 El workflow de readiness usa el runner GitHub-hosted `macos-15` y fija Xcode 16.4 mediante `DEVELOPER_DIR`. Ese runner construye ambos slices; el slice Intel todavía debe ejecutarse en un runner/host Intel real antes de distribuir. No se usa un runner propio porque un runner persistente ampliaría el impacto de código no confiable.
 
-Las attestations de GitHub no se convierten en gate actual: GitHub documenta que las attestations en repositorios privados requieren Enterprise Cloud. El checksum, la firma Developer ID, la notarización y la evidencia del workflow son los controles disponibles en el plan actual.
+El repositorio es público desde el 13 de agosto de 2026, por lo que GitHub Artifact Attestations está disponible en el plan actual. Todavía no se convierte en gate porque esta fase no publica un artefacto Developer ID/notarizado; debe añadirse al workflow que produzca la primera release real, junto con checksum, firma, notarización y evidencia de procedencia.
 
 ## Fuentes primarias vigentes consultadas
 
