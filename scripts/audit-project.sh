@@ -155,4 +155,26 @@ fi
 "$SCRIPT_DIR/test-community-preview-workflow.sh"
 printf '%s\n' '[OK] Actions fijadas; PR read-only y publicación comunitaria fail-closed'
 
+if /usr/bin/grep -RIlE \
+    --exclude-dir=.git --exclude-dir=.build --exclude-dir=.swiftpm \
+    --exclude='*.png' --exclude='*.dmg' --exclude='MANIFEST.sha256' \
+    --exclude='audit-project.sh' \
+    '/Users/[[:alnum:]_.-]+|Darwin[[:space:]]+[[:alnum:]_.-]+\.local([[:space:]]|$)' \
+    "$PROJECT_ROOT" >/dev/null 2>&1; then
+    printf '%s\n' '[FALLO] Se detectaron rutas de usuario o hostnames locales en la distribución pública.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Evidencia pública sin rutas de usuario ni hostnames locales'
+
+if /usr/bin/grep -RIlE \
+    --exclude-dir=.git --exclude-dir=.build --exclude-dir=.swiftpm \
+    --exclude='*.png' --exclude='*.dmg' --exclude='MANIFEST.sha256' \
+    --exclude='audit-project.sh' \
+    'ghp_[[:alnum:]]{20,}|github_pat_[[:alnum:]_]{20,}|AKIA[0-9A-Z]{16}|Bearer[[:space:]]+[[:alnum:]._~+/-]{20,}' \
+    "$PROJECT_ROOT" >/dev/null 2>&1; then
+    printf '%s\n' '[FALLO] Se detectó un patrón de secreto en la distribución pública.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Sin patrones comunes de secretos en la distribución pública'
+
 printf '%s\n' 'Auditoría estática: PASS'

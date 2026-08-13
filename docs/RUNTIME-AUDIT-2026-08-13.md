@@ -61,8 +61,8 @@ Resident TidyDrop process after:  none
 TidyDrop power assertions:        none
 ```
 
-The Mac was connected to AC power at 80% battery, so this session cannot measure
-an overnight battery-discharge percentage. It does show that TidyDrop was not a
+The Mac was connected to AC power, so this session cannot measure an overnight
+battery-discharge percentage. It does show that TidyDrop was not a
 resident process, held no power assertion, and returned to idle after a very
 short pass. The current five-minute interval can still cause up to 12 launches
 per hour. Apple recommends avoiding periodic polling when event notifications

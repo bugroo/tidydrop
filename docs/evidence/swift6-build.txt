@@ -2,34 +2,34 @@
 Building for debugging...
 [0/13] Write swift-version--1AB21518FC5DEDBE.txt
 [2/23] Compiling TidyDropCore StewardEngine.swift
-[3/23] Compiling TidyDropCore ActiveFolder.swift
-[4/23] Emitting module TidyDropCore
-[5/23] Compiling TidyDropCore FileSystem.swift
-[6/23] Compiling TidyDropCore Audit.swift
-[7/23] Compiling TidyDropCore Classifier.swift
-[8/23] Compiling TidyDropCore Models.swift
-[9/23] Compiling TidyDropCore Stability.swift
-[10/23] Compiling TidyDropCore Configuration.swift
-[11/23] Compiling TidyDropCore ScheduledExecution.swift
+[3/23] Compiling TidyDropCore Stability.swift
+[4/23] Compiling TidyDropCore ScheduledExecution.swift
+[5/24] Compiling TidyDropCore Classifier.swift
+[6/24] Compiling TidyDropCore FileSystem.swift
+[7/24] Compiling TidyDropCore Configuration.swift
+[8/24] Emitting module TidyDropCore
+[9/24] Compiling TidyDropCore Audit.swift
+[10/24] Compiling TidyDropCore ActiveFolder.swift
+[11/24] Compiling TidyDropCore Models.swift
 [12/24] Compiling TidyDropCore Transactions.swift
-[13/32] Emitting module TidyDropAgent
-[14/32] Compiling TidyDropAgent main.swift
+[13/32] Compiling TidyDropAgent main.swift
+[14/32] Emitting module TidyDropAgent
 [14/32] Write Objects.LinkFileList
-[16/32] Emitting module TidyDropApp
-[16/32] Linking tidydrop-agent
-[17/32] Applying tidydrop-agent
-[19/32] Emitting module TidyDrop
-[20/32] Compiling TidyDrop main.swift
-[20/32] Write Objects.LinkFileList
+[15/32] Linking tidydrop-agent
+[17/32] Emitting module TidyDrop
+[18/32] Compiling TidyDrop main.swift
+[18/32] Applying tidydrop-agent
+[19/32] Write Objects.LinkFileList
+[21/32] Emitting module TidyDropApp
 [22/32] Compiling TidyDropApp main.swift
 [22/32] Write Objects.LinkFileList
 [23/32] Linking tidydrop
 [24/32] Applying tidydrop
 [25/32] Linking TidyDropApp
 [26/32] Applying TidyDropApp
-[28/32] Compiling TidyDropSelfTests main.swift
-[29/32] Emitting module TidyDropSelfTests
+[28/32] Emitting module TidyDropSelfTests
+[29/32] Compiling TidyDropSelfTests main.swift
 [29/32] Write Objects.LinkFileList
 [30/32] Linking tidydrop-self-test
 [31/32] Applying tidydrop-self-test
-Build complete! (6.83s)
+Build complete! (8.87s)

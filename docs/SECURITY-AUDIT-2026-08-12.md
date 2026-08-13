@@ -66,7 +66,7 @@ La mejora energética medible está en el dry-run programado: para 13 planes sin
 
 - Severidad: informativa.
 - Estado: comportamiento verificado y documentado.
-- Resultado local: `~/Downloads`, `~/Documents` e iCloud Drive pasaron validación estructural; `/Users/rootml` fue rechazado; las raíces de Google Drive eran de solo lectura y fueron rechazadas, pero había subcarpetas escribibles que sí validaron.
+- Resultado local: `~/Downloads`, `~/Documents` e iCloud Drive pasaron validación estructural; la raíz completa del home fue rechazada; las raíces de Google Drive eran de solo lectura y fueron rechazadas, pero había subcarpetas escribibles que sí validaron.
 - Limitación: no se ejecutó apply cloud. TCC del LaunchAgent, archivos offline, conflictos y sincronización deben comprobarse separadamente en dry-run.
 
 ### TD-AUD-009 — Regex configurables
@@ -96,7 +96,7 @@ La mejora energética medible está en el dry-run programado: para 13 planes sin
 
 Una medición posterior sobre la instalación real confirmó dos pasadas directas de 0,09 s y 0,03 s, unos 15 MB de RSS máximo, cero swaps y cero crecimiento de `steward.log` o `audit.jsonl`. Una pasada forzada por `launchd` terminó con `success`, `dry-run`, 20 entradas escaneadas, 13 planificadas, 0 movidas y 0 errores; el proceso volvió a `not running`.
 
-La batería reportó condición `Normal`, 102 ciclos y 100 % de capacidad máxima. TidyDrop no poseía ninguna power assertion. El sistema sí tenía aserciones de Amphetamine y `caffeinate`, ajenas a TidyDrop, que pueden aumentar consumo si mantienen el Mac despierto. La salida sanitizada está en [runtime-power-audit-2026-08-12.md](evidence/runtime-power-audit-2026-08-12.md).
+La batería reportó condición `Normal`; las métricas específicas del dispositivo se omiten de la evidencia pública. TidyDrop no poseía ninguna power assertion. El sistema sí tenía aserciones ajenas a TidyDrop que pueden aumentar consumo si mantienen el Mac despierto. La salida sanitizada está en [runtime-power-audit-2026-08-12.md](evidence/runtime-power-audit-2026-08-12.md).
 
 ### Integridad del worktree publicado
 

@@ -11,14 +11,48 @@ EVIDENCE_DIR=${1:-"$PROJECT_ROOT/docs/evidence"}
 capture() {
     output=$1
     shift
-    "$@" >"$output" 2>&1
+    raw_output=$(/usr/bin/mktemp "/private/tmp/TidyDropEvidence.capture.XXXXXX")
+    capture_exit=0
+    "$@" >"$raw_output" 2>&1 || capture_exit=$?
+    sanitize_evidence_file "$raw_output"
+    /bin/mv -f "$raw_output" "$output"
     /bin/cat "$output"
+    [ "$capture_exit" -eq 0 ] || return "$capture_exit"
 }
+
+sanitize_evidence_file() {
+    evidence_file=$1
+    sanitized_file="$evidence_file.sanitized.$$"
+    /usr/bin/awk -v project_root="$PROJECT_ROOT" -v user_home="$HOME" '
+        function replace_literal(text, needle, replacement, prefix, suffix, position) {
+            if (needle == "") return text
+            while ((position = index(text, needle)) != 0) {
+                prefix = substr(text, 1, position - 1)
+                suffix = substr(text, position + length(needle))
+                text = prefix replacement suffix
+            }
+            return text
+        }
+        {
+            line = replace_literal($0, project_root, "<repository-root>")
+            line = replace_literal(line, user_home, "~")
+            print line
+        }
+    ' "$evidence_file" >"$sanitized_file"
+    /bin/mv -f "$sanitized_file" "$evidence_file"
+}
+
+for existing_evidence in "$EVIDENCE_DIR"/*.txt "$EVIDENCE_DIR"/*.md; do
+    [ -f "$existing_evidence" ] || continue
+    sanitize_evidence_file "$existing_evidence"
+done
 
 {
     printf 'validated_at_utc=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-    printf 'working_directory=%s\n' "$PROJECT_ROOT"
-    printf 'uname='; uname -a
+    printf '%s\n' 'working_directory=<repository-root>'
+    printf 'system='; uname -s
+    printf 'kernel_release='; uname -r
+    printf 'architecture='; uname -m
     if [ -r /etc/os-release ]; then
         /bin/cat /etc/os-release
     fi
@@ -29,6 +63,7 @@ capture() {
     plutil -help 2>&1 | sed -n '1,4p' || true
     printf '\nTesting runtime:\ncustom executable; XCTest not required\n'
 } >"$EVIDENCE_DIR/environment.txt"
+sanitize_evidence_file "$EVIDENCE_DIR/environment.txt"
 /bin/cat "$EVIDENCE_DIR/environment.txt"
 
 cd "$PROJECT_ROOT"
@@ -54,6 +89,7 @@ capture "$EVIDENCE_DIR/static-audit.txt" "$SCRIPT_DIR/audit-project.sh"
 capture "$EVIDENCE_DIR/release-pipeline.txt" "$SCRIPT_DIR/test-release-pipeline.sh"
 package_description=$(swift package describe)
 printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"
+sanitize_evidence_file "$EVIDENCE_DIR/package-description.txt"
 /bin/cat "$EVIDENCE_DIR/package-description.txt"
 capture "$EVIDENCE_DIR/swift6-build.txt" swift build -c debug \
     -Xswiftc -warnings-as-errors \
