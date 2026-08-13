@@ -121,7 +121,7 @@ No se usarán Electron, React Native, Flutter o Catalyst. Tampoco se añadirá u
 
 ## Privacidad del repositorio
 
-El repositorio privado contiene código fuente, documentación, ejemplos y evidencia técnica sanitizada. No debe incluir configuración instalada, logs reales, estado, nombres de archivos del usuario, bookmarks, credenciales, certificados, tokens ni contenido de la carpeta activa.
+El repositorio público contiene código fuente, documentación, ejemplos y evidencia técnica sanitizada. No debe incluir configuración instalada, logs reales, estado, nombres de archivos del usuario, bookmarks, credenciales, certificados, tokens ni contenido de la carpeta activa. GitHub Secret Scanning, Push Protection, Dependabot y el reporte privado de vulnerabilidades permanecen habilitados.
 
 ## Referencias
 

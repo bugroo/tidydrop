@@ -98,4 +98,50 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
 fi
 printf '%s\n' '[OK] LaunchAgent sin logs stdout/stderr ilimitados'
 
+if ! /usr/bin/grep -q 'notarytool submit' "$PROJECT_ROOT/scripts/notarize-app.sh" \
+   || ! /usr/bin/grep -q -- '--wait' "$PROJECT_ROOT/scripts/notarize-app.sh" \
+   || /usr/bin/grep -q -- '--force' "$PROJECT_ROOT/scripts/notarize-app.sh"; then
+    printf '%s\n' '[FALLO] La notarización debe esperar, fallar cerrada y no usar --force.' >&2
+    exit 1
+fi
+unexpected_notary=$(
+    /usr/bin/grep -RIl \
+        --exclude-dir=.git --exclude-dir=.build --exclude='MANIFEST.sha256' \
+        'notarytool submit' "$PROJECT_ROOT" 2>/dev/null \
+        | /usr/bin/grep -v '/scripts/notarize-app.sh$' \
+        | /usr/bin/grep -v '/scripts/audit-project.sh$' \
+        | /usr/bin/grep -v '/docs/' \
+        || true
+)
+if [ -n "$unexpected_notary" ]; then
+    printf '%s\n' '[FALLO] notarytool submit aparece fuera del script de release controlado.' >&2
+    printf '%s\n' "$unexpected_notary" >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Red limitada a notarización Apple durante release; runtime sin red'
+
+invalid_action_refs=$(
+    /usr/bin/grep -RhE '^[[:space:]]*uses:[[:space:]]+' "$PROJECT_ROOT/.github/workflows" 2>/dev/null \
+        | /usr/bin/awk '
+            {
+                ref=$0
+                sub(/^[[:space:]]*uses:[[:space:]]+/, "", ref)
+                sub(/[[:space:]]*#.*/, "", ref)
+                if (ref !~ /^actions\/[A-Za-z0-9_.-]+@[0-9a-f]{40}$/) print ref
+            }
+        ' \
+        || true
+)
+if [ -n "$invalid_action_refs" ]; then
+    printf '%s\n' '[FALLO] Toda GitHub Action debe ser oficial actions/* y estar fijada a SHA completo.' >&2
+    printf '%s\n' "$invalid_action_refs" >&2
+    exit 1
+fi
+if ! /usr/bin/grep -q 'contents: read' "$PROJECT_ROOT/.github/workflows/release-readiness.yml" \
+   || /usr/bin/grep -q 'pull_request_target' "$PROJECT_ROOT/.github/workflows/release-readiness.yml"; then
+    printf '%s\n' '[FALLO] El workflow de readiness no conserva privilegios mínimos.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] GitHub Actions fijadas y con token de solo lectura'
+
 printf '%s\n' 'Auditoría estática: PASS'

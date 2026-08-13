@@ -1052,6 +1052,25 @@ private final class TidyDropCoreTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: resolved.paths.stabilityStateFile.path))
     }
 
+    func testScheduledEventfulRunWritesBalancedAuditBoundaries() throws {
+        let workspace = try TemporaryWorkspace()
+        _ = try workspace.createFile("eventful.pdf", contents: "stable")
+        let resolved = try workspace.makeConfig()
+        let engine = try StewardEngine(configuration: resolved, mimeDetector: NullMIMETypeDetector())
+
+        let summary = try engine.run(mode: .dryRun, recordEmptyRun: false)
+
+        XCTAssertEqual(summary.planned, 1)
+        let auditData = try FileSystemSecurity.readRegularFile(resolved.paths.auditLogFile)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let events = try auditData.split(separator: 0x0A).map {
+            try decoder.decode(AuditEvent.self, from: Data($0))
+        }
+        XCTAssertEqual(events.map(\.action), ["run_started", "would_move", "run_finished"])
+        XCTAssertEqual(Set(events.map(\.runID)).count, 1)
+    }
+
     func testTransactionRetentionPreservesInProgressAndNewestTerminalFiles() throws {
         let workspace = try TemporaryWorkspace()
         let transactions = workspace.state.appendingPathComponent("transactions", isDirectory: true)
@@ -1542,6 +1561,7 @@ private let tests: [(String, () throws -> Void)] = [
     ("testVersion100LoggingConfigDecodesWithSafeDefaults", suite.testVersion100LoggingConfigDecodesWithSafeDefaults),
     ("testBoundedLogsRotateAndRemainLimited", suite.testBoundedLogsRotateAndRemainLimited),
     ("testScheduledNoopCanAvoidAuditAndStabilityWrites", suite.testScheduledNoopCanAvoidAuditAndStabilityWrites),
+    ("testScheduledEventfulRunWritesBalancedAuditBoundaries", suite.testScheduledEventfulRunWritesBalancedAuditBoundaries),
     ("testTransactionRetentionPreservesInProgressAndNewestTerminalFiles", suite.testTransactionRetentionPreservesInProgressAndNewestTerminalFiles),
     ("testLogWriterRejectsSymbolicLinkPath", suite.testLogWriterRejectsSymbolicLinkPath),
     ("testFreshSnapshotChangesWhenReusingSameURL", suite.testFreshSnapshotChangesWhenReusingSameURL),

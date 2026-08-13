@@ -1,5 +1,17 @@
 # Changelog
 
+## Sin publicar — fase 1 de distribución
+
+- Public README rewritten in English around the user problem, installation, privacy, and safe operation.
+- Eventful scheduled passes now always record balanced `run_started` and `run_finished` boundaries while true no-op passes remain silent.
+- Added a sanitized overnight runtime audit with transaction, log, permission, and resource evidence.
+- Build reproducible como procedimiento para un bundle Universal 2 `arm64` + `x86_64`.
+- Gates separados para firma ad hoc de desarrollo y Developer ID de distribución.
+- Hardened Runtime, timestamp, Team ID, bundle ID, Gatekeeper y ticket de notarización verificados de forma fail-closed.
+- Pipeline de notarización con `notarytool --wait` y aceptación explícita antes de grapar.
+- GitHub Actions de solo lectura, sin secretos en PR y con checkout fijado a SHA completo.
+- Empaquetado ZIP con checksum y revalidación después de extraer.
+
 ## 1.0.2 — 2026-08-12
 
 - Rebranding completo a TidyDrop, bundle `com.local.tidydrop` y CLI `tidydrop`.

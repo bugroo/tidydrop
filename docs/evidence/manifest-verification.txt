@@ -1,3 +1,7 @@
+.github/CODEOWNERS: OK
+.github/SECURITY.md: OK
+.github/dependabot.yml: OK
+.github/workflows/release-readiness.yml: OK
 .gitignore: OK
 CHANGELOG.md: OK
 LICENSE: OK
@@ -17,6 +21,8 @@ Sources/TidyDropCore/Transactions.swift: OK
 VERSION: OK
 app/Info.plist: OK
 config/config.example.json: OK
+docs/RELEASE-PHASE-1.md: OK
+docs/RUNTIME-AUDIT-2026-08-13.md: OK
 docs/SECURITY-AUDIT-2026-08-12.md: OK
 docs/SECURITY.md: OK
 docs/VALIDATION.md: OK
@@ -37,6 +43,7 @@ docs/evidence/launchagent-rendering.txt: OK
 docs/evidence/manifest-verification.txt: OK
 docs/evidence/package-description.txt: OK
 docs/evidence/release-build.txt: OK
+docs/evidence/release-pipeline.txt: OK
 docs/evidence/runtime-power-audit-2026-08-12.md: OK
 docs/evidence/self-tests.txt: OK
 docs/evidence/stability-race.txt: OK
@@ -46,14 +53,19 @@ docs/evidence/uninstall-safety.txt: OK
 docs/evidence/validation-result.txt: OK
 launchd/com.local.tidydrop.plist.example: OK
 scripts/audit-project.sh: OK
+scripts/build-universal-app.sh: OK
 scripts/demo.sh: OK
 scripts/doctor.sh: OK
 scripts/install.sh: OK
+scripts/notarize-app.sh: OK
+scripts/package-release.sh: OK
 scripts/render-launchagent.sh: OK
+scripts/sign-app.sh: OK
 scripts/test-cli.sh: OK
 scripts/test-doctor.sh: OK
 scripts/test-folder-chooser.sh: OK
 scripts/test-launchagent.sh: OK
+scripts/test-release-pipeline.sh: OK
 scripts/test-stability-race.sh: OK
 scripts/test-uninstall.sh: OK
 scripts/uninstall.sh: OK
@@ -61,4 +73,5 @@ scripts/update-manifest.sh: OK
 scripts/validate-project.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
-Manifest verificado: 63 archivos
+scripts/verify-release.sh: OK
+Manifest verificado: 76 archivos
