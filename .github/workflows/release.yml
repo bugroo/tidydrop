@@ -1,0 +1,165 @@
+name: Publish notarized release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact version tag, for example v1.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tidydrop-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Developer ID, notarization and DMG
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: release
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      TIDYDROP_RELEASE_BUNDLE_ID: io.github.bugroo.tidydrop
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
+      APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+      APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+      APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+      APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+      APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact main commit without persisted credentials
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Fail closed on version, ref or missing release credentials
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -eu
+          expected_tag="v$(cat VERSION)"
+          test "$REQUESTED_TAG" = "$expected_tag"
+          case "$REQUESTED_TAG" in v[0-9]*.[0-9]*.[0-9]*) ;; *) exit 1 ;; esac
+          test -n "$APPLE_TEAM_ID"
+          test "${#APPLE_TEAM_ID}" -eq 10
+          case "$APPLE_DEVELOPER_ID_APPLICATION" in 'Developer ID Application: '*) ;; *) exit 1 ;; esac
+          test -n "$APPLE_DEVELOPER_ID_P12_BASE64"
+          test -n "$APPLE_DEVELOPER_ID_P12_PASSWORD"
+          test -n "$APPLE_NOTARY_KEY_ID"
+          test -n "$APPLE_NOTARY_ISSUER_ID"
+          test -n "$APPLE_NOTARY_KEY_P8_BASE64"
+          test "$(git branch --show-current)" = main
+          test -z "$(git status --porcelain)"
+          if gh release view "$REQUESTED_TAG" >/dev/null 2>&1; then
+            echo "Release already exists: $REQUESTED_TAG" >&2
+            exit 1
+          fi
+
+      - name: Validate source and release pipeline
+        run: |
+          set -eu
+          ./scripts/doctor.sh
+          swift build -c debug -Xswiftc -warnings-as-errors
+          swift build -c release -Xswiftc -warnings-as-errors
+          swift run tidydrop-self-test
+          ./scripts/audit-project.sh
+          ./scripts/test-release-pipeline.sh
+          git diff --check
+
+      - name: Import ephemeral Developer ID and notary credentials
+        run: |
+          set -eu
+          release_root=$(mktemp -d "$RUNNER_TEMP/TidyDropRelease.XXXXXX")
+          release_keychain="$release_root/release.keychain-db"
+          p12_file="$release_root/developer-id.p12"
+          api_key_file="$release_root/AuthKey.p8"
+          keychain_password=$(openssl rand -hex 32)
+          printf '%s' "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode >"$p12_file"
+          printf '%s' "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode >"$api_key_file"
+          chmod 600 "$p12_file" "$api_key_file"
+          security create-keychain -p "$keychain_password" "$release_keychain"
+          security set-keychain-settings -lut 21600 "$release_keychain"
+          security unlock-keychain -p "$keychain_password" "$release_keychain"
+          security import "$p12_file" -k "$release_keychain" \
+            -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$keychain_password" "$release_keychain" >/dev/null
+          security list-keychains -d user -s "$release_keychain"
+          xcrun notarytool store-credentials tidydrop-notary \
+            --key "$api_key_file" \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --keychain "$release_keychain"
+          {
+            echo "TIDYDROP_RELEASE_ROOT=$release_root"
+            echo "TIDYDROP_RELEASE_KEYCHAIN=$release_keychain"
+            echo "TIDYDROP_NOTARY_PROFILE=tidydrop-notary"
+            echo "TIDYDROP_RELEASE_TEAM_ID=$APPLE_TEAM_ID"
+            echo "TIDYDROP_RELEASE_SIGNING_IDENTITY=$APPLE_DEVELOPER_ID_APPLICATION"
+          } >>"$GITHUB_ENV"
+
+      - name: Build, sign, notarize and verify DMG
+        run: |
+          set -eu
+          app="$TIDYDROP_RELEASE_ROOT/TidyDrop.app"
+          artifacts="$TIDYDROP_RELEASE_ROOT/artifacts"
+          ./scripts/build-universal-app.sh "$app" "$TIDYDROP_RELEASE_BUNDLE_ID"
+          ./scripts/sign-app.sh "$app" --developer-id "$TIDYDROP_RELEASE_SIGNING_IDENTITY"
+          ./scripts/notarize-app.sh "$app" --keychain-profile "$TIDYDROP_NOTARY_PROFILE"
+          ./scripts/package-release.sh "$app" "$artifacts" distribution
+          test -f "$artifacts/TidyDrop-$(cat VERSION)-macos-universal.dmg"
+          test -f "$artifacts/TidyDrop-$(cat VERSION)-macos-universal.sha256"
+
+      - name: Create draft GitHub Release with immutable assets
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -eu
+          version=$(cat VERSION)
+          artifacts="$TIDYDROP_RELEASE_ROOT/artifacts"
+          gh release create "$REQUESTED_TAG" \
+            "$artifacts/TidyDrop-$version-macos-universal.dmg" \
+            "$artifacts/TidyDrop-$version-macos-universal.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "TidyDrop $version" \
+            --generate-notes \
+            --draft
+
+      - name: Re-download and revalidate published DMG
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -eu
+          verify_root=$(mktemp -d "$RUNNER_TEMP/TidyDropPublished.XXXXXX")
+          gh release download "$REQUESTED_TAG" --repo "$GITHUB_REPOSITORY" --dir "$verify_root"
+          cd "$verify_root"
+          shasum -a 256 -c "TidyDrop-$(cat "$GITHUB_WORKSPACE/VERSION")-macos-universal.sha256"
+          "$GITHUB_WORKSPACE/scripts/verify-dmg.sh" \
+            "$verify_root/TidyDrop-$(cat "$GITHUB_WORKSPACE/VERSION")-macos-universal.dmg" \
+            distribution
+
+      - name: Publish only after revalidation
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -eu
+          gh release edit "$REQUESTED_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest
+
+      - name: Remove ephemeral signing material
+        if: always() && env.TIDYDROP_RELEASE_ROOT != ''
+        run: |
+          set -eu
+          case "$TIDYDROP_RELEASE_ROOT" in "$RUNNER_TEMP"/TidyDropRelease.*) ;; *) exit 1 ;; esac
+          security delete-keychain "$TIDYDROP_RELEASE_KEYCHAIN" >/dev/null 2>&1 || true
+          rm -rf "$TIDYDROP_RELEASE_ROOT"

@@ -1,6 +1,6 @@
 # ADR-0002: Distribución, actualizaciones y continuidad de TCC
 
-- Estado: Aceptado; fase 1 en implementación
+- Estado: Aceptado; readiness de fase 1 implementada, gates externos pendientes
 - Fecha: 2026-08-12
 - Decisores: propietario del proyecto y Codex
 - Alcance: primera distribución instalable para terceros y sus actualizaciones
@@ -19,7 +19,7 @@ macOS protege Downloads, Documents, Desktop, volúmenes de red y volúmenes extr
 La primera versión compartible sin herramientas de desarrollo se distribuirá directamente, no mediante compilación en el Mac del usuario:
 
 - aplicación precompilada Universal 2 (`arm64` y `x86_64`);
-- identificador reverse-DNS estable bajo un dominio controlado por el desarrollador, fijado antes de la primera release pública;
+- identificador reverse-DNS estable `io.github.bugroo.tidydrop`, bajo el namespace GitHub controlado por el desarrollador;
 - firma `Developer ID Application` con el mismo Team ID para app, agente y componentes;
 - Hardened Runtime y entitlements mínimos;
 - notarización de Apple y ticket grapado al artefacto;
@@ -106,7 +106,7 @@ La fase 1 añade una cadena local y CI fail-closed para:
 - extraer y volver a verificar el ZIP final y su SHA-256;
 - ejecutar los gates de PR sin secretos, sin permisos de escritura y con acciones fijadas por SHA.
 
-La implementación no resuelve aún los gates externos: bundle ID definitivo, identidad Developer ID, notarización real, ejecución en Intel, instalación en un Mac limpio y pruebas de continuidad TCC. El estado detallado y los comandos están en [Fase 1 de distribución](../RELEASE-PHASE-1.md).
+La implementación no resuelve aún los gates externos: Team ID e identidad Developer ID, notarización real, ejecución en Intel, instalación en un Mac limpio y pruebas de continuidad TCC. El bundle ID definitivo queda fijado en `io.github.bugroo.tidydrop`. Ese trabajo continúa en [Fase 2: instalación nativa](../RELEASE-PHASE-2.md), bajo [ADR-0003](0003-end-user-installation-experience.md). El detalle de la cadena ya preparada permanece en [Fase 1 de distribución](../RELEASE-PHASE-1.md).
 
 ## Alternativas descartadas
 

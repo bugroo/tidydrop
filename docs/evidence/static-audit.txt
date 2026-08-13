@@ -1,6 +1,8 @@
 TidyDrop — auditoría estática local
 [OK] Sintaxis POSIX sh
 /Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/Info.plist: OK
+/Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/Distribution-Info.plist: OK
+/Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/io.github.bugroo.tidydrop.agent.plist: OK
 /Users/rootml/TidyDrop-1.0.2-work/tidydrop/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
 [OK] Sin APIs de red detectadas en Sources

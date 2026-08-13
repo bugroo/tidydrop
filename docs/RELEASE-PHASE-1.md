@@ -4,6 +4,10 @@
 
 Esta fase prepara una cadena verificable para construir TidyDrop como aplicación Universal 2, firmarla con Hardened Runtime, enviarla a notarización y empaquetarla sin exigir herramientas de desarrollo al receptor.
 
+Estado al 13 de agosto de 2026: la implementación de readiness y sus gates de CI
+están completos. La emisión real de una release Developer ID/notarizada continúa
+en [Fase 2: instalación nativa para usuarios finales](RELEASE-PHASE-2.md).
+
 No convierte por sí sola el build ad hoc actual en una release pública. La distribución real permanece bloqueada hasta disponer de:
 
 - un bundle ID definitivo bajo un dominio controlado;

@@ -1518,6 +1518,51 @@ private final class TidyDropCoreTests {
         XCTAssertEqual(permissions, 0o600)
     }
 
+    func testScheduledExecutionWritesDryRunSuccessRecord() throws {
+        let workspace = try TemporaryWorkspace()
+        let configURL = workspace.root.appendingPathComponent("config.json")
+        let resolved = try workspace.makeConfig()
+        try ConfigurationIO.save(resolved.config, to: configURL)
+
+        let exitCode = ScheduledExecution.run(configurationURL: configURL)
+        let record = try JSONFile.load(
+            ScheduledRunRecord.self,
+            from: resolved.paths.scheduledStatusFile,
+            default: ScheduledRunRecord(outcome: .error, runID: "missing")
+        )
+
+        XCTAssertEqual(exitCode, 0)
+        XCTAssertEqual(record.outcome, .success)
+        XCTAssertEqual(record.mode, ExecutionMode.dryRun.rawValue)
+        XCTAssertEqual(record.moved, 0)
+        XCTAssertEqual(record.errors, 0)
+    }
+
+    func testScheduledExecutionUnavailableSourceFailsClosed() throws {
+        let workspace = try TemporaryWorkspace()
+        let unavailable = workspace.root.appendingPathComponent("unmounted-source", isDirectory: true)
+        let configURL = workspace.root.appendingPathComponent("config.json")
+        var config = try workspace.makeConfig().config
+        config.paths.sourceDirectory = unavailable.path
+        config.paths.destinationRoot = unavailable.path
+        try ConfigurationIO.save(config, to: configURL)
+        let resolved = try ConfigurationIO.load(from: configURL)
+
+        let exitCode = ScheduledExecution.run(configurationURL: configURL)
+        let record = try JSONFile.load(
+            ScheduledRunRecord.self,
+            from: resolved.paths.scheduledStatusFile,
+            default: ScheduledRunRecord(outcome: .error, runID: "missing")
+        )
+
+        XCTAssertEqual(exitCode, 0)
+        XCTAssertEqual(record.outcome, .sourceUnavailable)
+        XCTAssertEqual(record.mode, ExecutionMode.dryRun.rawValue)
+        XCTAssertEqual(record.moved, 0)
+        XCTAssertEqual(record.errors, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: unavailable.path))
+    }
+
 }
 
 
@@ -1585,6 +1630,8 @@ private let tests: [(String, () throws -> Void)] = [
     ("testMIMEDetectorTimesOutBoundedHelper", suite.testMIMEDetectorTimesOutBoundedHelper),
     ("testConfigurationBoundsRuleCountsAndLengths", suite.testConfigurationBoundsRuleCountsAndLengths),
     ("testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions", suite.testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions),
+    ("testScheduledExecutionWritesDryRunSuccessRecord", suite.testScheduledExecutionWritesDryRunSuccessRecord),
+    ("testScheduledExecutionUnavailableSourceFailsClosed", suite.testScheduledExecutionUnavailableSourceFailsClosed),
 ]
 
 var passed = 0

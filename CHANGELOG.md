@@ -1,7 +1,10 @@
 # Changelog
 
-## Sin publicar — fase 1 de distribución
+## 1.1.0 — Unreleased
 
+- Added a native AppKit onboarding application with a separate Foundation-only background agent registered through `SMAppService`.
+- Added a Universal 2 DMG pipeline with Developer ID, app and DMG notarization, stapling, Gatekeeper verification, checksum, and post-publication revalidation.
+- Phase 2 started with an accepted ADR and testable backlog for a notarized DMG and native, shell-free onboarding.
 - Public README rewritten in English around the user problem, installation, privacy, and safe operation.
 - Eventful scheduled passes now always record balanced `run_started` and `run_finished` boundaries while true no-op passes remain silent.
 - Added a sanitized overnight runtime audit with transaction, log, permission, and resource evidence.
@@ -10,7 +13,7 @@
 - Hardened Runtime, timestamp, Team ID, bundle ID, Gatekeeper y ticket de notarización verificados de forma fail-closed.
 - Pipeline de notarización con `notarytool --wait` y aceptación explícita antes de grapar.
 - GitHub Actions de solo lectura, sin secretos en PR y con checkout fijado a SHA completo.
-- Empaquetado ZIP con checksum y revalidación después de extraer.
+- Empaquetado DMG con checksum y revalidación después de montar.
 
 ## 1.0.2 — 2026-08-12
 

@@ -2,6 +2,7 @@
 .github/SECURITY.md: OK
 .github/dependabot.yml: OK
 .github/workflows/release-readiness.yml: OK
+.github/workflows/release.yml: OK
 .gitignore: OK
 CHANGELOG.md: OK
 LICENSE: OK
@@ -9,25 +10,32 @@ Package.swift: OK
 README.md: OK
 SelfTests/TidyDropSelfTests/main.swift: OK
 Sources/TidyDrop/main.swift: OK
+Sources/TidyDropAgent/main.swift: OK
+Sources/TidyDropApp/main.swift: OK
 Sources/TidyDropCore/ActiveFolder.swift: OK
 Sources/TidyDropCore/Audit.swift: OK
 Sources/TidyDropCore/Classifier.swift: OK
 Sources/TidyDropCore/Configuration.swift: OK
 Sources/TidyDropCore/FileSystem.swift: OK
 Sources/TidyDropCore/Models.swift: OK
+Sources/TidyDropCore/ScheduledExecution.swift: OK
 Sources/TidyDropCore/Stability.swift: OK
 Sources/TidyDropCore/StewardEngine.swift: OK
 Sources/TidyDropCore/Transactions.swift: OK
 VERSION: OK
+app/Distribution-Info.plist: OK
 app/Info.plist: OK
+app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
 docs/RELEASE-PHASE-1.md: OK
+docs/RELEASE-PHASE-2.md: OK
 docs/RUNTIME-AUDIT-2026-08-13.md: OK
 docs/SECURITY-AUDIT-2026-08-12.md: OK
 docs/SECURITY.md: OK
 docs/VALIDATION.md: OK
 docs/adr/0001-native-macos-application-architecture.md: OK
 docs/adr/0002-distribution-updates-and-tcc-continuity.md: OK
+docs/adr/0003-end-user-installation-experience.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -54,10 +62,12 @@ docs/evidence/validation-result.txt: OK
 launchd/com.local.tidydrop.plist.example: OK
 scripts/audit-project.sh: OK
 scripts/build-universal-app.sh: OK
+scripts/create-dmg.sh: OK
 scripts/demo.sh: OK
 scripts/doctor.sh: OK
 scripts/install.sh: OK
 scripts/notarize-app.sh: OK
+scripts/notarize-dmg.sh: OK
 scripts/package-release.sh: OK
 scripts/render-launchagent.sh: OK
 scripts/sign-app.sh: OK
@@ -71,7 +81,8 @@ scripts/test-uninstall.sh: OK
 scripts/uninstall.sh: OK
 scripts/update-manifest.sh: OK
 scripts/validate-project.sh: OK
+scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 76 archivos
+Manifest verificado: 87 archivos

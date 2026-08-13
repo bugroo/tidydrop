@@ -12,7 +12,8 @@ OUTPUT_APP=$1
 BUNDLE_ID=$2
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-INFO_PLIST_SOURCE="$PROJECT_ROOT/app/Info.plist"
+INFO_PLIST_SOURCE="$PROJECT_ROOT/app/Distribution-Info.plist"
+AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
 DEPLOYMENT_TARGET='13.0'
 
 if [ "$(uname -s)" != 'Darwin' ]; then
@@ -26,6 +27,10 @@ case "$BUNDLE_ID" in
         exit 2
         ;;
 esac
+if [ "$BUNDLE_ID" != 'io.github.bugroo.tidydrop' ]; then
+    printf 'ERROR: bundle ID de distribución inesperado: %s\n' "$BUNDLE_ID" >&2
+    exit 2
+fi
 case "$BUNDLE_ID" in
     *.*) ;;
     *) printf 'ERROR: el bundle ID debe tener al menos dos componentes: %s\n' "$BUNDLE_ID" >&2; exit 2 ;;
@@ -91,11 +96,17 @@ X86_BIN_DIR=$(SDKROOT="$SDK_PATH" /usr/bin/xcrun swift build \
     --triple "x86_64-apple-macosx$DEPLOYMENT_TARGET" \
     --show-bin-path)
 
-ARM_BINARY="$ARM_BIN_DIR/tidydrop"
-X86_BINARY="$X86_BIN_DIR/tidydrop"
+ARM_APP="$ARM_BIN_DIR/TidyDropApp"
+X86_APP="$X86_BIN_DIR/TidyDropApp"
+ARM_CLI="$ARM_BIN_DIR/tidydrop"
+X86_CLI="$X86_BIN_DIR/tidydrop"
+ARM_AGENT="$ARM_BIN_DIR/tidydrop-agent"
+X86_AGENT="$X86_BIN_DIR/tidydrop-agent"
 ARM_SELF_TEST="$ARM_BIN_DIR/tidydrop-self-test"
 X86_SELF_TEST="$X86_BIN_DIR/tidydrop-self-test"
-[ -x "$ARM_BINARY" ] && [ -x "$X86_BINARY" ] \
+[ -x "$ARM_APP" ] && [ -x "$X86_APP" ] \
+    && [ -x "$ARM_CLI" ] && [ -x "$X86_CLI" ] \
+    && [ -x "$ARM_AGENT" ] && [ -x "$X86_AGENT" ] \
     && [ -x "$ARM_SELF_TEST" ] && [ -x "$X86_SELF_TEST" ] || {
     printf '%s\n' 'ERROR: SwiftPM no produjo todos los binarios esperados.' >&2
     exit 1
@@ -109,13 +120,14 @@ case "$(uname -m)" in
 esac
 
 printf '%s\n' '[4/5] Ensamblando bundle Universal 2...'
-/bin/mkdir -p "$STAGING_APP/Contents/MacOS"
+/bin/mkdir -p \
+    "$STAGING_APP/Contents/MacOS" \
+    "$STAGING_APP/Contents/Resources" \
+    "$STAGING_APP/Contents/Library/LaunchAgents"
 /bin/cp "$INFO_PLIST_SOURCE" "$STAGING_APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" "$STAGING_APP/Contents/Info.plist"
-SANITIZED_ARM="$BUILD_ROOT/tidydrop-arm64"
-SANITIZED_X86="$BUILD_ROOT/tidydrop-x86_64"
-/bin/cp "$ARM_BINARY" "$SANITIZED_ARM"
-/bin/cp "$X86_BINARY" "$SANITIZED_X86"
+/bin/cp "$AGENT_PLIST_SOURCE" \
+    "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
 
 remove_developer_rpaths() {
     thin_binary=$1
@@ -139,32 +151,45 @@ remove_developer_rpaths() {
 # install_name_tool elimina rpaths de forma fiable en cada slice fino; después
 # lipo compone el ejecutable final. Así nunca se firma ni distribuye una ruta
 # que dependa del toolchain de la máquina de build.
-remove_developer_rpaths "$SANITIZED_ARM" "$BUILD_ROOT/arm64-rpaths.txt"
-remove_developer_rpaths "$SANITIZED_X86" "$BUILD_ROOT/x86_64-rpaths.txt"
-"$LIPO" -create "$SANITIZED_ARM" "$SANITIZED_X86" -output "$STAGING_APP/Contents/MacOS/tidydrop"
-/bin/chmod 755 "$STAGING_APP/Contents/MacOS/tidydrop"
-/bin/chmod 644 "$STAGING_APP/Contents/Info.plist"
-
-printf '%s\n' '[5/5] Verificando arquitectura, versión mínima y dependencias...'
-ARCHS=$("$LIPO" -archs "$STAGING_APP/Contents/MacOS/tidydrop")
-case " $ARCHS " in
-    *' arm64 '*) ;;
-    *) printf '%s\n' 'ERROR: falta el slice arm64.' >&2; exit 1 ;;
-esac
-case " $ARCHS " in
-    *' x86_64 '*) ;;
-    *) printf '%s\n' 'ERROR: falta el slice x86_64.' >&2; exit 1 ;;
-esac
-[ "$(printf '%s\n' "$ARCHS" | /usr/bin/wc -w | /usr/bin/tr -d ' ')" -eq 2 ] || {
-    printf 'ERROR: arquitecturas inesperadas: %s\n' "$ARCHS" >&2
-    exit 1
+assemble_binary() {
+    binary_name=$1
+    arm_source=$2
+    x86_source=$3
+    destination=$4
+    sanitized_arm="$BUILD_ROOT/$binary_name-arm64"
+    sanitized_x86="$BUILD_ROOT/$binary_name-x86_64"
+    /bin/cp "$arm_source" "$sanitized_arm"
+    /bin/cp "$x86_source" "$sanitized_x86"
+    remove_developer_rpaths "$sanitized_arm" "$BUILD_ROOT/$binary_name-arm64-rpaths.txt"
+    remove_developer_rpaths "$sanitized_x86" "$BUILD_ROOT/$binary_name-x86_64-rpaths.txt"
+    "$LIPO" -create "$sanitized_arm" "$sanitized_x86" -output "$destination"
+    /bin/chmod 755 "$destination"
 }
 
-if /usr/bin/otool -L "$STAGING_APP/Contents/MacOS/tidydrop" \
-    | /usr/bin/grep -E '/Library/Developer/|/Applications/Xcode[^/]*\.app/' >/dev/null 2>&1; then
-    printf '%s\n' 'ERROR: el binario depende del toolchain de desarrollo.' >&2
-    exit 1
-fi
+assemble_binary app "$ARM_APP" "$X86_APP" "$STAGING_APP/Contents/MacOS/TidyDropApp"
+assemble_binary cli "$ARM_CLI" "$X86_CLI" "$STAGING_APP/Contents/Resources/tidydrop"
+assemble_binary agent "$ARM_AGENT" "$X86_AGENT" "$STAGING_APP/Contents/Resources/tidydrop-agent"
+/bin/chmod 644 "$STAGING_APP/Contents/Info.plist"
+/bin/chmod 644 "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
+
+printf '%s\n' '[5/5] Verificando arquitectura, versión mínima y dependencias...'
+for bundled_binary in \
+    "$STAGING_APP/Contents/MacOS/TidyDropApp" \
+    "$STAGING_APP/Contents/Resources/tidydrop" \
+    "$STAGING_APP/Contents/Resources/tidydrop-agent"; do
+    ARCHS=$("$LIPO" -archs "$bundled_binary")
+    case " $ARCHS " in *' arm64 '*) ;; *) printf 'ERROR: falta arm64 en %s.\n' "$bundled_binary" >&2; exit 1 ;; esac
+    case " $ARCHS " in *' x86_64 '*) ;; *) printf 'ERROR: falta x86_64 en %s.\n' "$bundled_binary" >&2; exit 1 ;; esac
+    [ "$(printf '%s\n' "$ARCHS" | /usr/bin/wc -w | /usr/bin/tr -d ' ')" -eq 2 ] || {
+        printf 'ERROR: arquitecturas inesperadas en %s: %s\n' "$bundled_binary" "$ARCHS" >&2
+        exit 1
+    }
+    if /usr/bin/otool -L "$bundled_binary" \
+        | /usr/bin/grep -E '/Library/Developer/|/Applications/Xcode[^/]*\.app/' >/dev/null 2>&1; then
+        printf 'ERROR: %s depende del toolchain de desarrollo.\n' "$bundled_binary" >&2
+        exit 1
+    fi
+done
 
 /usr/bin/plutil -lint "$STAGING_APP/Contents/Info.plist"
 [ "$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$STAGING_APP/Contents/Info.plist")" = "$DEPLOYMENT_TARGET" ] || {
@@ -173,5 +198,11 @@ fi
 }
 
 /bin/mkdir -p "$(dirname -- "$OUTPUT_APP")"
+/usr/bin/plutil -lint "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
+[ "$(/usr/bin/plutil -extract BundleProgram raw -o - "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist")" = 'Contents/Resources/tidydrop-agent' ] || {
+    printf '%s\n' 'ERROR: BundleProgram del agente es inesperado.' >&2
+    exit 1
+}
+
 /bin/mv "$STAGING_APP" "$OUTPUT_APP"
-printf 'Universal app preparada: %s (%s)\n' "$OUTPUT_APP" "$ARCHS"
+printf 'Universal app preparada: %s (arm64 x86_64; app + CLI + agent)\n' "$OUTPUT_APP"

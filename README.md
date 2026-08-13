@@ -46,13 +46,16 @@ TidyDrop never reorganizes subfolders recursively.
 
 ## Current availability
 
-TidyDrop 1.0.2 is an early public version installed from source. It is suitable
-for local testing and personal use, but there is not yet a Developer ID signed
-and notarized download for non-technical users.
+TidyDrop 1.0.2 is the current source-installed version. TidyDrop 1.1.0 is in
+release preparation with a native setup app and a bundled background agent, but
+there is not yet a Developer ID signed and notarized download for non-technical
+users. GitHub currently has no approved TidyDrop Release asset.
 
 Requirements:
 
-- macOS 13 or later on Apple silicon.
+- macOS 13 or later. The current installed-source path has been verified on
+  Apple silicon; the Universal 2 release candidate still requires a real Intel
+  installation test.
 - Apple Command Line Tools.
 
 Full Xcode, Homebrew, Python, administrator privileges, and Full Disk Access are

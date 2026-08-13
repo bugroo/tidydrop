@@ -39,38 +39,34 @@ esac
     printf 'ERROR: directorio de salida ausente o inseguro: %s\n' "$OUTPUT_DIR" >&2
     exit 1
 }
-ZIP="$OUTPUT_DIR/$BASENAME.zip"
+DMG="$OUTPUT_DIR/$BASENAME.dmg"
 CHECKSUM="$OUTPUT_DIR/$BASENAME.sha256"
-if [ -e "$ZIP" ] || [ -L "$ZIP" ] || [ -e "$CHECKSUM" ] || [ -L "$CHECKSUM" ]; then
+if [ -e "$DMG" ] || [ -L "$DMG" ] || [ -e "$CHECKSUM" ] || [ -L "$CHECKSUM" ]; then
     printf '%s\n' 'ERROR: los artefactos de salida ya existen; no se reemplazan.' >&2
     exit 1
 fi
 
-/usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
-(
-    cd "$OUTPUT_DIR"
-    /usr/bin/shasum -a 256 "$(basename -- "$ZIP")" >"$(basename -- "$CHECKSUM")"
-)
-
-ENTRY_LIST="$OUTPUT_DIR/.$BASENAME.entries.$$"
-trap '/bin/rm -f "$ENTRY_LIST"' EXIT HUP INT TERM
-/usr/bin/unzip -Z1 "$ZIP" >"$ENTRY_LIST"
-if /usr/bin/awk '
-    /^\// { bad=1 }
-    /(^|\/)\.\.($|\/)/ { bad=1 }
-    END { exit bad ? 0 : 1 }
-' "$ENTRY_LIST"; then
-    printf '%s\n' 'ERROR: el ZIP contiene una ruta absoluta o traversal.' >&2
-    exit 1
+if [ "$MODE" = 'distribution' ]; then
+    SIGNING_IDENTITY=${TIDYDROP_RELEASE_SIGNING_IDENTITY:-}
+    NOTARY_PROFILE=${TIDYDROP_NOTARY_PROFILE:-}
+    [ -n "$SIGNING_IDENTITY" ] && [ -n "$NOTARY_PROFILE" ] || {
+        printf '%s\n' 'ERROR: distribution requiere TIDYDROP_RELEASE_SIGNING_IDENTITY y TIDYDROP_NOTARY_PROFILE.' >&2
+        exit 1
+    }
+    "$SCRIPT_DIR/create-dmg.sh" "$APP" "$DMG" distribution "$SIGNING_IDENTITY"
+    "$SCRIPT_DIR/notarize-dmg.sh" "$DMG" --keychain-profile "$NOTARY_PROFILE"
+else
+    "$SCRIPT_DIR/create-dmg.sh" "$APP" "$DMG" development
 fi
 
-VERIFY_ROOT=$(/usr/bin/mktemp -d "/private/tmp/TidyDropRelease.extract.XXXXXX")
-trap '/bin/rm -f "$ENTRY_LIST"; /bin/rm -rf "$VERIFY_ROOT"' EXIT HUP INT TERM
-/usr/bin/ditto -x -k "$ZIP" "$VERIFY_ROOT"
-"$SCRIPT_DIR/verify-release.sh" "$VERIFY_ROOT/TidyDrop.app" "$MODE"
+(
+    cd "$OUTPUT_DIR"
+    /usr/bin/shasum -a 256 "$(basename -- "$DMG")" >"$(basename -- "$CHECKSUM")"
+)
+"$SCRIPT_DIR/verify-dmg.sh" "$DMG" "$MODE"
 (
     cd "$OUTPUT_DIR"
     /usr/bin/shasum -a 256 -c "$(basename -- "$CHECKSUM")"
 )
 
-printf 'Artefacto: %s\nChecksum: %s\n' "$ZIP" "$CHECKSUM"
+printf 'Artefacto: %s\nChecksum: %s\n' "$DMG" "$CHECKSUM"

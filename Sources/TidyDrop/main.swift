@@ -9,7 +9,7 @@ import Darwin
 import Glibc
 #endif
 
-private let programVersion = "1.0.2"
+private let programVersion = "1.1.0"
 
 private struct Arguments {
     let command: String
@@ -395,69 +395,6 @@ private func printStatus(configurationURL: URL, asJSON: Bool) throws {
     }
 }
 
-private struct ScheduledContext {
-    let statusURL: URL
-    let errorLogURL: URL
-    let maxFileBytes: UInt64
-    let rotatedFileCount: Int
-}
-
-private func scheduledContext(configurationURL: URL) -> ScheduledContext {
-    if let resolved = try? ConfigurationIO.load(from: configurationURL) {
-        return ScheduledContext(
-            statusURL: resolved.paths.scheduledStatusFile,
-            errorLogURL: resolved.paths.agentErrorLogFile,
-            maxFileBytes: resolved.config.logging.maxFileBytes,
-            rotatedFileCount: resolved.config.logging.rotatedFileCount
-        )
-    }
-
-    let home = FileManager.default.homeDirectoryForCurrentUser
-    let support = home
-        .appendingPathComponent("Library", isDirectory: true)
-        .appendingPathComponent("Application Support", isDirectory: true)
-        .appendingPathComponent("TidyDrop", isDirectory: true)
-    let logs = home
-        .appendingPathComponent("Library", isDirectory: true)
-        .appendingPathComponent("Logs", isDirectory: true)
-        .appendingPathComponent("TidyDrop", isDirectory: true)
-    return ScheduledContext(
-        statusURL: support
-            .appendingPathComponent("state", isDirectory: true)
-            .appendingPathComponent("last-scheduled-run.json"),
-        errorLogURL: logs.appendingPathComponent("agent-errors.log"),
-        maxFileBytes: 5_242_880,
-        rotatedFileCount: 3
-    )
-}
-
-private func writeScheduledRecord(_ record: ScheduledRunRecord, configurationURL: URL) throws {
-    try JSONFile.save(record, to: scheduledContext(configurationURL: configurationURL).statusURL)
-}
-
-private func recordScheduledFailure(_ error: Error, configurationURL: URL) {
-    let context = scheduledContext(configurationURL: configurationURL)
-    let detail = String(describing: error)
-        .replacingOccurrences(of: "\n", with: "\\n")
-        .replacingOccurrences(of: "\r", with: "\\r")
-    let runID = "agent-error-\(RunIdentifier.make())"
-    let record = ScheduledRunRecord(
-        outcome: .error,
-        runID: runID,
-        detail: detail
-    )
-    try? JSONFile.save(record, to: context.statusURL)
-
-    let timestamp = ISO8601DateFormatter().string(from: Date())
-    let line = "\(timestamp) ERROR run=\(runID) detail=\(detail)\n"
-    try? FileSystemSecurity.appendBounded(
-        Data(line.utf8),
-        to: context.errorLogURL,
-        maxBytes: context.maxFileBytes,
-        retainedFiles: context.rotatedFileCount
-    )
-}
-
 private let arguments = Arguments(Array(CommandLine.arguments.dropFirst()))
 private var exitCode: Int32 = 0
 
@@ -498,69 +435,27 @@ private var exitCode: Int32 = 0
             throw StewardError.commandFailed("No combines --scheduled con --apply o --dry-run")
         }
 
+        if scheduled {
+            exitCode = ScheduledExecution.run(configurationURL: configurationURL)
+            break
+        }
+
         let resolved = try ConfigurationIO.load(from: configurationURL)
         let mode: ExecutionMode
         if explicitApply {
             mode = .apply
-        } else if scheduled {
-            mode = resolved.config.automation.applyEnabled ? .apply : .dryRun
         } else {
             mode = .dryRun
         }
         let engine = try StewardEngine(configuration: resolved)
         do {
-            let recordEmptyRun = !(scheduled && resolved.config.logging.suppressScheduledNoopAudit)
             let summary = try engine.run(
                 mode: mode,
-                recordEmptyRun: recordEmptyRun,
-                suppressUnchangedDryRunPlans: scheduled
-                    && mode == .dryRun
-                    && resolved.config.logging.suppressScheduledNoopAudit
+                recordEmptyRun: true,
+                suppressUnchangedDryRunPlans: false
             )
-            if scheduled {
-                let outcome: ScheduledRunOutcome = summary.errors == 0 ? .success : .error
-                let record = ScheduledRunRecord(
-                    outcome: outcome,
-                    runID: summary.runID,
-                    mode: summary.mode.rawValue,
-                    scanned: summary.scanned,
-                    planned: summary.planned,
-                    moved: summary.moved,
-                    deferred: summary.deferred,
-                    skipped: summary.skipped,
-                    errors: summary.errors
-                )
-                try writeScheduledRecord(record, configurationURL: configurationURL)
-                if arguments.contains("--json") {
-                    try printRunSummary(summary, asJSON: true)
-                }
-            } else {
-                try printRunSummary(summary, asJSON: arguments.contains("--json"))
-            }
+            try printRunSummary(summary, asJSON: arguments.contains("--json"))
             if summary.errors > 0 { exitCode = 5 }
-        } catch StewardError.lockBusy(let path) where scheduled {
-            try writeScheduledRecord(
-                ScheduledRunRecord(
-                    outcome: .lockBusy,
-                    runID: "agent-lock-\(RunIdentifier.make())",
-                    detail: path
-                ),
-                configurationURL: configurationURL
-            )
-            exitCode = 0
-        } catch StewardError.sourceUnavailable(let path) where scheduled {
-            try writeScheduledRecord(
-                ScheduledRunRecord(
-                    outcome: .sourceUnavailable,
-                    runID: "agent-source-\(RunIdentifier.make())",
-                    mode: mode.rawValue,
-                    moved: 0,
-                    errors: 1,
-                    detail: path
-                ),
-                configurationURL: configurationURL
-            )
-            exitCode = 0
         }
 
     case "undo":
@@ -589,13 +484,9 @@ private var exitCode: Int32 = 0
         throw StewardError.commandFailed("Comando desconocido: \(arguments.command)")
     }
  } catch {
-    if arguments.command == "run", arguments.contains("--scheduled") {
-        recordScheduledFailure(error, configurationURL: configURL(from: arguments))
-    } else {
-        fputs("ERROR: \(error)\n", stderr)
-        if arguments.command == "help" {
-            printHelp()
-        }
+    fputs("ERROR: \(error)\n", stderr)
+    if arguments.command == "help" {
+        printHelp()
     }
     if exitCode == 0 { exitCode = 2 }
 }
