@@ -15,11 +15,23 @@ Products:
     Targets:
         TidyDropCore
 
+    Name: TidyDropApp
+    Type:
+        Executable: nil
+    Targets:
+        TidyDropApp
+
     Name: tidydrop
     Type:
         Executable: nil
     Targets:
         TidyDrop
+
+    Name: tidydrop-agent
+    Type:
+        Executable: nil
+    Targets:
+        TidyDropAgent
 
     Name: tidydrop-self-test
     Type:
@@ -52,13 +64,40 @@ Targets:
         Configuration.swift
         FileSystem.swift
         Models.swift
+        ScheduledExecution.swift
         Stability.swift
         StewardEngine.swift
         Transactions.swift
     Product memberships:
         TidyDropCore
+        TidyDropApp
         tidydrop
+        tidydrop-agent
         tidydrop-self-test
+
+    Name: TidyDropApp
+    Type: executable
+    C99name: TidyDropApp
+    Module type: SwiftTarget
+    Path: Sources/TidyDropApp
+    Sources:
+        main.swift
+    Target dependencies:
+        TidyDropCore
+    Product memberships:
+        TidyDropApp
+
+    Name: TidyDropAgent
+    Type: executable
+    C99name: TidyDropAgent
+    Module type: SwiftTarget
+    Path: Sources/TidyDropAgent
+    Sources:
+        main.swift
+    Target dependencies:
+        TidyDropCore
+    Product memberships:
+        tidydrop-agent
 
     Name: TidyDrop
     Type: executable

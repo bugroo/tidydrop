@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>TidyDrop</string>
+  <key>CFBundleExecutable</key>
+  <string>TidyDropApp</string>
+  <key>CFBundleIdentifier</key>
+  <string>io.github.bugroo.tidydrop</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>TidyDrop</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.1.0</string>
+  <key>CFBundleVersion</key>
+  <string>4</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.utilities</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>TidyDrop organizes finished files locally inside the Downloads folder you choose. It does not transmit file data.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>TidyDrop organizes finished files locally inside the Documents folder you choose. It does not transmit file data.</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>TidyDrop organizes finished files locally inside the Desktop folder you choose. It does not transmit file data.</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>TidyDrop organizes finished files locally inside a folder you choose on a removable volume. It does not transmit file data.</string>
+  <key>NSNetworkVolumesUsageDescription</key>
+  <string>TidyDrop organizes finished files locally inside a folder you choose on a network volume. It does not transmit file data.</string>
+</dict>
+</plist>

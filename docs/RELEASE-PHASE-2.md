@@ -13,18 +13,24 @@ Completado:
 
 - PR de readiness fusionado y CI de Universal 2/safety gates verde;
 - build Universal 2 y modos de firma separados;
-- notarización y empaquetado fail-closed implementados;
+- identidad pública fijada en `io.github.bugroo.tidydrop` y
+  `io.github.bugroo.tidydrop.agent`;
+- aplicación AppKit de incorporación y agente Foundation incluido mediante
+  `SMAppService`, compilables con Command Line Tools;
+- build Universal 2 de aplicación, CLI y agente;
+- creación y validación de DMG de desarrollo;
+- notarización, empaquetado y publicación fail-closed implementados en CI;
 - instalación de desarrollo 1.0.2 verificada en este Mac;
 - auditoría del runtime y corrección de límites de eventos publicada;
 - rama `main` protegida con el check obligatorio.
 
 Pendiente externo o de producto:
 
-- bundle ID definitivo `io.github.bugroo.tidydrop` fijado;
 - Apple Developer Program, Team ID y certificado Developer ID;
 - notarización real;
-- incorporación AppKit y agente incluido con `SMAppService`;
-- ejecución en Intel y prueba en un Mac limpio sin herramientas de desarrollo.
+- instalación/migración real del bundle público firmado;
+- ejecución en Intel y prueba en un Mac limpio sin herramientas de desarrollo;
+- descarga y revalidación de una GitHub Release pública.
 
 ## Backlog priorizado
 
@@ -40,7 +46,7 @@ Criterios de aceptación:
 - migración explícita desde `com.local.tidydrop`;
 - ninguna credencial o certificado dentro del repositorio.
 
-Estado: bundle IDs decididos; Team ID y Developer ID pendientes.
+Estado: bundle IDs decididos e implementados; Team ID y Developer ID pendientes.
 
 Estimación: 2 puntos. Dependencia restante: Apple Developer Program. Prioridad:
 bloqueante.
@@ -62,6 +68,11 @@ Criterios de aceptación:
 Estimación: 5 puntos. Dependencias: P2-1 y prototipo de ADR-0001. Prioridad:
 alta.
 
+Estado: implementación integrada en la rama de distribución. El prototipo pasa
+build Universal 2, self-check, agente aislado y DMG de desarrollo. La prueba
+instalada se reserva para el bundle con identidad Developer ID, de modo que no
+se altere TCC con una identidad provisional.
+
 ### P2-3 · Firma, notarización y DMG final
 
 Como receptor, quiero que Gatekeeper verifique TidyDrop, para detectar un
@@ -77,6 +88,11 @@ Criterios de aceptación:
 
 Estimación: 5 puntos. Dependencias: P2-1, P2-2 y credenciales Apple fuera del
 repositorio. Prioridad: alta.
+
+Estado: pipeline local y GitHub Actions implementados y fail-closed; la ruta de
+desarrollo ad hoc pasa. El gate real continúa bloqueado porque este Mac y el
+repositorio no disponen todavía de certificado Developer ID, Team ID ni
+credenciales de notarización.
 
 ### P2-4 · Matriz real de instalación, actualización y TCC
 

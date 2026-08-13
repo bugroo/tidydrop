@@ -1,6 +1,10 @@
 /.github/ @bugroo
+/.github/workflows/release.yml @bugroo
 /scripts/build-universal-app.sh @bugroo
 /scripts/sign-app.sh @bugroo
 /scripts/notarize-app.sh @bugroo
+/scripts/notarize-dmg.sh @bugroo
+/scripts/create-dmg.sh @bugroo
+/scripts/verify-dmg.sh @bugroo
 /scripts/package-release.sh @bugroo
 /scripts/verify-release.sh @bugroo

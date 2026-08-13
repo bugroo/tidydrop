@@ -61,4 +61,6 @@ PASS  testScheduledDryRunReusesUnchangedPlanWithoutProbeOrLogGrowth
 PASS  testMIMEDetectorTimesOutBoundedHelper
 PASS  testConfigurationBoundsRuleCountsAndLengths
 PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
-Resultado: 62 PASS, 0 SKIP, 0 FAIL; total=62
+PASS  testScheduledExecutionWritesDryRunSuccessRecord
+PASS  testScheduledExecutionUnavailableSourceFailsClosed
+Resultado: 64 PASS, 0 SKIP, 0 FAIL; total=64

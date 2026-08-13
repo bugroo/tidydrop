@@ -13,6 +13,8 @@ printf '%s\n' '[OK] Sintaxis POSIX sh'
 
 if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/Info.plist"
+    plutil -lint "$PROJECT_ROOT/app/Distribution-Info.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
     printf '%s\n' '[OK] Plists válidos'
 else
@@ -92,7 +94,8 @@ fi
 printf '%s\n' '[OK] Self-tests ejecutables sin XCTest ni Xcode completo'
 
 if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
-    "$PROJECT_ROOT/launchd" "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
+    "$PROJECT_ROOT/launchd" "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist" \
+    "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1
 fi
@@ -104,11 +107,18 @@ if ! /usr/bin/grep -q 'notarytool submit' "$PROJECT_ROOT/scripts/notarize-app.sh
     printf '%s\n' '[FALLO] La notarización debe esperar, fallar cerrada y no usar --force.' >&2
     exit 1
 fi
+if ! /usr/bin/grep -q 'notarytool submit' "$PROJECT_ROOT/scripts/notarize-dmg.sh" \
+   || ! /usr/bin/grep -q -- '--wait' "$PROJECT_ROOT/scripts/notarize-dmg.sh" \
+   || /usr/bin/grep -q -- '--force' "$PROJECT_ROOT/scripts/notarize-dmg.sh"; then
+    printf '%s\n' '[FALLO] La notarización del DMG debe esperar, fallar cerrada y no usar --force.' >&2
+    exit 1
+fi
 unexpected_notary=$(
     /usr/bin/grep -RIl \
         --exclude-dir=.git --exclude-dir=.build --exclude='MANIFEST.sha256' \
         'notarytool submit' "$PROJECT_ROOT" 2>/dev/null \
         | /usr/bin/grep -v '/scripts/notarize-app.sh$' \
+        | /usr/bin/grep -v '/scripts/notarize-dmg.sh$' \
         | /usr/bin/grep -v '/scripts/audit-project.sh$' \
         | /usr/bin/grep -v '/docs/' \
         || true

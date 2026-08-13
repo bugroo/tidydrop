@@ -1,0 +1,491 @@
+import AppKit
+import Foundation
+import ServiceManagement
+import TidyDropCore
+
+private enum ProductIdentity {
+    static let agentPlist = "io.github.bugroo.tidydrop.agent.plist"
+    static let legacyAgentLabel = "com.local.tidydrop"
+    static let version = "1.1.0"
+}
+
+private struct LegacyAgentMigration {
+    let originalPlist: URL
+    let disabledPlist: URL
+    let wasLoaded: Bool
+
+    func restore() throws {
+        guard try FileSystemSecurity.pathEntryExists(disabledPlist) else { return }
+        guard try !FileSystemSecurity.pathEntryExists(originalPlist) else {
+            throw StewardError.unsafePath("Both active and disabled legacy agent plists exist")
+        }
+        try FileManager.default.moveItem(at: disabledPlist, to: originalPlist)
+        if wasLoaded {
+            let result = try Launchctl.run([
+                "bootstrap", "gui/\(getuid())", originalPlist.path
+            ])
+            guard result == 0 else {
+                throw StewardError.commandFailed("The previous agent plist was restored but could not be reloaded")
+            }
+        }
+    }
+}
+
+private enum Launchctl {
+    static func run(_ arguments: [String]) throws -> Int32 {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        task.arguments = arguments
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        try task.run()
+        task.waitUntilExit()
+        return task.terminationStatus
+    }
+}
+
+@main
+private struct TidyDropApplication {
+    @MainActor
+    static func main() {
+        if CommandLine.arguments.contains("--bundle-self-check") {
+            exit(bundleSelfCheck())
+        }
+        let application = NSApplication.shared
+        let delegate = ApplicationDelegate()
+        application.delegate = delegate
+        application.setActivationPolicy(.regular)
+        application.run()
+    }
+
+    private static func bundleSelfCheck() -> Int32 {
+        let bundle = Bundle.main
+        guard bundle.bundleIdentifier == "io.github.bugroo.tidydrop",
+              bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String == "TidyDropApp" else {
+            fputs("bundle identity mismatch\n", stderr)
+            return 2
+        }
+        let requiredPaths = [
+            "Contents/Resources/tidydrop",
+            "Contents/Resources/tidydrop-agent",
+            "Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
+        ]
+        for relativePath in requiredPaths {
+            let candidate = bundle.bundleURL.appendingPathComponent(relativePath)
+            guard FileManager.default.fileExists(atPath: candidate.path) else {
+                fputs("missing bundle component: \(relativePath)\n", stderr)
+                return 2
+            }
+        }
+        print("TidyDrop bundle self-check: PASS")
+        return 0
+    }
+}
+
+@MainActor
+private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
+    private let configurationURL = ConfigurationIO.defaultConfigPath()
+    private let service = SMAppService.agent(plistName: ProductIdentity.agentPlist)
+    private var window: NSWindow?
+    private var folderLabel = NSTextField(labelWithString: "")
+    private var serviceLabel = NSTextField(labelWithString: "")
+    private var modeLabel = NSTextField(labelWithString: "")
+    private var resultLabel = NSTextField(wrappingLabelWithString: "")
+    private var activateButton = NSButton()
+    private var verificationStartedAt: Date?
+    private var verificationTimer: Timer?
+    private var verificationAttempts = 0
+    private var backgroundVerified = false
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        do {
+            try prepareConfigurationForCurrentVersion()
+            buildWindow()
+            refreshStatus()
+            window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        } catch {
+            presentFatalError(error)
+        }
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+
+    private func prepareConfigurationForCurrentVersion() throws {
+        if !FileManager.default.fileExists(atPath: configurationURL.path) {
+            try ConfigurationIO.save(DefaultConfiguration.make(), to: configurationURL)
+        }
+
+        let resolved = try ConfigurationIO.load(from: configurationURL)
+        let marker = resolved.paths.stateDirectory.appendingPathComponent("installed-app-version")
+        let recordedVersion = try? String(
+            decoding: FileSystemSecurity.readRegularFile(marker, maximumBytes: 128),
+            as: UTF8.self
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if recordedVersion != ProductIdentity.version {
+            var configuration = resolved.config
+            configuration.automation.applyEnabled = false
+            try ConfigurationIO.save(configuration, to: configurationURL)
+            try FileSystemSecurity.atomicWritePrivate(
+                Data("\(ProductIdentity.version)\n".utf8),
+                to: marker,
+                maximumBytes: 128
+            )
+        }
+    }
+
+    private func buildWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 620, height: 430),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "TidyDrop"
+        window.center()
+        window.isReleasedWhenClosed = false
+
+        let title = NSTextField(labelWithString: "Organize one folder, locally")
+        title.font = .systemFont(ofSize: 24, weight: .semibold)
+        let introduction = NSTextField(wrappingLabelWithString:
+            "TidyDrop classifies finished files without uploading names, metadata, or content. " +
+            "Setup starts in preview mode and never requires Full Disk Access."
+        )
+        introduction.textColor = .secondaryLabelColor
+
+        let folderRow = statusRow(title: "Active folder", value: folderLabel)
+        let serviceRow = statusRow(title: "Background agent", value: serviceLabel)
+        let modeRow = statusRow(title: "Automatic moving", value: modeLabel)
+
+        let chooseButton = actionButton("Choose Folder…", action: #selector(chooseFolder))
+        let registerButton = actionButton("Register Background Agent", action: #selector(registerAgent))
+        let previewButton = actionButton("Run Safe Preview", action: #selector(runPreview))
+        activateButton = actionButton("Enable Automatic Organization", action: #selector(activate))
+        let deactivateButton = actionButton("Disable Moving", action: #selector(deactivate))
+
+        let primaryActions = NSStackView(views: [chooseButton, registerButton, previewButton])
+        primaryActions.orientation = .horizontal
+        primaryActions.spacing = 10
+        primaryActions.distribution = .fillEqually
+
+        let modeActions = NSStackView(views: [activateButton, deactivateButton])
+        modeActions.orientation = .horizontal
+        modeActions.spacing = 10
+        modeActions.distribution = .fillEqually
+
+        resultLabel.textColor = .secondaryLabelColor
+        resultLabel.maximumNumberOfLines = 3
+
+        let stack = NSStackView(views: [
+            title, introduction, separator(), folderRow, serviceRow, modeRow,
+            separator(), primaryActions, modeActions, resultLabel
+        ])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 14
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let content = NSView()
+        content.addSubview(stack)
+        window.contentView = content
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 28),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -28),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 26),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -24),
+            introduction.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            folderRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            serviceRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            modeRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            primaryActions.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            modeActions.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            resultLabel.widthAnchor.constraint(equalTo: stack.widthAnchor)
+        ])
+        self.window = window
+    }
+
+    private func statusRow(title: String, value: NSTextField) -> NSStackView {
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        value.alignment = .right
+        value.lineBreakMode = .byTruncatingMiddle
+        let row = NSStackView(views: [label, NSView(), value])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 12
+        return row
+    }
+
+    private func separator() -> NSBox {
+        let box = NSBox()
+        box.boxType = .separator
+        return box
+    }
+
+    private func actionButton(_ title: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.bezelStyle = .rounded
+        button.controlSize = .large
+        return button
+    }
+
+    private func refreshStatus(message: String? = nil) {
+        do {
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            folderLabel.stringValue = resolved.paths.sourceDirectory.path
+            modeLabel.stringValue = resolved.config.automation.applyEnabled ? "Enabled" : "Preview only"
+            serviceLabel.stringValue = serviceStatusDescription
+            activateButton.isEnabled = backgroundVerified && !resolved.config.automation.applyEnabled
+            if let message { resultLabel.stringValue = message }
+        } catch {
+            resultLabel.stringValue = "Configuration error: \(error)"
+            activateButton.isEnabled = false
+        }
+    }
+
+    private var serviceStatusDescription: String {
+        switch service.status {
+        case .enabled: return backgroundVerified ? "Enabled and verified" : "Enabled; verification pending"
+        case .requiresApproval: return "Approval required in Login Items"
+        case .notRegistered: return "Not registered"
+        case .notFound: return "Agent missing from app bundle"
+        @unknown default: return "Unknown"
+        }
+    }
+
+    @objc private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.message = "TidyDrop will classify files locally inside this folder."
+        panel.beginSheetModal(for: window!) { [weak self] response in
+            guard let self else { return }
+            guard response == .OK, let selected = panel.url else {
+                self.refreshStatus(message: "Selection cancelled; nothing changed.")
+                return
+            }
+            do {
+                _ = try ActiveFolderManager.applySelection(selected, configurationURL: self.configurationURL)
+                self.backgroundVerified = false
+                self.refreshStatus(message: "Folder changed. Automatic moving returned to preview mode.")
+            } catch {
+                self.presentError("Folder not accepted", error: error)
+            }
+        }
+    }
+
+    @objc private func registerAgent() {
+        var legacyMigration: LegacyAgentMigration?
+        do {
+            legacyMigration = try disableLegacyAgentIfNeeded()
+            verificationStartedAt = Date()
+            verificationAttempts = 0
+            backgroundVerified = false
+            try service.register()
+            if service.status == .requiresApproval {
+                SMAppService.openSystemSettingsLoginItems()
+                refreshStatus(message: "Allow TidyDrop under Login Items, then return here.")
+            } else {
+                refreshStatus(message: "Agent registered. Verifying background folder access…")
+            }
+            beginBackgroundVerification()
+        } catch {
+            if let legacyMigration {
+                do {
+                    try legacyMigration.restore()
+                } catch {
+                    presentError("The previous agent requires manual recovery", error: error)
+                    return
+                }
+            }
+            presentError("The background agent could not be registered", error: error)
+        }
+    }
+
+    private func disableLegacyAgentIfNeeded() throws -> LegacyAgentMigration? {
+        let legacyPlist = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/\(ProductIdentity.legacyAgentLabel).plist")
+        guard try FileSystemSecurity.pathEntryExists(legacyPlist) else { return nil }
+
+        let legacyData = try FileSystemSecurity.readRegularFile(
+            legacyPlist,
+            maximumBytes: 1_048_576
+        )
+        let propertyList = try PropertyListSerialization.propertyList(from: legacyData, format: nil)
+        guard let dictionary = propertyList as? [String: Any],
+              dictionary["Label"] as? String == ProductIdentity.legacyAgentLabel,
+              let arguments = dictionary["ProgramArguments"] as? [String],
+              let executable = arguments.first,
+              executable == FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Applications/TidyDrop.app/Contents/MacOS/tidydrop")
+                .path else {
+            throw StewardError.unsafePath("The legacy agent plist does not match a known TidyDrop installation")
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Upgrade the existing TidyDrop agent?"
+        alert.informativeText = "The previous agent must be disabled before the bundled agent starts. " +
+            "Configuration and transaction history will be preserved."
+        alert.addButton(withTitle: "Disable Previous Agent")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            throw StewardError.commandFailed("Upgrade cancelled; the previous agent remains unchanged")
+        }
+
+        let resolved = try ConfigurationIO.load(from: configurationURL)
+        var configuration = resolved.config
+        configuration.automation.applyEnabled = false
+        try ConfigurationIO.save(configuration, to: configurationURL)
+
+        let domain = "gui/\(getuid())/\(ProductIdentity.legacyAgentLabel)"
+        let wasLoaded = try Launchctl.run(["print", domain]) == 0
+        if wasLoaded {
+            guard try Launchctl.run(["bootout", domain]) == 0 else {
+                throw StewardError.commandFailed("The previous agent could not be disabled safely")
+            }
+        }
+
+        let resolvedAfterDisable = try ConfigurationIO.load(from: configurationURL)
+        let migrationDirectory = resolvedAfterDisable.paths.stateDirectory
+            .appendingPathComponent("migration", isDirectory: true)
+        try FileSystemSecurity.ensurePrivateDirectory(migrationDirectory)
+        let disabledPlist = migrationDirectory
+            .appendingPathComponent("\(ProductIdentity.legacyAgentLabel).plist.disabled")
+        guard try !FileSystemSecurity.pathEntryExists(disabledPlist) else {
+            if wasLoaded {
+                _ = try? Launchctl.run([
+                    "bootstrap", "gui/\(getuid())", legacyPlist.path
+                ])
+            }
+            throw StewardError.unsafePath("A previous legacy-agent migration backup already exists")
+        }
+        do {
+            try FileManager.default.moveItem(at: legacyPlist, to: disabledPlist)
+        } catch {
+            if wasLoaded {
+                _ = try? Launchctl.run([
+                    "bootstrap", "gui/\(getuid())", legacyPlist.path
+                ])
+            }
+            throw error
+        }
+        guard try !FileSystemSecurity.pathEntryExists(legacyPlist) else {
+            throw StewardError.commandFailed("The previous LaunchAgent plist remains active")
+        }
+        return LegacyAgentMigration(
+            originalPlist: legacyPlist,
+            disabledPlist: disabledPlist,
+            wasLoaded: wasLoaded
+        )
+    }
+
+    private func beginBackgroundVerification() {
+        verificationTimer?.invalidate()
+        verificationTimer = Timer.scheduledTimer(
+            timeInterval: 1,
+            target: self,
+            selector: #selector(checkBackgroundVerificationTimer(_:)),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    @objc private func checkBackgroundVerificationTimer(_ timer: Timer) {
+        verificationAttempts += 1
+        if verifyLatestBackgroundRun() {
+            timer.invalidate()
+            backgroundVerified = true
+            refreshStatus(message: "Background access verified in preview mode with zero moves.")
+        } else if verificationAttempts >= 180 {
+            timer.invalidate()
+            refreshStatus(message: "Background access was not verified. Moving remains disabled.")
+        } else {
+            refreshStatus()
+        }
+    }
+
+    private func verifyLatestBackgroundRun() -> Bool {
+        guard let started = verificationStartedAt,
+              let resolved = try? ConfigurationIO.load(from: configurationURL),
+              let record = try? JSONFile.load(
+                ScheduledRunRecord.self,
+                from: resolved.paths.scheduledStatusFile,
+                default: ScheduledRunRecord(outcome: .error, runID: "missing")
+              ) else { return false }
+        return record.timestamp >= started
+            && record.outcome == .success
+            && record.mode == ExecutionMode.dryRun.rawValue
+            && record.moved == 0
+            && record.errors == 0
+    }
+
+    @objc private func runPreview() {
+        activateButton.isEnabled = false
+        resultLabel.stringValue = "Running preview…"
+        let configurationURL = self.configurationURL
+        Task.detached(priority: .utility) {
+            do {
+                let resolved = try ConfigurationIO.load(from: configurationURL)
+                let summary = try StewardEngine(configuration: resolved).run(mode: .dryRun)
+                await MainActor.run { [weak self] in
+                    self?.refreshStatus(message:
+                        "Preview complete: \(summary.scanned) scanned, \(summary.planned) planned, " +
+                        "0 moved, \(summary.errors) errors."
+                    )
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.presentError("Preview failed", error: error)
+                }
+            }
+        }
+    }
+
+    @objc private func activate() {
+        guard backgroundVerified else {
+            refreshStatus(message: "Verify the background agent before enabling moving.")
+            return
+        }
+        do {
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            var configuration = resolved.config
+            configuration.automation.applyEnabled = true
+            try ConfigurationIO.save(configuration, to: configurationURL)
+            refreshStatus(message: "Automatic organization is enabled for future stable files.")
+        } catch {
+            presentError("Moving could not be enabled", error: error)
+        }
+    }
+
+    @objc private func deactivate() {
+        do {
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            var configuration = resolved.config
+            configuration.automation.applyEnabled = false
+            try ConfigurationIO.save(configuration, to: configurationURL)
+            refreshStatus(message: "Automatic moving is disabled. Preview remains available.")
+        } catch {
+            presentError("Moving could not be disabled", error: error)
+        }
+    }
+
+    private func presentError(_ title: String, error: Error) {
+        let alert = NSAlert(error: error)
+        alert.messageText = title
+        if let window { alert.beginSheetModal(for: window) }
+        refreshStatus(message: "\(title). No files were moved by this action.")
+    }
+
+    private func presentFatalError(_ error: Error) {
+        let alert = NSAlert(error: error)
+        alert.messageText = "TidyDrop could not start safely"
+        alert.runModal()
+        NSApp.terminate(nil)
+    }
+}

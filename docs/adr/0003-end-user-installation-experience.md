@@ -1,6 +1,6 @@
 # ADR-0003: Experiencia de instalación para usuarios finales
 
-- Estado: Aceptado; implementación pendiente
+- Estado: Aceptado; implementación en revisión, distribución real pendiente
 - Fecha: 2026-08-13
 - Decisores: propietario del proyecto y Codex
 - Alcance: instalación inicial y actualizaciones manuales de TidyDrop para usuarios no técnicos
@@ -24,7 +24,7 @@ La identidad pública queda fijada antes de construir el primer artefacto:
 
 - aplicación: `io.github.bugroo.tidydrop`;
 - agente incluido: `io.github.bugroo.tidydrop.agent`;
-- ejecutable visible: `TidyDrop`;
+- ejecutable principal interno: `TidyDropApp` (la aplicación visible continúa siendo `TidyDrop`);
 - CLI y agente internos: `tidydrop` y `tidydrop-agent`.
 
 El namespace corresponde a la identidad pública controlada
@@ -91,8 +91,9 @@ No se presentará el DMG como instalación pública terminada hasta demostrar:
 
 - Requiere Apple Developer Program, identidad de producto definitiva y una
   cadena de build con Xcode.
-- La incorporación nativa y la migración del agente requieren implementación y
-  pruebas adicionales.
+- La incorporación nativa y la migración del agente están implementadas en el
+  candidato 1.1.0; requieren todavía prueba instalada con la identidad Developer
+  ID definitiva, hardware Intel y un Mac limpio.
 - Apple puede volver a solicitar permisos después de cambios relevantes de la
   app o de macOS; TidyDrop debe detectarlo y fallar cerrado.
 

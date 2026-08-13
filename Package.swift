@@ -8,7 +8,9 @@ let package = Package(
     ],
     products: [
         .library(name: "TidyDropCore", targets: ["TidyDropCore"]),
+        .executable(name: "TidyDropApp", targets: ["TidyDropApp"]),
         .executable(name: "tidydrop", targets: ["TidyDrop"]),
+        .executable(name: "tidydrop-agent", targets: ["TidyDropAgent"]),
         .executable(name: "tidydrop-self-test", targets: ["TidyDropSelfTests"])
     ],
     targets: [
@@ -20,6 +22,16 @@ let package = Package(
             name: "TidyDrop",
             dependencies: ["TidyDropCore"],
             path: "Sources/TidyDrop"
+        ),
+        .executableTarget(
+            name: "TidyDropApp",
+            dependencies: ["TidyDropCore"],
+            path: "Sources/TidyDropApp"
+        ),
+        .executableTarget(
+            name: "TidyDropAgent",
+            dependencies: ["TidyDropCore"],
+            path: "Sources/TidyDropAgent"
         ),
         .executableTarget(
             name: "TidyDropSelfTests",

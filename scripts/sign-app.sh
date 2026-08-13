@@ -14,9 +14,23 @@ IDENTITY=${3:-}
     printf 'ERROR: bundle ausente o inseguro: %s\n' "$APP" >&2
     exit 1
 }
-[ -x "$APP/Contents/MacOS/tidydrop" ] || {
+[ -x "$APP/Contents/MacOS/TidyDropApp" ] \
+    && [ -x "$APP/Contents/Resources/tidydrop" ] \
+    && [ -x "$APP/Contents/Resources/tidydrop-agent" ] || {
     printf '%s\n' 'ERROR: falta el ejecutable principal.' >&2
     exit 1
+}
+
+sign_nested() {
+    nested_identity=$1
+    nested_options=$2
+    nested_timestamp=$3
+    for nested_binary in \
+        "$APP/Contents/Resources/tidydrop" \
+        "$APP/Contents/Resources/tidydrop-agent"; do
+        /usr/bin/codesign --force --sign "$nested_identity" \
+            --options "$nested_options" "$nested_timestamp" "$nested_binary"
+    done
 }
 
 case "$MODE" in
@@ -25,6 +39,7 @@ case "$MODE" in
             printf '%s\n' 'ERROR: --adhoc no acepta identidad.' >&2
             exit 2
         }
+        sign_nested - runtime --timestamp=none
         /usr/bin/codesign --force --sign - --options runtime --timestamp=none "$APP"
         ;;
     --developer-id)
@@ -32,6 +47,7 @@ case "$MODE" in
             printf '%s\n' 'ERROR: falta la identidad Developer ID Application.' >&2
             exit 2
         }
+        sign_nested "$IDENTITY" runtime --timestamp
         /usr/bin/codesign --force --sign "$IDENTITY" --options runtime --timestamp "$APP"
         ;;
     *)
