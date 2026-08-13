@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Refreshed the public README with a direct Community Preview download,
+  privacy-first product summary, restrained visual cues, and contributor entry
+  points.
+- Public validation evidence now removes local user paths and hostnames before
+  it is committed; the static audit fails closed if those details or common
+  credential patterns reappear.
+- DMG verification now retries a temporarily busy read-only mount and never
+  attempts to clean the mount directory while it remains attached.
+
 ## 1.1.0 — Community Preview
 
 - Added a free Community Preview channel: ad hoc signed Universal 2 DMG,
