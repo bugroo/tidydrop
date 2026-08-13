@@ -31,7 +31,11 @@ El bundle declara las claves de Downloads, Documents, Desktop, volúmenes extra�
 
 ## Firma y confianza
 
-La aplicación se firma ad hoc localmente. No es Developer ID ni está notarizada. Cambiar el binario puede provocar una nueva decisión TCC. El checksum externo y `MANIFEST.sha256` permiten comprobar la distribución.
+La aplicación instalada actual se firma ad hoc localmente. No es Developer ID ni está notarizada. Cambiar el binario puede provocar una nueva decisión TCC. El checksum externo y `MANIFEST.sha256` permiten comprobar la distribución de código fuente.
+
+La cadena de fase 1 separa explícitamente artefactos `development` de `distribution`. Esta última exige Developer ID, Hardened Runtime, timestamp seguro, Team ID, bundle ID definitivo, aceptación de notarización, ticket grapado, Gatekeeper y verificación posterior a la extracción. Ninguna credencial se almacena en el repositorio.
+
+El runtime continúa sin red. La única operación de red nueva pertenece al proceso de release del mantenedor: `notarytool` envía el artefacto firmado al servicio de Apple. No se ejecuta durante instalación, vigilancia, clasificación o undo.
 
 ## Fuera de alcance
 

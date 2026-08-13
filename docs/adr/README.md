@@ -14,4 +14,4 @@ Las decisiones que cambian arquitectura, seguridad, distribución, permisos o ci
 | ADR | Estado | Decisión |
 | --- | --- | --- |
 | [ADR-0001](0001-native-macos-application-architecture.md) | Dirección aceptada; condicionada a prototipos | Aplicación macOS AppKit-first, agente mínimo FSEvents y núcleo compartido |
-| [ADR-0002](0002-distribution-updates-and-tcc-continuity.md) | Aceptado; pendiente de implementar | Distribución firmada/notarizada, actualizaciones manuales verificadas y continuidad TCC |
+| [ADR-0002](0002-distribution-updates-and-tcc-continuity.md) | Aceptado; fase 1 en implementación | Distribución firmada/notarizada, actualizaciones manuales verificadas y continuidad TCC |

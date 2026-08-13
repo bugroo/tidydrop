@@ -11,4 +11,6 @@ TidyDrop — auditoría estática local
 [OK] Swift Package sin dependencias externas declaradas
 [OK] Self-tests ejecutables sin XCTest ni Xcode completo
 [OK] LaunchAgent sin logs stdout/stderr ilimitados
+[OK] Red limitada a notarización Apple durante release; runtime sin red
+[OK] GitHub Actions fijadas y con token de solo lectura
 Auditoría estática: PASS

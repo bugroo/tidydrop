@@ -1,5 +1,14 @@
 # Changelog
 
+## Sin publicar — fase 1 de distribución
+
+- Build reproducible como procedimiento para un bundle Universal 2 `arm64` + `x86_64`.
+- Gates separados para firma ad hoc de desarrollo y Developer ID de distribución.
+- Hardened Runtime, timestamp, Team ID, bundle ID, Gatekeeper y ticket de notarización verificados de forma fail-closed.
+- Pipeline de notarización con `notarytool --wait` y aceptación explícita antes de grapar.
+- GitHub Actions de solo lectura, sin secretos en PR y con checkout fijado a SHA completo.
+- Empaquetado ZIP con checksum y revalidación después de extraer.
+
 ## 1.0.2 — 2026-08-12
 
 - Rebranding completo a TidyDrop, bundle `com.local.tidydrop` y CLI `tidydrop`.

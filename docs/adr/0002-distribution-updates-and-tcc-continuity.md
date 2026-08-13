@@ -1,6 +1,6 @@
 # ADR-0002: Distribución, actualizaciones y continuidad de TCC
 
-- Estado: Aceptado; pendiente de implementar
+- Estado: Aceptado; fase 1 en implementación
 - Fecha: 2026-08-12
 - Decisores: propietario del proyecto y Codex
 - Alcance: primera distribución instalable para terceros y sus actualizaciones
@@ -93,6 +93,20 @@ No se compartirá como aplicación lista para un usuario no técnico hasta demos
 - Las pruebas de TCC necesitan Macs reales; no se sustituyen completamente con CI.
 - Las actualizaciones manuales son menos cómodas hasta que se diseñe un mecanismo firmado específico.
 - La transición desde `com.local.tidydrop` exigirá una migración única y explícita antes de la primera release general.
+
+## Estado de implementación de fase 1
+
+La fase 1 añade una cadena local y CI fail-closed para:
+
+- compilar slices `arm64` y `x86_64` y ensamblarlos con `lipo`;
+- retirar rpaths del toolchain y rechazar dependencias de Xcode/CLT;
+- firmar en modo ad hoc de desarrollo o Developer ID de distribución sin mezclar ambos estados;
+- exigir Hardened Runtime, timestamp seguro, Team ID y bundle ID esperados;
+- enviar con `notarytool --wait`, aceptar únicamente `Accepted` y grapar el ticket;
+- extraer y volver a verificar el ZIP final y su SHA-256;
+- ejecutar los gates de PR sin secretos, sin permisos de escritura y con acciones fijadas por SHA.
+
+La implementación no resuelve aún los gates externos: bundle ID definitivo, identidad Developer ID, notarización real, ejecución en Intel, instalación en un Mac limpio y pruebas de continuidad TCC. El estado detallado y los comandos están en [Fase 1 de distribución](../RELEASE-PHASE-1.md).
 
 ## Alternativas descartadas
 
