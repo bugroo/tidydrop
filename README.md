@@ -1,185 +1,201 @@
-# TidyDrop 1.0.2
+# TidyDrop
 
-<p align="center">
-  <img src="docs/assets/tidydrop-hero.png" alt="TidyDrop organiza archivos localmente mediante una ruta clara y reversible" width="100%">
-</p>
+Keep your Downloads folder organized without uploading your files or giving a
+cloud service access to them.
 
-**Organización local, decisiones transparentes y reversión conservadora para macOS.**
+TidyDrop watches one folder and moves finished files into clear category
+folders. It runs locally, records completed moves for conservative undo, and
+stays out of the way when there is nothing to organize.
 
-TidyDrop organiza localmente el primer nivel de una carpeta elegida en subcarpetas por categoría. No sube contenido, no usa red, telemetría, servicios cloud ni dependencias externas.
+## The problem
 
-Las decisiones duraderas de arquitectura, distribución, permisos y actualizaciones se conservan en el [registro de ADR](docs/adr/README.md). La aplicación macOS futura está definida en [ADR-0001](docs/adr/0001-native-macos-application-architecture.md) y la distribución firmada, las actualizaciones y la continuidad TCC en [ADR-0002](docs/adr/0002-distribution-updates-and-tcc-continuity.md).
+Downloads folders quickly become a mix of documents, images, installers,
+archives, media, and unfinished downloads. Cleaning them manually is repetitive,
+but many automatic organizers are difficult to trust: they may overwrite files,
+move downloads that are still being written, require broad permissions, or send
+file information to another service.
 
-Las vulnerabilidades deben comunicarse mediante el [reporte privado de seguridad](https://github.com/bugroo/tidydrop/security/advisories/new), no en un issue público.
+TidyDrop provides a small, predictable alternative for macOS.
 
-La [fase 1 de distribución](docs/RELEASE-PHASE-1.md) ya contiene build Universal 2, gates de Hardened Runtime, notarización fail-closed y CI sin secretos. Sigue siendo preparación técnica: no existe todavía una release Developer ID/notarizada apta para entregar a un amigo.
+## What TidyDrop does
 
-## Requisitos
+- Organizes only the first level of one selected folder.
+- Waits until a file appears stable before moving it.
+- Ignores hidden files, folders, apps, symbolic links, and incomplete downloads.
+- Never overwrites an existing file.
+- Records completed moves so the latest transaction can be undone safely.
+- Runs briefly every five minutes and exits after each pass.
+- Uses no network connection, telemetry, advertising, or cloud processing.
 
-- macOS 13 o posterior en Apple Silicon.
-- Apple Command Line Tools con Swift y el SDK de macOS.
-- No requiere Xcode completo, XCTest, Homebrew, Python, `pip` ni `sudo`.
+The default folder is `~/Downloads`. Files are placed into these folders when
+needed:
 
-La instalación comprueba el SDK explícitamente con `xcrun` antes de compilar Foundation.
+- Documents (`Documentos`)
+- Images (`Imágenes`)
+- Videos (`Vídeos`)
+- Audio
+- Archives (`Archivos comprimidos`)
+- Installers (`Instaladores`)
+- Code (`Código`)
+- Disk images (`ISOs`)
+- Data (`Datos`)
+- Torrents
+- Other (`Otros`)
 
-## Instalación
+TidyDrop never reorganizes subfolders recursively.
+
+## Current availability
+
+TidyDrop 1.0.2 is an early public version installed from source. It is suitable
+for local testing and personal use, but there is not yet a Developer ID signed
+and notarized download for non-technical users.
+
+Requirements:
+
+- macOS 13 or later on Apple silicon.
+- Apple Command Line Tools.
+
+Full Xcode, Homebrew, Python, administrator privileges, and Full Disk Access are
+not required.
+
+## Install
 
 ```sh
+git clone https://github.com/bugroo/tidydrop.git
+cd tidydrop
 ./scripts/install.sh
 ```
 
-Instala y firma ad hoc:
-
-```text
-~/Applications/TidyDrop.app
-~/.local/bin/tidydrop
-~/Library/Application Support/TidyDrop
-~/Library/Logs/TidyDrop
-~/Library/LaunchAgents/com.local.tidydrop.plist
-```
-
-Cada instalación vuelve obligatoriamente a `apply_enabled=false`. El instalador compila, ejecuta self-tests e integración temporal, carga el LaunchAgent, fuerza una pasada y exige un resultado nuevo y correcto antes de declarar éxito.
-
-## Carpeta activa
-
-TidyDrop 1.0.2 admite una sola carpeta activa. Una instalación nueva usa `~/Downloads` y crea las categorías dentro de ella.
+The installer adds TidyDrop only to the current user account and leaves automatic
+moving disabled. Review the initial dry-run before enabling it:
 
 ```sh
-tidydrop folder show
-tidydrop folder choose
-tidydrop folder set "/ruta/elegida"
-tidydrop folder reset-downloads
-tidydrop folder validate
+"$HOME/.local/bin/tidydrop" status
+"$HOME/.local/bin/tidydrop" folder show
+"$HOME/.local/bin/tidydrop" run --dry-run
 ```
 
-`folder choose` abre un `NSOpenPanel` nativo. Cancelar no cambia la configuración. `folder set`, `folder choose` y `folder reset-downloads` establecen `destination_root` igual a la carpeta elegida y vuelven siempre a dry-run; no borran transacciones ni mueven archivos.
-
-Se rechazan `/`, el home del usuario, `~/Library`, symlinks raíz, pseudo-filesystems, rutas inexistentes, rutas sin lectura/escritura y cualquier carpeta que coincida, contenga o esté dentro del bundle, estado o logs de TidyDrop. No existe un bypass inseguro.
-
-Una carpeta de volumen externo o red puede quedar desmontada. En ese caso el agente no la crea, no la interpreta como vacía y no mueve nada: escribe `source_unavailable` en el estado acotado y vuelve a intentarlo en la siguiente pasada.
-
-## Uso seguro
+Enable automatic organization only when the preview looks correct:
 
 ```sh
-tidydrop status
-tidydrop folder show
-tidydrop run --dry-run
-tidydrop activate
-tidydrop deactivate
-tidydrop undo
-tidydrop undo --apply
+"$HOME/.local/bin/tidydrop" activate
 ```
 
-- `run` y `run --dry-run` no mueven archivos.
-- `activate` habilita apply solo para futuras pasadas programadas.
-- `deactivate` restaura dry-run.
-- `undo` previsualiza; `undo --apply` restaura la última transacción elegible.
-- Las pruebas apply/undo del proyecto se ejecutan exclusivamente en directorios temporales.
+Disable moving at any time:
 
-## Estabilidad y snapshots POSIX
+```sh
+"$HOME/.local/bin/tidydrop" deactivate
+```
 
-Las decisiones críticas usan un `lstat(2)` nuevo en cada lectura. El snapshot conserva tipo, tamaño, `st_dev`, `st_ino`, mtime con segundos y nanosegundos y, en macOS, birth time y el flag oculto. No se usan metadatos Foundation para tamaño, tiempos, identidad, tipo ni estado oculto.
+## Choose a folder
 
-El motor lee el archivo durante la enumeración, antes de esperar, después de esperar y otra vez inmediatamente antes del `rename`. Los cambios producen `changed_before_probe`, `changed_during_probe` o `changed_before_move`; el archivo queda en origen y se actualiza su observación de estabilidad.
+TidyDrop manages one active folder at a time.
 
-Apply y undo abren los directorios sin seguir symlinks, vuelven a comprobar el origen mediante `fstatat(2)` y usan `renameatx_np(..., RENAME_EXCL)` en macOS. Esto impide sobrescribir una colisión creada en el último instante y bloquea el intercambio del directorio de categoría por un symlink. Sigue existiendo una ventana TOCTOU residual para que el proceso escritor cambie el mismo archivo entre el último snapshot y el rename; no puede eliminarse universalmente sin coordinación con ese escritor.
+```sh
+"$HOME/.local/bin/tidydrop" folder show
+"$HOME/.local/bin/tidydrop" folder choose
+"$HOME/.local/bin/tidydrop" folder set "/path/with spaces"
+"$HOME/.local/bin/tidydrop" folder validate
+"$HOME/.local/bin/tidydrop" folder reset-downloads
+```
 
-## Carpetas importantes
+Choosing or changing the folder always returns TidyDrop to dry-run and does not
+move anything immediately.
 
-TidyDrop 1.0.2 mantiene **una sola carpeta activa**. No vigila simultáneamente todas estas ubicaciones:
+The filesystem root, the complete home folder, `~/Library`, TidyDrop's own data,
+symbolic-link roots, and unavailable or unwritable folders are rejected. A local,
+writable subfolder in iCloud Drive, Google Drive, a network volume, or an external
+drive may be selected, but macOS permissions and offline availability must be
+checked separately.
 
-- `~/Downloads`: predeterminada y compatible.
-- `/Users/rootml`: rechazada deliberadamente por ser el home completo y abarcar datos y rutas internas.
-- `~/Documents`: seleccionable si TCC permite acceso; cambiarla vuelve a dry-run.
-- iCloud Drive: su carpeta local puede validarse, pero el acceso del LaunchAgent debe comprobarse después y los archivos no descargados (`.icloud`) se ignoran.
-- Google Drive: la raíz del proveedor puede ser de solo lectura y rechazarse; una subcarpeta local escribible puede seleccionarse. Los conflictos y la sincronización del proveedor quedan fuera del control de TidyDrop.
+## Preview and undo
 
-Para ubicaciones cloud, empieza siempre en dry-run. La validación de ruta no equivale a una garantía sobre TCC, disponibilidad offline o semántica de sincronización.
+Preview a pass without moving files:
 
-## Privacidad y permisos TCC
+```sh
+"$HOME/.local/bin/tidydrop" run --dry-run
+```
 
-El bundle explica acceso a Downloads, Documents, Desktop, volúmenes extraíbles y volúmenes de red. TidyDrop procesa nombres y metadatos localmente y no transmite datos.
+Preview the latest available undo:
 
-La selección mediante `NSOpenPanel` no garantiza por sí sola acceso persistente para `launchd`. El instalador verifica por separado el binario instalado y el LaunchAgent. Si macOS lo requiere, autoriza TidyDrop únicamente en:
+```sh
+"$HOME/.local/bin/tidydrop" undo
+```
+
+Restore that transaction:
+
+```sh
+"$HOME/.local/bin/tidydrop" undo --apply
+```
+
+Undo refuses to overwrite a new file or restore an item whose identity no longer
+matches the recorded move.
+
+## Privacy and macOS permissions
+
+File names and metadata stay on the Mac. TidyDrop does not transmit file content
+or usage information.
+
+macOS may request access to Downloads, Documents, Desktop, removable volumes, or
+network volumes. Grant access only under:
 
 ```text
 System Settings → Privacy & Security → Files & Folders
 ```
 
-No concedas Full Disk Access. No se modifica TCC automáticamente.
+Do not grant Full Disk Access. If the selected folder becomes unavailable or
+permission is revoked, TidyDrop moves nothing and tries again on a later pass.
 
-## LaunchAgent y logs
+## Status and logs
 
-El agente `com.local.tidydrop` ejecuta una pasada breve cada 300 segundos y al iniciar sesión. No queda un daemon propio residente. Las pasadas vacías son silenciosas. Un plan dry-run ya auditado se conserva en una caché privada: mientras su snapshot y configuración no cambien, se omiten la sonda de 750 ms y nuevas líneas de log. `last-scheduled-run.json` se reemplaza para mantener el último estado verificable.
-
-```text
-~/Library/Logs/TidyDrop/steward.log
-~/Library/Logs/TidyDrop/audit.jsonl
-~/Library/Logs/TidyDrop/agent-errors.log
-~/Library/Application Support/TidyDrop/state/last-scheduled-run.json
-~/Library/Application Support/TidyDrop/state/stability.json
-~/Library/Application Support/TidyDrop/state/scheduled-dry-run-cache.json
-~/Library/Application Support/TidyDrop/state/transactions/
+```sh
+"$HOME/.local/bin/tidydrop" status
+"$HOME/.local/bin/tidydrop" folder show
 ```
 
-Cada familia de logs conserva el archivo actual y tres copias rotadas, con 5 MiB por archivo por defecto. La retención solo elimina logs rotados y manifiestos terminales propios; nunca elimina contenido de la carpeta activa.
-
-## Clasificación y protección
-
-La clasificación usa primero extensiones —incluidas compuestas—, después patrones de nombre y finalmente MIME mediante `/usr/bin/file`. La sonda MIME no sigue symlinks y tiene un timeout de dos segundos. Ignora directorios, paquetes `.app`, symlinks, ocultos y formatos incompletos como `.crdownload`, `.part`, `.download` y `.aria2`. No sobrescribe: crea sufijos numerados, exige el mismo filesystem y publica el rename con exclusión.
-
-## Configuración
+Local logs and reversible transaction records are stored under:
 
 ```text
-~/Library/Application Support/TidyDrop/config.json
+~/Library/Logs/TidyDrop
+~/Library/Application Support/TidyDrop
 ```
 
-La configuración y el estado se leen con tamaño acotado y sin seguir symlinks, y se guardan mediante archivo temporal `0600`, `fsync` y rename atómico. Estado y logs usan directorios `0700`. `require_destination_inside_source` debe permanecer en `true`.
+Logs are size-limited and rotated. Empty scheduled passes do not continuously
+append log entries.
 
-## Desinstalación
+## Uninstall
 
-Conservando configuración, transacciones y logs:
+Remove the app, command, and scheduled agent while preserving configuration and
+history:
 
 ```sh
 ./scripts/uninstall.sh
 ```
 
-Eliminación de datos propios:
+Also remove TidyDrop's configuration, logs, and transaction history:
 
 ```sh
 ./scripts/uninstall.sh --purge
 ```
 
-El desinstalador descarga exclusivamente `com.local.tidydrop` y no toca archivos organizados, categorías ni una instalación histórica con otro nombre.
+Uninstalling TidyDrop never removes organized files or category folders.
 
-## Validación
+## Known limitations
 
-```sh
-./scripts/doctor.sh
-swift build -c debug -Xswiftc -warnings-as-errors
-swift build -c release -Xswiftc -warnings-as-errors
-swift run tidydrop-self-test
-./scripts/test-doctor.sh
-./scripts/test-stability-race.sh
-./scripts/test-cli.sh
-./scripts/test-launchagent.sh
-./scripts/test-uninstall.sh
-./scripts/audit-project.sh
-./scripts/validate-project.sh
-./scripts/demo.sh
-./scripts/verify-manifest.sh
-./scripts/test-release-pipeline.sh
-```
+- One active folder is supported at a time.
+- The current public version is installed from source and signed locally.
+- A macOS or TidyDrop update may require Files & Folders permission again.
+- Cloud and removable-volume files must be available locally before they can be
+  organized.
+- A file-writing application can still change a file in the very small interval
+  between the final safety check and the move.
 
-La suite es un ejecutable Swift/Foundation independiente y no importa XCTest.
+## Security
 
-## Limitaciones reales
+Please report vulnerabilities through
+[GitHub's private security reporting](https://github.com/bugroo/tidydrop/security/advisories/new).
+Do not publish unpatched vulnerability details in a public issue.
 
-- Firma ad hoc: una actualización puede originar una nueva solicitud TCC.
-- Una sola carpeta activa en 1.0.2.
-- Los volúmenes desmontados producen `source_unavailable` hasta reaparecer.
-- Las carpetas cloud dependen de archivos disponibles localmente, permisos TCC y semántica del proveedor.
-- El polling de `launchd` sigue despertando una pasada cada 300 segundos; la caché reduce el trabajo, pero la arquitectura FSEvents pertenece a la futura aplicación nativa.
-- La ventana TOCTOU del escritor se reduce con snapshots y rename exclusivo, pero no desaparece completamente.
+## License
 
-La última medición local de ejecución, recursos y batería está en [Evidencia de ejecución, energía y batería](docs/evidence/runtime-power-audit-2026-08-12.md).
+[MIT](LICENSE)
