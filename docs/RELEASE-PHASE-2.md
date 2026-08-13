@@ -20,7 +20,7 @@ Completado:
 
 Pendiente externo o de producto:
 
-- bundle ID definitivo bajo una identidad controlada;
+- bundle ID definitivo `io.github.bugroo.tidydrop` fijado;
 - Apple Developer Program, Team ID y certificado Developer ID;
 - notarización real;
 - incorporación AppKit y agente incluido con `SMAppService`;
@@ -35,13 +35,15 @@ para que macOS pueda atribuir correctamente la aplicación y sus permisos.
 
 Criterios de aceptación:
 
-- bundle ID reverse-DNS definitivo y documentado;
+- bundle ID definitivo `io.github.bugroo.tidydrop` y agente `io.github.bugroo.tidydrop.agent` documentados;
 - Team ID y designated requirement fijados como gates;
 - migración explícita desde `com.local.tidydrop`;
 - ninguna credencial o certificado dentro del repositorio.
 
-Estimación: 2 puntos. Dependencia: decisión del propietario y Apple Developer
-Program. Prioridad: bloqueante.
+Estado: bundle IDs decididos; Team ID y Developer ID pendientes.
+
+Estimación: 2 puntos. Dependencia restante: Apple Developer Program. Prioridad:
+bloqueante.
 
 ### P2-2 · Incorporación nativa sin shell
 

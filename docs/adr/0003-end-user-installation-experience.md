@@ -20,6 +20,16 @@ Line Tools, Homebrew ni privilegios de administrador.
 
 ## Decisión
 
+La identidad pública queda fijada antes de construir el primer artefacto:
+
+- aplicación: `io.github.bugroo.tidydrop`;
+- agente incluido: `io.github.bugroo.tidydrop.agent`;
+- ejecutable visible: `TidyDrop`;
+- CLI y agente internos: `tidydrop` y `tidydrop-agent`.
+
+El namespace corresponde a la identidad pública controlada
+`github.com/bugroo`; no se reutilizará `com.local.tidydrop` para distribución.
+
 ### Canal para usuarios finales
 
 La instalación pública recomendada será un DMG firmado y notarizado que
@@ -56,7 +66,7 @@ una acción explícita del usuario.
 
 No se presentará el DMG como instalación pública terminada hasta demostrar:
 
-1. identidad definitiva de bundle y Team ID estable;
+1. bundle ID definitivo y Team ID estable;
 2. app y agente Universal 2 con firma Developer ID y Hardened Runtime;
 3. notarización aceptada y ticket grapado;
 4. Gatekeeper aprobado desde el DMG descargado;
