@@ -1,0 +1,59 @@
+name: Release readiness
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-readiness:
+    name: Universal 2 and safety gates
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Record controlled toolchain
+        run: |
+          set -eu
+          sw_vers
+          uname -m
+          xcodebuild -version
+          xcrun swift --version
+          xcrun --sdk macosx --show-sdk-version
+
+      - name: Validate current product
+        run: |
+          set -eu
+          ./scripts/doctor.sh
+          swift build -c debug -Xswiftc -warnings-as-errors
+          swift build -c release -Xswiftc -warnings-as-errors
+          swift run tidydrop-self-test
+          ./scripts/test-doctor.sh
+          ./scripts/test-stability-race.sh
+          ./scripts/test-folder-chooser.sh
+          ./scripts/test-cli.sh
+          ./scripts/test-launchagent.sh
+          ./scripts/test-uninstall.sh
+          ./scripts/audit-project.sh
+          ./scripts/demo.sh
+
+      - name: Validate fail-closed release pipeline
+        run: ./scripts/test-release-pipeline.sh
+
+      - name: Check repository whitespace
+        run: git diff --check

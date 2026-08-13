@@ -1,0 +1,6 @@
+/.github/ @bugroo
+/scripts/build-universal-app.sh @bugroo
+/scripts/sign-app.sh @bugroo
+/scripts/notarize-app.sh @bugroo
+/scripts/package-release.sh @bugroo
+/scripts/verify-release.sh @bugroo
