@@ -1,6 +1,7 @@
 .github/CODEOWNERS: OK
 .github/SECURITY.md: OK
 .github/dependabot.yml: OK
+.github/workflows/community-preview.yml: OK
 .github/workflows/release-readiness.yml: OK
 .github/workflows/release.yml: OK
 .gitignore: OK
@@ -27,6 +28,7 @@ app/Distribution-Info.plist: OK
 app/Info.plist: OK
 app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
+docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md: OK
 docs/RELEASE-PHASE-1.md: OK
 docs/RELEASE-PHASE-2.md: OK
 docs/RUNTIME-AUDIT-2026-08-13.md: OK
@@ -36,6 +38,7 @@ docs/VALIDATION.md: OK
 docs/adr/0001-native-macos-application-architecture.md: OK
 docs/adr/0002-distribution-updates-and-tcc-continuity.md: OK
 docs/adr/0003-end-user-installation-experience.md: OK
+docs/adr/0004-community-preview-without-developer-id.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -72,6 +75,7 @@ scripts/package-release.sh: OK
 scripts/render-launchagent.sh: OK
 scripts/sign-app.sh: OK
 scripts/test-cli.sh: OK
+scripts/test-community-preview-workflow.sh: OK
 scripts/test-doctor.sh: OK
 scripts/test-folder-chooser.sh: OK
 scripts/test-launchagent.sh: OK
@@ -85,4 +89,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 87 archivos
+Manifest verificado: 91 archivos

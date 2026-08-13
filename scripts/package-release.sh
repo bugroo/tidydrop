@@ -4,7 +4,7 @@ set -eu
 umask 077
 
 if [ "$#" -ne 3 ]; then
-    printf 'Uso: %s APP DIRECTORIO_SALIDA (development|distribution)\n' "$0" >&2
+    printf 'Uso: %s APP DIRECTORIO_SALIDA (development|community|distribution)\n' "$0" >&2
     exit 2
 fi
 
@@ -18,6 +18,9 @@ VERSION=$(/bin/cat "$PROJECT_ROOT/VERSION")
 case "$MODE" in
     development)
         BASENAME="TidyDrop-$VERSION-macos-universal-development"
+        ;;
+    community)
+        BASENAME="TidyDrop-$VERSION-community-preview-macos-universal"
         ;;
     distribution)
         BASENAME="TidyDrop-$VERSION-macos-universal"
@@ -56,7 +59,7 @@ if [ "$MODE" = 'distribution' ]; then
     "$SCRIPT_DIR/create-dmg.sh" "$APP" "$DMG" distribution "$SIGNING_IDENTITY"
     "$SCRIPT_DIR/notarize-dmg.sh" "$DMG" --keychain-profile "$NOTARY_PROFILE"
 else
-    "$SCRIPT_DIR/create-dmg.sh" "$APP" "$DMG" development
+    "$SCRIPT_DIR/create-dmg.sh" "$APP" "$DMG" "$MODE"
 fi
 
 (

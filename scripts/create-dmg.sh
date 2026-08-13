@@ -4,7 +4,7 @@ set -eu
 umask 077
 
 if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
-    printf 'Uso: %s APP DMG_SALIDA (development|distribution) [IDENTIDAD_DEVELOPER_ID]\n' "$0" >&2
+    printf 'Uso: %s APP DMG_SALIDA (development|community|distribution) [IDENTIDAD_DEVELOPER_ID]\n' "$0" >&2
     exit 2
 fi
 
@@ -15,8 +15,8 @@ IDENTITY=${4:-}
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 case "$MODE" in
-    development)
-        [ -z "$IDENTITY" ] || { printf '%s\n' 'ERROR: development no acepta identidad.' >&2; exit 2; }
+    development|community)
+        [ -z "$IDENTITY" ] || { printf '%s\n' 'ERROR: el canal ad hoc no acepta identidad.' >&2; exit 2; }
         ;;
     distribution)
         [ -n "$IDENTITY" ] || { printf '%s\n' 'ERROR: distribution requiere Developer ID Application.' >&2; exit 2; }

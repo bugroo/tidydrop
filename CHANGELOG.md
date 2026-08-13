@@ -1,7 +1,12 @@
 # Changelog
 
-## 1.1.0 — Unreleased
+## 1.1.0 — Community Preview
 
+- Added a free Community Preview channel: ad hoc signed Universal 2 DMG,
+  SHA-256, GitHub build provenance, draft re-download verification, and
+  prerelease-only publication.
+- Added an in-app Community Preview warning and a second confirmation before
+  automatic moving can be enabled.
 - Added a native AppKit onboarding application with a separate Foundation-only background agent registered through `SMAppService`.
 - Added a Universal 2 DMG pipeline with Developer ID, app and DMG notarization, stapling, Gatekeeper verification, checksum, and post-publication revalidation.
 - Phase 2 started with an accepted ADR and testable backlog for a notarized DMG and native, shell-free onboarding.

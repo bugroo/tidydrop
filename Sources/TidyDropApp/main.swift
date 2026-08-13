@@ -7,6 +7,13 @@ private enum ProductIdentity {
     static let agentPlist = "io.github.bugroo.tidydrop.agent.plist"
     static let legacyAgentLabel = "com.local.tidydrop"
     static let version = "1.1.0"
+    static let distributionChannel = Bundle.main.object(
+        forInfoDictionaryKey: "TidyDropDistributionChannel"
+    ) as? String ?? "development"
+    static let buildIdentity = Bundle.main.object(
+        forInfoDictionaryKey: "TidyDropBuildIdentity"
+    ) as? String ?? version
+    static let isCommunityPreview = distributionChannel == "community"
 }
 
 private struct LegacyAgentMigration {
@@ -61,7 +68,9 @@ private struct TidyDropApplication {
     private static func bundleSelfCheck() -> Int32 {
         let bundle = Bundle.main
         guard bundle.bundleIdentifier == "io.github.bugroo.tidydrop",
-              bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String == "TidyDropApp" else {
+              bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String == "TidyDropApp",
+              ["development", "community", "distribution"].contains(ProductIdentity.distributionChannel),
+              !ProductIdentity.buildIdentity.isEmpty else {
             fputs("bundle identity mismatch\n", stderr)
             return 2
         }
@@ -125,12 +134,12 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             as: UTF8.self
         ).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if recordedVersion != ProductIdentity.version {
+        if recordedVersion != ProductIdentity.buildIdentity {
             var configuration = resolved.config
             configuration.automation.applyEnabled = false
             try ConfigurationIO.save(configuration, to: configurationURL)
             try FileSystemSecurity.atomicWritePrivate(
-                Data("\(ProductIdentity.version)\n".utf8),
+                Data("\(ProductIdentity.buildIdentity)\n".utf8),
                 to: marker,
                 maximumBytes: 128
             )
@@ -156,6 +165,20 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         )
         introduction.textColor = .secondaryLabelColor
 
+        var introductoryViews: [NSView] = [title, introduction]
+        var communityWarning: NSTextField?
+        if ProductIdentity.isCommunityPreview {
+            let previewWarning = NSTextField(wrappingLabelWithString:
+                "Community Preview: this build is not notarized by Apple. Install it only from " +
+                "the official bugroo/tidydrop GitHub Release and verify its checksum."
+            )
+            previewWarning.textColor = .systemOrange
+            previewWarning.font = .systemFont(ofSize: 13, weight: .medium)
+            previewWarning.maximumNumberOfLines = 3
+            communityWarning = previewWarning
+            introductoryViews.append(previewWarning)
+        }
+
         let folderRow = statusRow(title: "Active folder", value: folderLabel)
         let serviceRow = statusRow(title: "Background agent", value: serviceLabel)
         let modeRow = statusRow(title: "Automatic moving", value: modeLabel)
@@ -179,8 +202,8 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         resultLabel.textColor = .secondaryLabelColor
         resultLabel.maximumNumberOfLines = 3
 
-        let stack = NSStackView(views: [
-            title, introduction, separator(), folderRow, serviceRow, modeRow,
+        let stack = NSStackView(views: introductoryViews + [
+            separator(), folderRow, serviceRow, modeRow,
             separator(), primaryActions, modeActions, resultLabel
         ])
         stack.orientation = .vertical
@@ -204,6 +227,7 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             modeActions.widthAnchor.constraint(equalTo: stack.widthAnchor),
             resultLabel.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
+        communityWarning?.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         self.window = window
     }
 
@@ -451,6 +475,19 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         guard backgroundVerified else {
             refreshStatus(message: "Verify the background agent before enabling moving.")
             return
+        }
+        if ProductIdentity.isCommunityPreview {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Enable a non-notarized Community Preview?"
+            alert.informativeText = "Only continue if this copy came from the official " +
+                "bugroo/tidydrop GitHub Release and its checksum was verified."
+            alert.addButton(withTitle: "Enable Automatic Organization")
+            alert.addButton(withTitle: "Keep Preview Only")
+            guard alert.runModal() == .alertFirstButtonReturn else {
+                refreshStatus(message: "Automatic moving remains disabled.")
+                return
+            }
         }
         do {
             let resolved = try ConfigurationIO.load(from: configurationURL)

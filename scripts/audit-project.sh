@@ -152,6 +152,7 @@ if ! /usr/bin/grep -q 'contents: read' "$PROJECT_ROOT/.github/workflows/release-
     printf '%s\n' '[FALLO] El workflow de readiness no conserva privilegios mínimos.' >&2
     exit 1
 fi
-printf '%s\n' '[OK] GitHub Actions fijadas y con token de solo lectura'
+"$SCRIPT_DIR/test-community-preview-workflow.sh"
+printf '%s\n' '[OK] Actions fijadas; PR read-only y publicación comunitaria fail-closed'
 
 printf '%s\n' 'Auditoría estática: PASS'
