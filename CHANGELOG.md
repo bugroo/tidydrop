@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.1 — Community Preview
 
 - Fixed the installed CLI's background-agent status check so it recognizes the
   bundled `SMAppService` agent instead of reporting a false `not_installed`.
