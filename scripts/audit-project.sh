@@ -93,6 +93,7 @@ fi
 unexpected_unlinks=$(
     /usr/bin/grep -RInE '(^|[^[:alnum:]_])unlink[[:space:]]*\(' "$PROJECT_ROOT/Sources" 2>/dev/null \
         | /usr/bin/grep -v '/FileSystem.swift:' \
+        | /usr/bin/grep -v '/PrivateUpdateStaging.swift:' \
         || true
 )
 if [ -n "$unexpected_unlinks" ] \
@@ -202,6 +203,9 @@ if ! /usr/bin/grep -Fq 'performRun(reason: "startup_reconciliation", agentReady:
     exit 1
 fi
 printf '%s\n' '[OK] Startup FSEvents en dos fases; solo agent_ready=true autoriza background'
+
+"$SCRIPT_DIR/test-update-staging-foundation.sh"
+printf '%s\n' '[OK] Staging privado anclado a descriptores y aislado de targets de producto'
 
 if /usr/bin/grep -q -- '--entitlements' "$PROJECT_ROOT/scripts/sign-app.sh"; then
     printf '%s\n' '[FALLO] Sandbox no puede entrar en releases antes del gate integrado.' >&2

@@ -25,6 +25,8 @@ TidyDrop — auditoría estática local
 [OK] LaunchAgent sin logs stdout/stderr ilimitados
 [OK] FSEvents usa entrega agrupada sin wakeup inmediato NoDefer
 [OK] Startup FSEvents en dos fases; solo agent_ready=true autoriza background
+Private update-staging foundation: PASS (descriptor-bound; no network, mount, install, or activation)
+[OK] Staging privado anclado a descriptores y aislado de targets de producto
 [OK] Prototipos Sandbox mínimos y bloqueados fuera de releases
 [OK] Red de release limitada a notarización Apple; agente y motor permanecen sin red
 Community Preview workflow: PASS (prerelease + checksum + provenance + revalidation)

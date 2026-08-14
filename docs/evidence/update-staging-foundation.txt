@@ -1,0 +1,1 @@
+Private update-staging foundation: PASS (descriptor-bound; no network, mount, install, or activation)

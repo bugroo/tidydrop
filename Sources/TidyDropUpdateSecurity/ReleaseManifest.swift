@@ -109,6 +109,14 @@ public struct ReleaseManifestPolicy: Sendable {
     }
 }
 
+public struct AuthenticatedReleaseManifest: Equatable, Sendable {
+    public let manifest: ReleaseManifest
+
+    fileprivate init(manifest: ReleaseManifest) {
+        self.manifest = manifest
+    }
+}
+
 public enum ReleaseManifestCodec {
     private static let expectedKeys = [
         "version",
@@ -287,12 +295,13 @@ public enum ReleaseManifestVerifier {
         artifactURL: URL,
         policy: ReleaseManifestPolicy
     ) throws -> ReleaseManifest {
-        let manifest = try authenticateManifest(
+        let authenticated = try authenticateManifest(
             manifestData: manifestData,
             signature: signature,
             publicKey: publicKey,
             policy: policy
         )
+        let manifest = authenticated.manifest
         guard artifactURL.lastPathComponent == policy.artifactName else {
             throw ReleaseManifestFailure.wrongArtifactName
         }
@@ -306,12 +315,12 @@ public enum ReleaseManifestVerifier {
         return manifest
     }
 
-    private static func authenticateManifest(
+    public static func authenticateManifest(
         manifestData: Data,
         signature: Data,
         publicKey: Data,
         policy: ReleaseManifestPolicy
-    ) throws -> ReleaseManifest {
+    ) throws -> AuthenticatedReleaseManifest {
         let manifest = try ReleaseManifestCodec.decodeCanonical(manifestData)
         let verifier: Curve25519.Signing.PublicKey
         do {
@@ -354,7 +363,7 @@ public enum ReleaseManifestVerifier {
         guard system(policy.currentSystem, supports: manifest.minimumMacOS) else {
             throw ReleaseManifestFailure.unsupportedSystem
         }
-        return manifest
+        return AuthenticatedReleaseManifest(manifest: manifest)
     }
 
     public static func sha256Hex(of data: Data) -> String {

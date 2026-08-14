@@ -89,6 +89,14 @@ La vigilancia, clasificación, apply y undo continúan sin red. El Update Center
 
 La selección de releases exige tags y canales estrictos, ignora drafts y downgrades, y construye la URL visible desde el origen oficial en lugar de confiar en enlaces recibidos. GitHub sigue viendo los metadatos normales de una conexión HTTPS cuando el usuario pulsa el botón. [ADR-0013](adr/0013-offline-ed25519-release-manifest-foundation.md) implementa una base aislada para verificar manifiestos Ed25519 y el DMG real sin seguir symlinks, pero no contiene clave de producción ni está conectada a la app distribuida. La firma operativa de releases, instalación staged y rollback permanecen bloqueados por [ADR-0011](adr/0011-manual-update-center-and-recovery-boundary.md) y su [threat model](tidydrop-update-center-threat-model.md).
 
+[ADR-0015](adr/0015-private-update-staging-foundation.md) añade otra base
+aislada: un workspace privado y archivo parcial anclados a descriptores POSIX,
+con límites autenticados, creación exclusiva, `O_NOFOLLOW`, comprobaciones
+`fstat` y finalización `RENAME_EXCL`. Las pruebas cubren cancelación, disco
+lleno, tamaño incompleto, symlinks y colisión tardía. No contiene red, montaje,
+extracción, instalación ni reemplazo de `/Applications`; esas fronteras siguen
+bloqueadas.
+
 ## Fuera de alcance
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.

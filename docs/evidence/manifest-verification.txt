@@ -37,6 +37,7 @@ Sources/TidyDropCore/StewardEngine.swift: OK
 Sources/TidyDropCore/Transactions.swift: OK
 Sources/TidyDropCore/UpdatePolicy.swift: OK
 Sources/TidyDropCore/WorkbenchData.swift: OK
+Sources/TidyDropUpdateSecurity/PrivateUpdateStaging.swift: OK
 Sources/TidyDropUpdateSecurity/ReleaseManifest.swift: OK
 VERSION: OK
 app/Distribution-Info.plist: OK
@@ -58,6 +59,7 @@ docs/RELEASE-PHASE-1.md: OK
 docs/RELEASE-PHASE-2.md: OK
 docs/RUNTIME-AUDIT-2026-08-13.md: OK
 docs/RUNTIME-AUDIT-2026-08-14-1.2.0-BUILD8.md: OK
+docs/RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md: OK
 docs/RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD9.md: OK
 docs/RUNTIME-AUDIT-2026-08-14.md: OK
 docs/SECURITY-AUDIT-2026-08-12.md: OK
@@ -78,6 +80,7 @@ docs/adr/0011-manual-update-center-and-recovery-boundary.md: OK
 docs/adr/0012-community-1.3-release-boundary.md: OK
 docs/adr/0013-offline-ed25519-release-manifest-foundation.md: OK
 docs/adr/0014-two-phase-agent-startup-readiness.md: OK
+docs/adr/0015-private-update-staging-foundation.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -94,6 +97,7 @@ docs/evidence/launchagent-rendering.txt: OK
 docs/evidence/manifest-verification.txt: OK
 docs/evidence/package-description.txt: OK
 docs/evidence/public-release-1.3.0-community.1.txt: OK
+docs/evidence/public-release-1.3.0-community.2.txt: OK
 docs/evidence/release-build.txt: OK
 docs/evidence/release-manifest-foundation.txt: OK
 docs/evidence/release-pipeline.txt: OK
@@ -105,6 +109,7 @@ docs/evidence/static-audit.txt: OK
 docs/evidence/swift6-build.txt: OK
 docs/evidence/uninstall-safety.txt: OK
 docs/evidence/update-center.txt: OK
+docs/evidence/update-staging-foundation.txt: OK
 docs/evidence/validation-result.txt: OK
 docs/tidydrop-update-center-threat-model.md: OK
 launchd/com.local.tidydrop.plist.example: OK
@@ -131,6 +136,7 @@ scripts/test-security-prototypes.sh: OK
 scripts/test-stability-race.sh: OK
 scripts/test-uninstall.sh: OK
 scripts/test-update-center.sh: OK
+scripts/test-update-staging-foundation.sh: OK
 scripts/uninstall.sh: OK
 scripts/update-manifest.sh: OK
 scripts/validate-project.sh: OK
@@ -138,4 +144,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 140 archivos
+Manifest verificado: 146 archivos
