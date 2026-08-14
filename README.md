@@ -56,19 +56,20 @@ promises:
 ### Default categories
 
 The default folder is `~/Downloads`. TidyDrop creates category folders only when
-they are needed:
+they are needed. Folder labels come from the installed configuration and may be
+localized; the categories are:
 
-- Documents (`Documentos`)
-- Images (`Imágenes`)
-- Videos (`Vídeos`)
+- Documents
+- Images
+- Videos
 - Audio
-- Archives (`Archivos comprimidos`)
-- Installers (`Instaladores`)
-- Code (`Código`)
+- Archives
+- Installers
+- Code
 - Disk images (`ISOs`)
-- Data (`Datos`)
+- Data
 - Torrents
-- Other (`Otros`)
+- Other
 
 TidyDrop never reorganizes subfolders recursively.
 
