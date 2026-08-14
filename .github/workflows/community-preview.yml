@@ -59,6 +59,7 @@ jobs:
           ./scripts/test-launchagent.sh
           ./scripts/test-uninstall.sh
           ./scripts/audit-project.sh
+          ./scripts/test-update-center.sh
           ./scripts/demo.sh
           ./scripts/test-community-preview-workflow.sh
           git diff --check

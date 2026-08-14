@@ -95,6 +95,7 @@ capture "$EVIDENCE_DIR/uninstall-safety.txt" "$SCRIPT_DIR/test-uninstall.sh"
 capture "$EVIDENCE_DIR/demo-dry-run.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRIPT_DIR/demo.sh"
 capture "$EVIDENCE_DIR/release-build.txt" swift build -c release -Xswiftc -warnings-as-errors
 capture "$EVIDENCE_DIR/static-audit.txt" "$SCRIPT_DIR/audit-project.sh"
+capture "$EVIDENCE_DIR/update-center.txt" "$SCRIPT_DIR/test-update-center.sh"
 capture "$EVIDENCE_DIR/release-pipeline.txt" "$SCRIPT_DIR/test-release-pipeline.sh"
 package_description=$(swift package describe)
 printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"

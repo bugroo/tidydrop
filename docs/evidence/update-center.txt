@@ -1,0 +1,6 @@
+Update Center policy: PASS
+  manual check only
+  official fixed repository endpoint
+  ephemeral session without credentials or cookies
+  no runtime network in Core, CLI, or LaunchAgent
+  no artifact download or installation path

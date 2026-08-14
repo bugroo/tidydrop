@@ -1,6 +1,6 @@
 # Modelo de seguridad de TidyDrop 1.2.0 Community Preview
 
-TidyDrop es local, sin red, telemetría, servicios externos, `sudo` ni dependencias de ejecución. La amenaza principal es el error operativo y el cambio concurrente de archivos por aplicaciones de descarga.
+TidyDrop procesa archivos localmente, sin telemetría, servicios cloud, `sudo` ni dependencias de ejecución. El agente y el motor de organización permanecen sin red. La única excepción de runtime es el Update Center manual: tras una acción explícita consulta metadatos de releases del repositorio oficial sin enviar nombres, rutas o contenido de archivos.
 
 ## Invariantes
 
@@ -82,7 +82,9 @@ hoc, Hardened Runtime, Universal 2 y ausencia de una autoridad Apple simulada.
 `distribution` exige Developer ID, timestamp seguro, Team ID, notarización,
 ticket grapado y Gatekeeper. Ninguna credencial se almacena en el repositorio.
 
-El runtime continúa sin red. La única operación de red nueva pertenece al proceso de release del mantenedor: `notarytool` envía el artefacto firmado al servicio de Apple. No se ejecuta durante instalación, vigilancia, clasificación o undo.
+La vigilancia, clasificación, apply y undo continúan sin red. El Update Center usa una sesión efímera, sin cookies ni credenciales, con endpoint, tiempo y tamaño de respuesta acotados. No se ejecuta al iniciar, mediante timer o desde el LaunchAgent; tampoco descarga ni instala artefactos. El proceso de release del mantenedor puede usar `notarytool` para enviar un artefacto firmado a Apple, pero esa operación no forma parte del runtime del usuario.
+
+La selección de releases exige tags y canales estrictos, ignora drafts y downgrades, y construye la URL visible desde el origen oficial en lugar de confiar en enlaces recibidos. GitHub sigue viendo los metadatos normales de una conexión HTTPS cuando el usuario pulsa el botón. La autenticación independiente de artefactos, instalación staged y rollback de la aplicación permanecen bloqueados por [ADR-0011](adr/0011-manual-update-center-and-recovery-boundary.md) y su [threat model](tidydrop-update-center-threat-model.md).
 
 ## Fuera de alcance
 

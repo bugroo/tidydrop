@@ -85,4 +85,10 @@ PASS  testAgentRunRequestValidationRejectsStaleOrDifferentSource
 PASS  testCodeSigningRequirementMatchesOnlyCurrentSignedCode
 PASS  testSecurityScopedBookmarkRoundTripBalancesAccess
 PASS  testXPCMutualCodeSigningRequirementAcceptsAndRejects
-Resultado: 86 PASS, 0 SKIP, 0 FAIL; total=86
+PASS  testReleaseVersionParsingIsStrictAndOverflowSafe
+PASS  testCommunityReleaseSelectionRejectsDraftStableMalformedAndDowngrade
+PASS  testStableReleaseSelectionRejectsPrereleaseAndDowngrade
+PASS  testReleaseSelectionIsBoundedAndChannelLocked
+PASS  testReleaseDisplayFieldsAreBounded
+PASS  testReleaseMetadataDecodesOnlyRequiredFields
+Resultado: 92 PASS, 0 SKIP, 0 FAIL; total=92
