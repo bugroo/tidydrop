@@ -104,6 +104,8 @@ capture "$EVIDENCE_DIR/update-transport-foundation.txt" \
     "$SCRIPT_DIR/test-update-transport-foundation.sh"
 capture "$EVIDENCE_DIR/update-inspection-foundation.txt" \
     "$SCRIPT_DIR/test-update-inspection-foundation.sh"
+capture "$EVIDENCE_DIR/update-recovery-foundation.txt" \
+    "$SCRIPT_DIR/test-update-recovery-foundation.sh"
 capture "$EVIDENCE_DIR/release-pipeline.txt" "$SCRIPT_DIR/test-release-pipeline.sh"
 package_description=$(swift package describe)
 printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"

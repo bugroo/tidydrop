@@ -36,6 +36,13 @@ Products:
     Targets:
         TidyDropUpdateInspection
 
+    Name: TidyDropUpdateRecovery
+    Type:
+        Library:
+            automatic
+    Targets:
+        TidyDropUpdateRecovery
+
     Name: TidyDropApp
     Type:
         Executable: nil
@@ -88,6 +95,21 @@ Targets:
         TidyDropUpdateSecurity
         TidyDropUpdateTransport
         TidyDropUpdateInspection
+        TidyDropUpdateRecovery
+        tidydrop-self-test
+
+    Name: TidyDropUpdateRecovery
+    Type: library
+    C99name: TidyDropUpdateRecovery
+    Module type: SwiftTarget
+    Path: Sources/TidyDropUpdateRecovery
+    Sources:
+        PrivateRecoveryStateSnapshot.swift
+    Target dependencies:
+        TidyDropCore
+        TidyDropUpdateSecurity
+    Product memberships:
+        TidyDropUpdateRecovery
         tidydrop-self-test
 
     Name: TidyDropUpdateInspection
@@ -115,6 +137,7 @@ Targets:
         TidyDropUpdateSecurity
         TidyDropUpdateTransport
         TidyDropUpdateInspection
+        TidyDropUpdateRecovery
     Product memberships:
         tidydrop-self-test
 
@@ -148,6 +171,7 @@ Targets:
         TidyDropUpdateSecurity
         TidyDropUpdateTransport
         TidyDropUpdateInspection
+        TidyDropUpdateRecovery
         TidyDropApp
         tidydrop
         tidydrop-agent

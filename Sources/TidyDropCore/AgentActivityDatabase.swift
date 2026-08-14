@@ -1,5 +1,10 @@
 import Foundation
 import SQLite3
+#if os(macOS)
+import Darwin
+#else
+import Glibc
+#endif
 
 public struct StoredAgentRun: Equatable, Sendable {
     public let runID: String
@@ -38,6 +43,125 @@ public enum AgentActivityDatabase {
         let connection = try SQLiteConnection(databaseURL: databaseURL, mode: .reader)
         return try connection.recentRuns(limit: limit)
     }
+
+    /// Creates a consistent, read-only SQLite backup for update recovery.
+    /// The destination must not exist and is created in a private directory.
+    @discardableResult
+    public static func createVerifiedBackup(from sourceURL: URL, to destinationURL: URL) throws -> Int32 {
+        guard try pathEntryExists(destinationURL) == false else {
+            throw StewardError.unsafePath("SQLite recovery destination already exists")
+        }
+        let physicalSourceURL = try physicalRegularFileURL(sourceURL)
+        let physicalDestinationURL = try physicalPrivateDestinationURL(destinationURL)
+        let connection = try SQLiteConnection(databaseURL: physicalSourceURL, mode: .reader)
+        let schemaVersion = try connection.backup(to: physicalDestinationURL)
+        try FileSystemSecurity.setPrivateFilePermissions(physicalDestinationURL)
+        return schemaVersion
+    }
+
+    private static func pathEntryExists(_ url: URL) throws -> Bool {
+        try FileSystemSecurity.pathEntryExists(url)
+    }
+
+    fileprivate static func physicalRegularFileURL(_ url: URL) throws -> URL {
+        let descriptor = url.path.withCString { path in
+            open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)
+        }
+        guard descriptor >= 0 else {
+            throw StewardError.commandFailed("SQLite recovery source could not be opened safely")
+        }
+        defer { close(descriptor) }
+        var sourceMetadata = stat()
+        guard fstat(descriptor, &sourceMetadata) == 0,
+              sourceMetadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+              sourceMetadata.st_uid == geteuid(),
+              sourceMetadata.st_mode & mode_t(0o022) == 0 else {
+            throw StewardError.unsafePath("unsafe SQLite recovery source")
+        }
+
+#if os(macOS)
+        var pathBytes = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let result = pathBytes.withUnsafeMutableBytes { bytes -> Int32 in
+            guard let base = bytes.baseAddress else { return -1 }
+            return fcntl(descriptor, F_GETPATH, base)
+        }
+        guard result == 0 else {
+            throw StewardError.commandFailed("SQLite recovery source path could not be resolved")
+        }
+        let physicalURL = URL(fileURLWithPath: decodedPath(pathBytes))
+#else
+        let descriptorPath = "/proc/self/fd/\(descriptor)"
+        var pathBytes = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let count = descriptorPath.withCString {
+            readlink($0, &pathBytes, pathBytes.count - 1)
+        }
+        guard count > 0 else {
+            throw StewardError.commandFailed("SQLite recovery source path could not be resolved")
+        }
+        pathBytes[Int(count)] = 0
+        let physicalURL = URL(fileURLWithPath: decodedPath(pathBytes))
+#endif
+        let physicalMetadata = try FileSystemSecurity.freshPOSIXMetadata(of: physicalURL)
+        guard physicalMetadata.kind == .regularFile,
+              physicalMetadata.deviceID == UInt64(sourceMetadata.st_dev),
+              physicalMetadata.inode == UInt64(sourceMetadata.st_ino) else {
+            throw StewardError.unsafePath("SQLite recovery source identity changed")
+        }
+        return physicalURL
+    }
+
+    fileprivate static func physicalPrivateDestinationURL(_ url: URL) throws -> URL {
+        let name = url.lastPathComponent
+        guard !name.isEmpty, name != ".", name != "..", !name.contains("/") else {
+            throw StewardError.unsafePath("unsafe SQLite recovery destination name")
+        }
+        let parentURL = url.deletingLastPathComponent()
+        let descriptor = parentURL.path.withCString { path in
+            open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
+        }
+        guard descriptor >= 0 else {
+            throw StewardError.commandFailed("SQLite recovery destination directory could not be opened")
+        }
+        defer { close(descriptor) }
+        var metadata = stat()
+        guard fstat(descriptor, &metadata) == 0,
+              metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR),
+              metadata.st_uid == geteuid(),
+              metadata.st_mode & mode_t(0o077) == 0 else {
+            throw StewardError.unsafePath("unsafe SQLite recovery destination directory")
+        }
+
+#if os(macOS)
+        var pathBytes = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let result = pathBytes.withUnsafeMutableBytes { bytes -> Int32 in
+            guard let base = bytes.baseAddress else { return -1 }
+            return fcntl(descriptor, F_GETPATH, base)
+        }
+        guard result == 0 else {
+            throw StewardError.commandFailed("SQLite recovery destination path could not be resolved")
+        }
+        let physicalParent = URL(fileURLWithPath: decodedPath(pathBytes), isDirectory: true)
+#else
+        let descriptorPath = "/proc/self/fd/\(descriptor)"
+        var pathBytes = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let count = descriptorPath.withCString {
+            readlink($0, &pathBytes, pathBytes.count - 1)
+        }
+        guard count > 0 else {
+            throw StewardError.commandFailed("SQLite recovery destination path could not be resolved")
+        }
+        pathBytes[Int(count)] = 0
+        let physicalParent = URL(fileURLWithPath: decodedPath(pathBytes), isDirectory: true)
+#endif
+        return physicalParent.appendingPathComponent(name)
+    }
+
+    private static func decodedPath(_ pathBytes: [CChar]) -> String {
+        String(
+            decoding: pathBytes.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) },
+            as: UTF8.self
+        )
+    }
 }
 
 private final class SQLiteConnection {
@@ -52,14 +176,19 @@ private final class SQLiteConnection {
     private var database: OpaquePointer?
 
     init(databaseURL: URL, mode: Mode) throws {
-        self.databaseURL = databaseURL.standardizedFileURL
         self.mode = mode
 
+        let requestedURL = databaseURL.standardizedFileURL
         switch mode {
         case .writer:
-            try FileSystemSecurity.ensurePrivateDirectory(databaseURL.deletingLastPathComponent())
+            try FileSystemSecurity.ensurePrivateDirectory(requestedURL.deletingLastPathComponent())
+            if try FileSystemSecurity.pathEntryExists(requestedURL) {
+                self.databaseURL = try AgentActivityDatabase.physicalRegularFileURL(requestedURL)
+            } else {
+                self.databaseURL = try AgentActivityDatabase.physicalPrivateDestinationURL(requestedURL)
+            }
         case .reader:
-            break
+            self.databaseURL = try AgentActivityDatabase.physicalRegularFileURL(requestedURL)
         }
         for candidate in relatedDatabaseFiles {
             if try FileSystemSecurity.pathEntryExists(candidate) {
@@ -80,7 +209,7 @@ private final class SQLiteConnection {
             flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX
                 | SQLITE_OPEN_PRIVATECACHE | SQLITE_OPEN_NOFOLLOW
         }
-        let openResult = databaseURL.path.withCString { path in
+        let openResult = self.databaseURL.path.withCString { path in
             sqlite3_open_v2(path, &database, flags, nil)
         }
         guard openResult == SQLITE_OK, let database else {
@@ -273,6 +402,55 @@ private final class SQLiteConnection {
         }
     }
 
+    func backup(to destinationURL: URL) throws -> Int32 {
+        guard case .reader = mode, let sourceDatabase = database else {
+            throw StewardError.commandFailed("SQLite backup requires a read-only source")
+        }
+        try validateSchemaVersion()
+
+        var destinationDatabase: OpaquePointer?
+        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+            | SQLITE_OPEN_PRIVATECACHE | SQLITE_OPEN_NOFOLLOW
+        let openResult = destinationURL.path.withCString { path in
+            sqlite3_open_v2(path, &destinationDatabase, flags, nil)
+        }
+        guard openResult == SQLITE_OK, let destinationDatabase else {
+            if let destinationDatabase { sqlite3_close_v2(destinationDatabase) }
+            throw StewardError.commandFailed("SQLite recovery destination could not be opened")
+        }
+        defer { sqlite3_close_v2(destinationDatabase) }
+        guard sqlite3_extended_result_codes(destinationDatabase, 1) == SQLITE_OK,
+              sqlite3_busy_timeout(destinationDatabase, 1_500) == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery destination setup failed")
+        }
+
+        guard let backup = sqlite3_backup_init(
+            destinationDatabase,
+            "main",
+            sourceDatabase,
+            "main"
+        ) else {
+            throw StewardError.commandFailed("SQLite recovery backup could not start")
+        }
+        let stepResult = sqlite3_backup_step(backup, -1)
+        let finishResult = sqlite3_backup_finish(backup)
+        guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery backup did not complete")
+        }
+        guard sqlite3_db_cacheflush(destinationDatabase) == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery backup could not synchronize")
+        }
+        let integrity = try scalarText("PRAGMA integrity_check;", database: destinationDatabase)
+        guard integrity == "ok" else {
+            throw StewardError.commandFailed("SQLite recovery backup integrity check failed")
+        }
+        let schemaVersion = try scalarInt("PRAGMA user_version;", database: destinationDatabase)
+        guard schemaVersion == AgentActivityDatabase.schemaVersion else {
+            throw StewardError.commandFailed("SQLite recovery backup schema mismatch")
+        }
+        return schemaVersion
+    }
+
     func checkpoint() throws {
         guard case .writer = mode, let database else { return }
         guard sqlite3_wal_checkpoint_v2(database, nil, SQLITE_CHECKPOINT_PASSIVE, nil, nil) == SQLITE_OK else {
@@ -295,22 +473,40 @@ private final class SQLiteConnection {
     }
 
     private func scalarInt(_ sql: String) throws -> Int32 {
-        let statement = try prepare(sql)
-        defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW else {
-            throw sqliteError("SQLite scalar query failed")
-        }
-        return sqlite3_column_int(statement, 0)
+        guard let database else { throw StewardError.commandFailed("SQLite connection is closed") }
+        return try scalarInt(sql, database: database)
     }
 
     private func scalarText(_ sql: String) throws -> String {
-        let statement = try prepare(sql)
+        guard let database else { throw StewardError.commandFailed("SQLite connection is closed") }
+        return try scalarText(sql, database: database)
+    }
+
+    private func scalarText(_ sql: String, database: OpaquePointer) throws -> String {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw StewardError.commandFailed("SQLite recovery statement could not be prepared")
+        }
         defer { sqlite3_finalize(statement) }
         guard sqlite3_step(statement) == SQLITE_ROW,
               let value = sqlite3_column_text(statement, 0) else {
-            throw sqliteError("SQLite text scalar query failed")
+            throw StewardError.commandFailed("SQLite recovery statement returned no value")
         }
         return String(cString: value)
+    }
+
+    private func scalarInt(_ sql: String, database: OpaquePointer) throws -> Int32 {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw StewardError.commandFailed("SQLite recovery statement could not be prepared")
+        }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw StewardError.commandFailed("SQLite recovery statement returned no value")
+        }
+        return sqlite3_column_int(statement, 0)
     }
 
     private func execute(_ sql: String) throws {

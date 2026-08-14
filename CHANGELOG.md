@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Adds a non-shipping private recovery-state snapshot with a forced-dry-run
+  configuration backup, SQLite online backup, schema/integrity verification,
+  digests, private permissions, manifest-last publication, and exact cleanup at
+  three injected interruption points. App retention and replacement remain
+  disabled.
+- Resolves SQLite source and destination paths from open descriptors before
+  applying `SQLITE_OPEN_NOFOLLOW`, preventing macOS `/tmp` canonicalization from
+  rejecting legitimate private state while preserving device/inode checks.
 - Adds a non-shipping authenticated DMG inspector that revalidates staged
   identity and digest, verifies and mounts images read-only in private staging,
   rejects unsafe bundle trees, requires exact TidyDrop metadata and Universal 2

@@ -1,0 +1,1 @@
+Private update recovery state snapshot: PASS (dry-run backup, SQLite-consistent, non-shipping)

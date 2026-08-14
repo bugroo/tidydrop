@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 114, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 118, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -80,6 +80,11 @@ Gates obligatorios:
     La misma ruta vuelve a inspeccionar el DMG Community completo creado por el
     pipeline. Regresiones negativas cubren evidencia falsificada, raíz extra,
     symlink, identidad errónea, binarios thin y manipulación posterior a la firma.
+31. La base de recovery no distribuida crea backups privados `0700`/`0600`,
+    fuerza dry-run en la copia de configuración, usa el backup online de SQLite,
+    verifica schema/integridad/digests y publica el manifiesto al final. Las
+    regresiones inyectan tres interrupciones, rechazan symlinks y confirman que
+    `/tmp` se resuelve desde descriptor sin debilitar `SQLITE_OPEN_NOFOLLOW`.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

@@ -113,4 +113,8 @@ PASS  testSafeUpdateBundleInspectorRejectsForgedStagedEvidenceBeforeMount
 PASS  testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp
 PASS  testMountedUpdateBundleInspectionRejectsUnexpectedRootAndBundleSymlink
 PASS  testMountedUpdateBundleInspectionRejectsWrongIdentityThinBinaryAndTampering
-Resultado: 114 PASS, 0 SKIP, 0 FAIL; total=114
+PASS  testPrivateRecoverySnapshotPreservesStateAndForcesDryRunBackup
+PASS  testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace
+PASS  testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase
+PASS  testAgentActivityDatabaseBackupHandlesPhysicalTmpPath
+Resultado: 118 PASS, 0 SKIP, 0 FAIL; total=118

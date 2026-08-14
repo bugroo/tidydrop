@@ -1,3 +1,3 @@
 Event-driven agent integration: PASS
-Idle sample: cpu_before=0:00.13 cpu_after=0:00.13 cpu_percent=0.0 rss_kib=13104
+Idle sample: cpu_before=0:00.12 cpu_after=0:00.12 cpu_percent=0.0 rss_kib=13168
 Personal files moved: 0
