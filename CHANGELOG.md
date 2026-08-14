@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Fixed the installed CLI's background-agent status check so it recognizes the
+  bundled `SMAppService` agent instead of reporting a false `not_installed`.
+- Rejects `/Applications`, the system-installed TidyDrop bundle, and descendants
+  as active-folder scopes when they could contain or overlap application code.
+- Added runtime-coherence regressions for bundled-agent status and protected
+  system application paths.
+- Added a bundle-local ServiceManagement control path so an updater can
+  unregister and re-register the embedded agent after replacing an ad hoc build,
+  then require a new zero-move dry-run before restoring automatic mode.
+- Community build 5 uses a versioned LaunchAgent registration to migrate once
+  from the ad hoc build-4 code requirement. Developer ID builds retain the
+  stable production agent label.
 - Refreshed the public README with a direct Community Preview download,
   privacy-first product summary, restrained visual cues, and contributor entry
   points.

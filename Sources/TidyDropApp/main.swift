@@ -4,9 +4,10 @@ import ServiceManagement
 import TidyDropCore
 
 private enum ProductIdentity {
-    static let agentPlist = "io.github.bugroo.tidydrop.agent.plist"
+    static let stableAgentPlist = "io.github.bugroo.tidydrop.agent.plist"
+    static let communityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v5.plist"
     static let legacyAgentLabel = "com.local.tidydrop"
-    static let version = "1.1.0"
+    static let version = "1.1.1"
     static let distributionChannel = Bundle.main.object(
         forInfoDictionaryKey: "TidyDropDistributionChannel"
     ) as? String ?? "development"
@@ -14,6 +15,12 @@ private enum ProductIdentity {
         forInfoDictionaryKey: "TidyDropBuildIdentity"
     ) as? String ?? version
     static let isCommunityPreview = distributionChannel == "community"
+    static var agentPlist: String {
+        isCommunityPreview ? communityAgentPlist : stableAgentPlist
+    }
+    static var previousAgentPlists: [String] {
+        isCommunityPreview ? [stableAgentPlist] : []
+    }
 }
 
 private struct LegacyAgentMigration {
@@ -58,6 +65,12 @@ private struct TidyDropApplication {
         if CommandLine.arguments.contains("--bundle-self-check") {
             exit(bundleSelfCheck())
         }
+        if let command = CommandLine.arguments.first(where: {
+            ["--agent-status", "--agent-register", "--agent-unregister", "--agent-refresh"]
+                .contains($0)
+        }) {
+            exit(agentControl(command: command))
+        }
         let application = NSApplication.shared
         let delegate = ApplicationDelegate()
         application.delegate = delegate
@@ -77,7 +90,8 @@ private struct TidyDropApplication {
         let requiredPaths = [
             "Contents/Resources/tidydrop",
             "Contents/Resources/tidydrop-agent",
-            "Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
+            "Contents/Library/LaunchAgents/\(ProductIdentity.stableAgentPlist)",
+            "Contents/Library/LaunchAgents/\(ProductIdentity.communityAgentPlist)"
         ]
         for relativePath in requiredPaths {
             let candidate = bundle.bundleURL.appendingPathComponent(relativePath)
@@ -88,6 +102,49 @@ private struct TidyDropApplication {
         }
         print("TidyDrop bundle self-check: PASS")
         return 0
+    }
+
+    private static func agentControl(command: String) -> Int32 {
+        let service = SMAppService.agent(plistName: ProductIdentity.agentPlist)
+        do {
+            switch command {
+            case "--agent-status":
+                break
+            case "--agent-register":
+                try service.register()
+            case "--agent-unregister":
+                try service.unregister()
+            case "--agent-refresh":
+                for previousPlist in ProductIdentity.previousAgentPlists {
+                    let previousService = SMAppService.agent(plistName: previousPlist)
+                    if previousService.status == .enabled
+                        || previousService.status == .requiresApproval {
+                        try previousService.unregister()
+                    }
+                }
+                if service.status == .enabled || service.status == .requiresApproval {
+                    try service.unregister()
+                }
+                try service.register()
+            default:
+                return 64
+            }
+            print("agent_status=\(agentStatusName(service.status))")
+            return 0
+        } catch {
+            fputs("agent control failed: \(error)\n", stderr)
+            return 1
+        }
+    }
+
+    private static func agentStatusName(_ status: SMAppService.Status) -> String {
+        switch status {
+        case .enabled: return "enabled"
+        case .requiresApproval: return "requires_approval"
+        case .notRegistered: return "not_registered"
+        case .notFound: return "not_found"
+        @unknown default: return "unknown"
+        }
     }
 }
 

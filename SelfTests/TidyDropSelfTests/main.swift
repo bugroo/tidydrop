@@ -1265,6 +1265,35 @@ private final class TidyDropCoreTests {
         ))
     }
 
+    func testSystemApplicationsScopeContainingInstalledBundleIsRejected() throws {
+        XCTAssertThrowsError(try ActiveFolderManager.validate(path: "/Applications"))
+        XCTAssertThrowsError(try ActiveFolderManager.validate(path: "/Applications/TidyDrop.app"))
+        XCTAssertThrowsError(try ActiveFolderManager.validate(path: "/Applications/TidyDrop.app/Contents"))
+    }
+
+    func testLaunchAgentStatusRecognizesBundledAgentExecution() throws {
+        XCTAssertEqual(
+            LaunchAgentStatusResolver.accessStatus(agentInstalled: false, scheduledRecord: nil),
+            "not_installed"
+        )
+        XCTAssertEqual(
+            LaunchAgentStatusResolver.accessStatus(agentInstalled: true, scheduledRecord: nil),
+            "installed_not_verified"
+        )
+        let successfulRun = ScheduledRunRecord(
+            outcome: .success,
+            runID: "runtime-regression",
+            mode: ExecutionMode.apply.rawValue
+        )
+        XCTAssertEqual(
+            LaunchAgentStatusResolver.accessStatus(
+                agentInstalled: true,
+                scheduledRecord: successfulRun
+            ),
+            "success"
+        )
+    }
+
     func testActiveFolderRejectsRootSymlinkAndTraversal() throws {
         let workspace = try TemporaryWorkspace()
         let target = workspace.root.appendingPathComponent("real", isDirectory: true)
@@ -1619,6 +1648,8 @@ private let tests: [(String, () throws -> Void)] = [
     ("testCancelledFolderSelectionDoesNotChangeConfiguration", suite.testCancelledFolderSelectionDoesNotChangeConfiguration),
     ("testFolderResetDownloadsUsesIsolatedHomeAndReturnsToDryRun", suite.testFolderResetDownloadsUsesIsolatedHomeAndReturnsToDryRun),
     ("testDangerousActiveFolderRootsAreRejected", suite.testDangerousActiveFolderRootsAreRejected),
+    ("testSystemApplicationsScopeContainingInstalledBundleIsRejected", suite.testSystemApplicationsScopeContainingInstalledBundleIsRejected),
+    ("testLaunchAgentStatusRecognizesBundledAgentExecution", suite.testLaunchAgentStatusRecognizesBundledAgentExecution),
     ("testActiveFolderRejectsRootSymlinkAndTraversal", suite.testActiveFolderRejectsRootSymlinkAndTraversal),
     ("testUnavailableSourceFailsSafely", suite.testUnavailableSourceFailsSafely),
     ("testExclusiveMoveNeverOverwritesLateCollision", suite.testExclusiveMoveNeverOverwritesLateCollision),

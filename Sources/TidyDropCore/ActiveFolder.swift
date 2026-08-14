@@ -179,6 +179,7 @@ public enum ActiveFolderManager {
 
         let internals = [
             canonicalHome.appendingPathComponent("Applications/TidyDrop.app", isDirectory: true),
+            URL(fileURLWithPath: "/Applications/TidyDrop.app", isDirectory: true),
             canonicalHome.appendingPathComponent("Library/Application Support/TidyDrop", isDirectory: true),
             canonicalHome.appendingPathComponent("Library/Logs/TidyDrop", isDirectory: true)
         ]

@@ -61,6 +61,42 @@ Seleccionar una carpeta con `NSOpenPanel` y guardar un security-scoped bookmark 
 
 La distribución profesional migrará el agente externo de 1.0.2 a un componente incluido y registrado mediante `SMAppService`, conforme a ADR-0001. La migración debe demostrar instalación, consentimiento, actualización, rollback y retirada sin dejar dos agentes activos.
 
+### Re-registro del agente incluido después de una actualización
+
+La auditoría instalada del 14 de agosto de 2026 demostró que reemplazar un
+bundle Community Preview firmado ad hoc puede dejar a `launchd` con la versión
+anterior del bundle registrada. En el caso observado, el job conservó build 4 y
+terminó con `EX_CONFIG` al intentar ejecutar el bundle 1.1.1 build 5.
+
+Por ello, una actualización debe ejecutar el control ServiceManagement desde el
+ejecutable principal contenido en el bundle nuevo: desregistrar el LaunchAgent
+incluido, registrarlo de nuevo y comprobar su estado. Esta operación se limita
+a los servicios propios `io.github.bugroo.tidydrop.agent` y, en el canal ad hoc
+build 5, `io.github.bugroo.tidydrop.agent.community.v5`; no usa
+`sfltool resetbtm`, no modifica plists del usuario y no toca otros login items.
+Apple documenta
+`register()` y `unregister()` como la interfaz para LaunchAgents contenidos y
+publica un ejemplo de app sin GUI que expone precisamente comandos de registro y
+desregistro.
+
+El re-registro no autoriza movimientos. La secuencia obligatoria continúa
+siendo: `apply_enabled=false`, re-registro, nueva pasada del agente con
+`success`, `dry-run`, `moved=0` y `errors=0`, y solo entonces restauración
+explícita del modo anterior. Si el estado es `requiresApproval`, la actualización
+se detiene en dry-run y dirige al usuario a Login Items o Files & Folders según
+el fallo observado.
+
+Una firma ad hoc no aporta Team ID y su requisito designado queda ligado al
+`cdhash`. La actualización instalada de Community Preview build 4 a build 5
+confirmó que el mismo label no puede reparar esa identidad: macOS 26 respondió
+con `OS_REASON_CODESIGNING / Launch Constraint Violation`. Para esta migración
+gratuita concreta, build 5 usa el label versionado
+`io.github.bugroo.tidydrop.agent.community.v5` y desregistra el label comunitario
+anterior. Las futuras actualizaciones Community deben desregistrar su agente
+con el bundle todavía intacto antes de reemplazarlo. El canal Developer ID no
+usa labels versionados: conserva `io.github.bugroo.tidydrop.agent`, Team ID y
+designated requirement compatibles.
+
 ## Gates de release
 
 No se compartirá como aplicación lista para un usuario no técnico hasta demostrar:
@@ -123,6 +159,7 @@ La implementación no resuelve aún los gates externos: Team ID e identidad Deve
 - [Notarizar software macOS antes de distribuirlo](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
 - [Configurar Hardened Runtime](https://developer.apple.com/documentation/xcode/configuring-the-hardened-runtime/)
 - [SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice)
+- [Ejemplo oficial para registrar y desregistrar un LaunchAgent incluido](https://developer.apple.com/documentation/servicemanagement/updating-your-app-package-installer-to-use-the-new-service-management-api)
 - [Actualizar helpers de versiones anteriores de macOS](https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos)
 - [Security-scoped bookmarks](https://developer.apple.com/documentation/professional-video-applications/enabling-security-scoped-bookmark-and-url-access)
 - [Control de acceso a archivos y carpetas](https://support.apple.com/guide/mac-help/allow-apps-to-use-your-documents-folder-mchl1ffddf58/mac)

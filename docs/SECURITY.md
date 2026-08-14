@@ -1,4 +1,4 @@
-# Modelo de seguridad de TidyDrop 1.1.0 (candidato)
+# Modelo de seguridad de TidyDrop 1.1.1 (candidato)
 
 TidyDrop es local, sin red, telemetría, servicios externos, `sudo` ni dependencias de ejecución. La amenaza principal es el error operativo y el cambio concurrente de archivos por aplicaciones de descarga.
 
@@ -25,6 +25,11 @@ Lock, JSON y logs se abren con `O_NOFOLLOW`, se comprueban mediante descriptor y
 
 La caché de dry-run solo suprime trabajo de previsualización ya auditado. Nunca se consulta en apply y no autoriza movimientos.
 
+La validación de carpeta protege tanto `~/Applications/TidyDrop.app` como
+`/Applications/TidyDrop.app`; tampoco admite una raíz que contenga cualquiera
+de esos bundles. De este modo, la clasificación nunca puede abarcar el código
+instalado de TidyDrop.
+
 Una pasada programada con actividad abre y cierra siempre una unidad de auditoría balanceada (`run_started` → eventos → `run_finished`). La supresión solo elimina por completo las pasadas sin acontecimientos; nunca deja un cierre sin su inicio correspondiente.
 
 ## TCC
@@ -45,8 +50,8 @@ antiguo reaparezca silenciosamente en el siguiente inicio de sesión.
 
 ## Firma y confianza
 
-La aplicación instalada actual 1.0.2 se firma ad hoc localmente. No es Developer
-ID ni está notarizada. El canal Community Preview 1.1.0 conserva explícitamente
+La aplicación Community Preview se firma ad hoc localmente. No es Developer ID
+ni está notarizada. El hotfix candidato 1.1.1 conserva explícitamente
 esa limitación: macOS exige una excepción manual y una actualización puede
 provocar nuevas decisiones Gatekeeper o TCC. El DMG se construye desde un tag de
 `main`, se publica como prerelease y se acompaña de SHA-256 y GitHub Artifact
@@ -70,7 +75,7 @@ El runtime continúa sin red. La única operación de red nueva pertenece al pro
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.
 
 La firma ad hoc de la instalación actual, la ausencia de App Sandbox y el
-polling cada 300 segundos son limitaciones deliberadas. El candidato 1.1.0 ya
+polling cada 300 segundos son limitaciones deliberadas. El candidato 1.1.1 ya
 separa interfaz y agente y exige Hardened Runtime/Developer ID/notarización para
 distribución, pero no declara resueltos Sandbox, bookmarks ni FSEvents. Esos
 cambios permanecen sujetos al prototipo y ADR de arquitectura, no se simulan en
