@@ -5,10 +5,13 @@ import TidyDropCore
 
 private enum ProductIdentity {
     static let stableAgentPlist = "io.github.bugroo.tidydrop.agent.plist"
-    static let previousCommunityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v5.plist"
-    static let communityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v6.plist"
+    static let previousCommunityAgentPlists = [
+        "io.github.bugroo.tidydrop.agent.community.v6.plist",
+        "io.github.bugroo.tidydrop.agent.community.v5.plist"
+    ]
+    static let communityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v7.plist"
     static let legacyAgentLabel = "com.local.tidydrop"
-    static let version = "1.1.2"
+    static let version = "1.2.0"
     static let distributionChannel = Bundle.main.object(
         forInfoDictionaryKey: "TidyDropDistributionChannel"
     ) as? String ?? "development"
@@ -20,11 +23,11 @@ private enum ProductIdentity {
         isCommunityPreview ? communityAgentPlist : stableAgentPlist
     }
     static var previousAgentPlists: [String] {
-        isCommunityPreview ? [previousCommunityAgentPlist, stableAgentPlist] : []
+        isCommunityPreview ? previousCommunityAgentPlists + [stableAgentPlist] : []
     }
     static var agentLabel: String {
         isCommunityPreview
-            ? "io.github.bugroo.tidydrop.agent.community.v6"
+            ? "io.github.bugroo.tidydrop.agent.community.v7"
             : "io.github.bugroo.tidydrop.agent"
     }
 }
@@ -112,9 +115,10 @@ private struct TidyDropApplication {
             "Contents/Resources/tidydrop-agent",
             "Contents/Resources/TidyDrop.icns",
             "Contents/Library/LaunchAgents/\(ProductIdentity.stableAgentPlist)",
-            "Contents/Library/LaunchAgents/\(ProductIdentity.previousCommunityAgentPlist)",
             "Contents/Library/LaunchAgents/\(ProductIdentity.communityAgentPlist)"
-        ]
+        ] + ProductIdentity.previousCommunityAgentPlists.map {
+            "Contents/Library/LaunchAgents/\($0)"
+        }
         for relativePath in requiredPaths {
             let candidate = bundle.bundleURL.appendingPathComponent(relativePath)
             guard FileManager.default.fileExists(atPath: candidate.path) else {

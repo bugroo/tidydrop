@@ -18,7 +18,8 @@ Las decisiones que cambian arquitectura, seguridad, distribución, permisos o ci
 | [ADR-0003](0003-end-user-installation-experience.md) | Aceptado; implementación pendiente | DMG notarizado e incorporación nativa sin shell para usuarios finales |
 | [ADR-0004](0004-community-preview-without-developer-id.md) | Aceptado | Prerelease gratuita, ad hoc y verificable mientras no exista Developer ID |
 | [ADR-0005](0005-source-bound-relaunch-verification-and-setup-ui.md) | Aceptado e implementado en 1.1.2 | Verificación al reabrir vinculada a la carpeta y UI de configuración simplificada |
-| [ADR-0006](0006-appkit-workbench-information-architecture.md) | Accepted for 1.2 implementation | Native workbench for active folder, activity, rules, history, and conservative undo |
-| [ADR-0007](0007-event-driven-fsevents-agent.md) | Accepted for measured prototype | Event-driven FSEvents agent with reconciliation and one stability timer |
-| [ADR-0008](0008-agent-owned-sqlite-activity-index.md) | Accepted for 1.2 implementation | Agent-owned, bounded SQLite activity index with a read-only AppKit consumer |
+| [ADR-0006](0006-appkit-workbench-information-architecture.md) | Accepted and implemented in 1.2.0 | Native workbench for active folder, activity, rules, history, and conservative undo |
+| [ADR-0007](0007-event-driven-fsevents-agent.md) | Accepted and implemented in 1.2.0 | Event-driven FSEvents agent with reconciliation and one stability timer |
+| [ADR-0008](0008-agent-owned-sqlite-activity-index.md) | Accepted and implemented in 1.2.0 | Agent-owned, bounded SQLite activity index with a read-only AppKit consumer |
 | [ADR-0009](0009-signed-xpc-and-security-scoped-bookmark-prototypes.md) | Prototype accepted; integrated gate pending | Signed XPC peer rejection, scoped bookmarks, and minimal Sandbox entitlements |
+| [ADR-0010](0010-community-1.2-release-boundary.md) | Accepted | Ship the completed 1.2 workbench and event agent while keeping Developer ID/Sandbox claims gated |

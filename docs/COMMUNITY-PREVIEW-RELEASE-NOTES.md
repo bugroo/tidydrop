@@ -1,4 +1,4 @@
-# TidyDrop 1.1.2 Community Preview
+# TidyDrop 1.2.0 Community Preview
 
 TidyDrop keeps one folder organized locally. It does not upload file names,
 metadata, content, or usage information.
@@ -14,7 +14,7 @@ or run a remote installation script.
 
 ## Install
 
-1. Download `TidyDrop-1.1.2-community-preview-macos-universal.dmg` below.
+1. Download `TidyDrop-1.2.0-community-preview-macos-universal.dmg` below.
 2. Open the DMG and drag `TidyDrop.app` to Applications.
 3. Try to open TidyDrop once. macOS is expected to block the first launch.
 4. Open **System Settings → Privacy & Security** and select **Open Anyway**.
@@ -29,7 +29,7 @@ The first run and every update start with automatic moving disabled.
 Place the DMG and `.sha256` file in the same folder, then run:
 
 ```sh
-shasum -a 256 -c TidyDrop-1.1.2-community-preview-macos-universal.sha256
+shasum -a 256 -c TidyDrop-1.2.0-community-preview-macos-universal.sha256
 ```
 
 Contributors with GitHub CLI can also verify that GitHub built the DMG from this
@@ -37,7 +37,7 @@ repository:
 
 ```sh
 gh attestation verify \
-  TidyDrop-1.1.2-community-preview-macos-universal.dmg \
+  TidyDrop-1.2.0-community-preview-macos-universal.dmg \
   --repo bugroo/tidydrop
 ```
 
@@ -46,15 +46,24 @@ itself prove that software is safe.
 
 ## Included
 
-- Automatic relaunch verification for an already registered background agent,
-  bound to the exact active folder and a recent safe run.
-- Clearer native setup progress, contextual controls, last-run feedback, and a
-  native application icon.
-- A Community build-6 migration path for macOS ad hoc launch constraints.
-- Protection against selecting `/Applications` or the installed TidyDrop bundle
-  as the active folder.
-- Native AppKit onboarding app.
-- Foundation-only background agent registered with `SMAppService`.
+- A native three-pane AppKit workbench for the active folder, activity, ordered
+  rules, transaction history, inspection, and conservative undo.
+- A Foundation/CoreServices FSEvents agent that sleeps while idle, reconciles at
+  startup, and uses one bounded timer only for files still changing.
+- A bounded local SQLite activity index written only by the agent and consumed
+  read-only by the workbench; JSON journals remain authoritative for recovery
+  and undo.
+- A Community build-7 migration path from builds 6 and 5 for macOS ad hoc launch
+  constraints.
+- Signed-XPC, security-scoped bookmark, and minimal Sandbox prototypes verified
+  in tests but deliberately excluded from this ad hoc release until a stable
+  Developer ID identity is available.
+- Automatic relaunch verification bound to the exact active folder and a recent
+  zero-move preview run.
+- Protection against selecting `/Applications`, TidyDrop's bundles, symlink
+  roots, the whole home directory, or other unsafe roots.
+- Foundation-only background work registered with `SMAppService`; AppKit remains
+  in the user-facing process.
 - Universal 2 binaries for Apple Silicon and Intel.
 - Dry-run, conservative apply and undo, collision protection, fresh POSIX
   metadata snapshots, bounded logs, and local-only operation.

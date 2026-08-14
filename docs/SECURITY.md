@@ -1,4 +1,4 @@
-# Modelo de seguridad de TidyDrop 1.1.2 (candidato)
+# Modelo de seguridad de TidyDrop 1.2.0 Community Preview
 
 TidyDrop es local, sin red, telemetría, servicios externos, `sudo` ni dependencias de ejecución. La amenaza principal es el error operativo y el cambio concurrente de archivos por aplicaciones de descarga.
 
@@ -65,7 +65,7 @@ antiguo reaparezca silenciosamente en el siguiente inicio de sesión.
 ## Firma y confianza
 
 La aplicación Community Preview se firma ad hoc localmente. No es Developer ID
-ni está notarizada. El candidato 1.1.2 conserva explícitamente
+ni está notarizada. La versión 1.2.0 conserva explícitamente
 esa limitación: macOS exige una excepción manual y una actualización puede
 provocar nuevas decisiones Gatekeeper o TCC. El DMG se construye desde un tag de
 `main`, se publica como prerelease y se acompaña de SHA-256 y GitHub Artifact

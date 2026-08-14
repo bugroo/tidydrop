@@ -5,10 +5,12 @@ TidyDrop — auditoría estática local
 <repository-root>/app/io.github.bugroo.tidydrop.agent.plist: OK
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v6.plist: OK
+<repository-root>/app/io.github.bugroo.tidydrop.agent.community.v7.plist: OK
 <repository-root>/app/TidyDrop.entitlements: OK
 <repository-root>/app/TidyDropAgent.entitlements: OK
 <repository-root>/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
+[OK] Versión e identidad comunitaria coherentes
 [OK] Sin APIs de red detectadas en Sources
 [OK] Sin utilidades de red ejecutadas por scripts
 [OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta

@@ -1,6 +1,6 @@
 # ADR-0006: AppKit workbench information architecture
 
-- Status: Accepted for TidyDrop 1.2 implementation
+- Status: Accepted and implemented in TidyDrop 1.2.0
 - Date: 2026-08-14
 - Decision makers: project owner and Codex
 - Related: [ADR-0001](0001-native-macos-application-architecture.md), [ADR-0005](0005-source-bound-relaunch-verification-and-setup-ui.md)
@@ -108,4 +108,3 @@ read model later without changing the journal.
 
 - [NSSplitViewController](https://developer.apple.com/documentation/appkit/nssplitviewcontroller)
 - [Accessibility for AppKit](https://developer.apple.com/documentation/appkit/accessibility-for-appkit)
-

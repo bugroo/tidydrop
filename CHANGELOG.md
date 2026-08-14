@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 1.2 development
+## 1.2.0 — Community Preview
 
 - Adds the native three-pane AppKit workbench for active folder, activity,
   ordered rules, transaction history, and conservative undo.
@@ -17,6 +17,8 @@
   Community release before persistent LaunchAgent access is proven.
 - Adds isolated event, burst, idle-resource, rule-edit, history, and undo
   regressions without running apply or undo against personal folders.
+- Community build 7 uses a new ad hoc agent label and migrates build 6 and
+  build 5 registrations before enabling the FSEvents agent.
 
 ## 1.1.2 — Community Preview
 

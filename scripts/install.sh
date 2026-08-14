@@ -141,7 +141,7 @@ fi
 
 cat <<EOF2
 
-TidyDrop 1.0.2 quedó instalado, verificado y cargado en DRY-RUN.
+TidyDrop 1.2.0 quedó instalado, verificado y cargado en DRY-RUN.
 
 Activación explícita de movimientos automáticos:
   "$CLI_LINK" activate

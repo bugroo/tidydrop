@@ -1,6 +1,6 @@
 # ADR-0007: Event-driven FSEvents agent
 
-- Status: Accepted for prototype and measured rollout
+- Status: Accepted and implemented in TidyDrop 1.2.0
 - Date: 2026-08-14
 - Decision makers: project owner and Codex
 - Related: [ADR-0001](0001-native-macos-application-architecture.md), [ADR-0006](0006-appkit-workbench-information-architecture.md)

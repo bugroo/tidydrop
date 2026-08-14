@@ -43,6 +43,7 @@ app/assets/TidyDrop.icns: OK
 app/assets/TidyDropIcon-1024.png: OK
 app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
 app/io.github.bugroo.tidydrop.agent.community.v6.plist: OK
+app/io.github.bugroo.tidydrop.agent.community.v7.plist: OK
 app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
 docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md: OK
@@ -62,6 +63,7 @@ docs/adr/0006-appkit-workbench-information-architecture.md: OK
 docs/adr/0007-event-driven-fsevents-agent.md: OK
 docs/adr/0008-agent-owned-sqlite-activity-index.md: OK
 docs/adr/0009-signed-xpc-and-security-scoped-bookmark-prototypes.md: OK
+docs/adr/0010-community-1.2-release-boundary.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -116,4 +118,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 118 archivos
+Manifest verificado: 120 archivos

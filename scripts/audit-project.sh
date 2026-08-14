@@ -17,10 +17,24 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
     plutil -lint "$PROJECT_ROOT/app/TidyDrop.entitlements"
     plutil -lint "$PROJECT_ROOT/app/TidyDropAgent.entitlements"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
+    PRODUCT_VERSION=$(/bin/cat "$PROJECT_ROOT/VERSION")
+    [ "$(plutil -extract CFBundleShortVersionString raw -o - "$PROJECT_ROOT/app/Info.plist")" = "$PRODUCT_VERSION" ] \
+        && [ "$(plutil -extract CFBundleShortVersionString raw -o - "$PROJECT_ROOT/app/Distribution-Info.plist")" = "$PRODUCT_VERSION" ] \
+        && /usr/bin/grep -Fq "private let programVersion = \"$PRODUCT_VERSION\"" "$PROJECT_ROOT/Sources/TidyDrop/main.swift" \
+        && /usr/bin/grep -Fq "static let version = \"$PRODUCT_VERSION\"" "$PROJECT_ROOT/Sources/TidyDropApp/TidyDropApplication.swift" || {
+        printf '%s\n' '[FALLO] VERSION, plists, CLI y app no comparten la misma versión.' >&2
+        exit 1
+    }
+    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist")" = 'io.github.bugroo.tidydrop.agent.community.v7' ] || {
+        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 7.' >&2
+        exit 1
+    }
     printf '%s\n' '[OK] Plists válidos'
+    printf '%s\n' '[OK] Versión e identidad comunitaria coherentes'
 else
     printf '%s\n' '[AVISO] plutil no disponible; se omite lint de plists.'
 fi
@@ -138,6 +152,7 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     "$PROJECT_ROOT/launchd" "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist" \
+    "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist" \
     "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1

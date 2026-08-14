@@ -1,6 +1,6 @@
 # ADR-0008: Agent-owned SQLite activity index
 
-- Status: Accepted for 1.2 implementation
+- Status: Accepted and implemented in TidyDrop 1.2.0
 - Date: 2026-08-14
 - Decision makers: project owner and Codex
 - Related: [ADR-0006](0006-appkit-workbench-information-architecture.md), [ADR-0007](0007-event-driven-fsevents-agent.md)
