@@ -1,6 +1,6 @@
 # ADR-0014: Two-phase agent startup readiness
 
-- Status: Accepted; implemented and validated locally and in public CI
+- Status: Accepted; implemented, published and verified on the installed Mac
 - Date: 2026-08-14
 - Decision makers: project owner and Codex
 - Related: [ADR-0007](0007-event-driven-fsevents-agent.md), [ADR-0012](0012-community-1.3-release-boundary.md), [ADR-0013](0013-offline-ed25519-release-manifest-foundation.md)
@@ -70,6 +70,12 @@ builds, Universal 2 assembly, Community and development DMG verification, and
 the full static audit. The protected public CI gate then reproduced the result
 on PR #19. Installed-runtime verification remains a release gate rather than a
 prerequisite for accepting the source decision.
+
+Community Preview 2 subsequently published build 10 from protected `main`. The
+re-downloaded public DMG passed checksum, GitHub attestation and bundle checks.
+The installed agent produced fresh `agent_ready=true` dry-run and apply records,
+both with zero moves and zero errors, without requiring the UI to start the
+watcher.
 
 ## Consequences
 

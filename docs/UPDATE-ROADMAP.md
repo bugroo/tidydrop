@@ -141,10 +141,14 @@ Dependencies: Apple Developer Program identity, signing-key custody, U6.
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
 | U4 | Not started | Private bounded downloader, staging, extraction and cancellation/disk-full fault tests |
 | U5 | Not started | External recovery process, state compatibility, atomic replacement and interruption/reboot fault injection |
-| U6 | Not implemented as updater orchestration | Existing migration handles unregister/register; build 10 adds explicit watcher readiness and zero-move verification. Automatic recovery and explicit post-update apply confirmation remain unbuilt |
+| U6 | 5 of 6 behaviors demonstrated manually; updater orchestration not built | Build 10 demonstrated old-agent removal, exact-agent registration, stale-agent absence, independent CLI/agent access, ready zero-move dry-run and owner-approved apply restoration. Integration with U5 recovery and in-product post-update confirmation remains unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
 
 ADR-0013 deliberately stops before production key creation and shipping-target
 activation. The next autonomous code task that does not require signing authority
 is U4's private staging design and fault-test harness. Production signing cannot
 be completed safely without an owner-approved custody procedure.
+
+The build-10 installed audit is recorded in
+[`RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md`](RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md).
+It improves U6 evidence but does not claim that a product updater exists.
