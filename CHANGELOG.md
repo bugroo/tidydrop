@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 1.2 development
+
+- Adds the native three-pane AppKit workbench for active folder, activity,
+  ordered rules, transaction history, and conservative undo.
+- Replaces the bundled five-minute polling agent with a Foundation/CoreServices
+  FSEvents process that reconciles at startup and uses one timer only while
+  deferred candidates exist.
+- Validates and consumes app-to-agent wake requests once using a private,
+  source-bound, recent JSON signal until the signed XPC gate is complete.
+- Adds isolated event, burst, idle-resource, rule-edit, history, and undo
+  regressions without running apply or undo against personal folders.
+
 ## 1.1.2 — Community Preview
 
 - Rechecks an already registered background agent automatically when the app

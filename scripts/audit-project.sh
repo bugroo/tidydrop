@@ -55,11 +55,24 @@ if ! /usr/bin/grep -q 'APP_OWNED_RETENTION' "$PROJECT_ROOT/Sources/TidyDropCore/
     printf '%s\n' '[FALLO] Las eliminaciones de retención no están etiquetadas y acotadas.' >&2
     exit 1
 fi
+unexpected_unlinks=$(
+    /usr/bin/grep -RInE '(^|[^[:alnum:]_])unlink[[:space:]]*\(' "$PROJECT_ROOT/Sources" 2>/dev/null \
+        | /usr/bin/grep -v '/FileSystem.swift:' \
+        || true
+)
+if [ -n "$unexpected_unlinks" ] \
+   || ! /usr/bin/grep -q 'APP_OWNED_TRANSIENT_SIGNAL' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift" \
+   || ! /usr/bin/grep -q 'lastPathComponent == "agent-run-request.json"' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift"; then
+    printf '%s\n' '[FALLO] La señal transitoria no está eliminada por una primitiva exacta y acotada.' >&2
+    [ -z "$unexpected_unlinks" ] || printf '%s\n' "$unexpected_unlinks" >&2
+    exit 1
+fi
 if /usr/bin/grep -n 'removeItem' "$PROJECT_ROOT/Sources/TidyDropCore/StewardEngine.swift" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El motor de organización no debe borrar archivos.' >&2
     exit 1
 fi
-printf '%s\n' '[OK] Sin borrado en la carpeta activa; solo retención de logs/manifiestos propios'
+printf '%s\n' '[OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta'
 
 if ! /usr/bin/grep -q 'renameatx_np' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift" \
    || ! /usr/bin/grep -q 'RENAME_EXCL' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift"; then

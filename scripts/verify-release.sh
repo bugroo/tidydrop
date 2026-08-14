@@ -160,10 +160,14 @@ done
     printf '%s\n' 'ERROR: BundleProgram del agente inesperado.' >&2
     exit 1
 }
-[ "$(/usr/bin/plutil -extract StartInterval raw -o - "$AGENT_PLIST")" = '300' ] || {
-    printf '%s\n' 'ERROR: intervalo del agente inesperado.' >&2
+[ "$(/usr/bin/plutil -extract KeepAlive.SuccessfulExit raw -o - "$AGENT_PLIST")" = 'false' ] || {
+    printf '%s\n' 'ERROR: política KeepAlive del agente inesperada.' >&2
     exit 1
 }
+if /usr/bin/plutil -extract StartInterval raw -o - "$AGENT_PLIST" >/dev/null 2>&1; then
+    printf '%s\n' 'ERROR: el agente FSEvents incluido no debe conservar StartInterval.' >&2
+    exit 1
+fi
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP"
 "$EXECUTABLE" --bundle-self-check

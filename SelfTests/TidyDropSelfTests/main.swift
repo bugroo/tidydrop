@@ -1813,6 +1813,166 @@ private final class TidyDropCoreTests {
         ))
     }
 
+    func testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery() throws {
+        let workspace = try TemporaryWorkspace()
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("file.pdf").path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("alias.pdf").path
+                .replacingOccurrences(of: "/private/tmp/", with: "/tmp/"),
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertFalse(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("Documentos/file.pdf").path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("Documentos/file.pdf").path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: true
+        ))
+    }
+
+    func testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded() throws {
+        var stability = DefaultConfiguration.make().stability
+        stability.minimumAgeSeconds = 45
+        let deferred = ScheduledRunRecord(
+            outcome: .success,
+            runID: "deferred",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            deferred: 1,
+            errors: 0
+        )
+        XCTAssertEqual(
+            AgentSchedulingPolicy.followUpDelay(after: deferred, stability: stability),
+            46
+        )
+        let idle = ScheduledRunRecord(
+            outcome: .success,
+            runID: "idle",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            deferred: 0,
+            errors: 0
+        )
+        XCTAssertEqual(
+            AgentSchedulingPolicy.followUpDelay(after: idle, stability: stability),
+            nil
+        )
+        let unavailable = ScheduledRunRecord(outcome: .sourceUnavailable, runID: "missing")
+        XCTAssertEqual(
+            AgentSchedulingPolicy.followUpDelay(after: unavailable, stability: stability),
+            nil
+        )
+    }
+
+    func testAgentRunRequestIsPrivateAndSourceBound() throws {
+        let workspace = try TemporaryWorkspace()
+        let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
+        try AgentRunRequestSignal.request(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            timestamp: Date(timeIntervalSince1970: 123)
+        )
+        let request = try JSONFile.load(
+            AgentRunRequest.self,
+            from: requestURL,
+            default: AgentRunRequest(sourceDirectory: "missing")
+        )
+        XCTAssertEqual(
+            request.sourceDirectory,
+            ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        XCTAssertEqual(request.timestamp, Date(timeIntervalSince1970: 123))
+        let attributes = try FileManager.default.attributesOfItem(atPath: requestURL.path)
+        let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(permissions, 0o600)
+    }
+
+    func testAgentRunRequestRejectsSymlinkDestination() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let target = workspace.root.appendingPathComponent("outside-request.json")
+        try Data("unchanged".utf8).write(to: target)
+        let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
+        try FileManager.default.createSymbolicLink(at: requestURL, withDestinationURL: target)
+
+        XCTAssertThrowsError(try AgentRunRequestSignal.request(
+            at: requestURL,
+            sourceDirectory: workspace.source
+        ))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "unchanged")
+    }
+
+    func testAgentRunRequestValidationRejectsStaleOrDifferentSource() throws {
+        let workspace = try TemporaryWorkspace()
+        let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
+        let now = Date(timeIntervalSince1970: 1_000)
+        try AgentRunRequestSignal.request(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            timestamp: now
+        )
+        XCTAssertEqual(AgentRunRequestSignal.validation(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ), .valid)
+        XCTAssertFalse(AgentRunRequestSignal.isValid(
+            at: requestURL,
+            sourceDirectory: workspace.root,
+            now: now
+        ))
+        XCTAssertFalse(AgentRunRequestSignal.isValid(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now.addingTimeInterval(AgentRunRequestSignal.maximumAge + 1)
+        ))
+        XCTAssertTrue(AgentRunRequestSignal.consumeIfValid(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ))
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(requestURL))
+
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let manualRequest = """
+        {
+          "request_id": "00000000-0000-4000-8000-000000000001",
+          "source_directory": "\(workspace.source.path)",
+          "timestamp": "1970-01-01T00:16:40Z",
+          "version": 1
+        }
+        """
+        try Data(manualRequest.utf8).write(to: requestURL)
+        XCTAssertEqual(AgentRunRequestSignal.validation(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ), .sourceMismatch)
+        let canonicalManualRequest = manualRequest.replacingOccurrences(
+            of: workspace.source.path,
+            with: ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        try Data(canonicalManualRequest.utf8).write(to: requestURL)
+        XCTAssertEqual(AgentRunRequestSignal.validation(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ), .valid)
+    }
+
 }
 
 
@@ -1891,6 +2051,11 @@ private let tests: [(String, () throws -> Void)] = [
     ("testWorkbenchTransactionHistorySortsAndDerivesUndoableState", suite.testWorkbenchTransactionHistorySortsAndDerivesUndoableState),
     ("testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions", suite.testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions),
     ("testWorkbenchRuleEditRejectsInvalidIndex", suite.testWorkbenchRuleEditRejectsInvalidIndex),
+    ("testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery", suite.testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery),
+    ("testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded", suite.testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded),
+    ("testAgentRunRequestIsPrivateAndSourceBound", suite.testAgentRunRequestIsPrivateAndSourceBound),
+    ("testAgentRunRequestRejectsSymlinkDestination", suite.testAgentRunRequestRejectsSymlinkDestination),
+    ("testAgentRunRequestValidationRejectsStaleOrDifferentSource", suite.testAgentRunRequestValidationRejectsStaleOrDifferentSource),
 ]
 
 var passed = 0

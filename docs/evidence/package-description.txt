@@ -59,6 +59,8 @@ Targets:
     Path: Sources/TidyDropCore
     Sources:
         ActiveFolder.swift
+        AgentRunRequest.swift
+        AgentSchedulingPolicy.swift
         Audit.swift
         BackgroundVerificationPolicy.swift
         Classifier.swift
@@ -97,6 +99,8 @@ Targets:
     Module type: SwiftTarget
     Path: Sources/TidyDropAgent
     Sources:
+        EventDrivenAgent.swift
+        FSEventsWatcher.swift
         main.swift
     Target dependencies:
         TidyDropCore

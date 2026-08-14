@@ -309,6 +309,30 @@ public enum ConfigurationIO {
         url.standardizedFileURL.resolvingSymlinksInPath()
     }
 
+    /// Resolves the nearest existing ancestor while preserving missing leaf
+    /// components. This is required for filesystem events whose entry may have
+    /// disappeared before the callback is delivered.
+    public static func canonicalEventURL(_ url: URL) -> URL {
+        let fileManager = FileManager.default
+        var cursor = url.standardizedFileURL
+        var missingComponents: [String] = []
+
+        while !fileManager.fileExists(atPath: cursor.path) {
+            let parent = cursor.deletingLastPathComponent()
+            guard parent.path != cursor.path else {
+                return url.standardizedFileURL
+            }
+            missingComponents.append(cursor.lastPathComponent)
+            cursor = parent
+        }
+
+        var resolved = canonicalURL(cursor)
+        for component in missingComponents.reversed() {
+            resolved.appendPathComponent(component)
+        }
+        return resolved.standardizedFileURL
+    }
+
     private static func isSafeSinglePathComponent(_ value: String) -> Bool {
         guard !value.isEmpty,
               value.count <= 120,

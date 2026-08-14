@@ -14,4 +14,4 @@ if rawArguments.isEmpty {
     exit(2)
 }
 
-exit(ScheduledExecution.run(configurationURL: configurationURL))
+EventDrivenAgent(configurationURL: configurationURL).run()

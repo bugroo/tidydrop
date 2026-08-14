@@ -77,9 +77,10 @@ El runtime continúa sin red. La única operación de red nueva pertenece al pro
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.
 
-La firma ad hoc de la instalación actual, la ausencia de App Sandbox y el
-polling cada 300 segundos son limitaciones deliberadas. El candidato 1.1.2 ya
-separa interfaz y agente y exige Hardened Runtime/Developer ID/notarización para
-distribución, pero no declara resueltos Sandbox, bookmarks ni FSEvents. Esos
-cambios permanecen sujetos al prototipo y ADR de arquitectura, no se simulan en
-esta release.
+La firma ad hoc de la instalación actual y la ausencia de App Sandbox son
+limitaciones deliberadas. La rama 1.2 sustituye el polling del agente incluido
+por FSEvents, reconciliación al inicio y un único temporizador cuando existen
+archivos aplazados. La integración temporal verifica dry-run, coalescing,
+señales privadas de un solo uso y reposo sin nuevas pasadas. Sandbox, bookmarks,
+Developer ID y notarización permanecen sujetos a gates separados y no se
+declaran resueltos por este prototipo.

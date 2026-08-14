@@ -1,5 +1,5 @@
 === Dry-run de demostración ===
-run_id: 20260814T092119.182Z-9ac7c264
+run_id: 20260814T095323.451Z-84bc8324
 modo: dry-run
 escaneados: 9
 planificados: 5
@@ -9,14 +9,14 @@ ignorados: 4
 errores: 0
 
 === Contenido de Downloads después del dry-run (sin movimientos) ===
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/.oculto.txt
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/Dockerfile
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/Example.app
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/Foto vacaciones ü.png
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/Informe final 2026.pdf
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/alias.pdf
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/copia.tar.gz
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/datos.csv
-/private/tmp/TidyDropIntegration.demo.4rkiNn/Downloads/video.mp4.crdownload
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/.oculto.txt
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/Dockerfile
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/Example.app
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/Foto vacaciones ü.png
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/Informe final 2026.pdf
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/alias.pdf
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/copia.tar.gz
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/datos.csv
+/private/tmp/TidyDropIntegration.demo.FYdzMX/Downloads/video.mp4.crdownload
 
-Logs: /private/tmp/TidyDropIntegration.demo.4rkiNn/logs
+Logs: /private/tmp/TidyDropIntegration.demo.FYdzMX/logs

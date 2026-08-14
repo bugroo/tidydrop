@@ -232,6 +232,31 @@ public enum FileSystemSecurity {
         )
     }
 
+    public static func consumePrivateAgentRunRequest(_ url: URL) throws {
+        guard url.lastPathComponent == "agent-run-request.json" else {
+            throw StewardError.unsafePath("nombre de señal interna inesperado: \(url.path)")
+        }
+        try ensurePrivateDirectory(url.deletingLastPathComponent())
+        let metadata = try freshPOSIXMetadata(of: url)
+        guard metadata.kind == .regularFile else {
+            throw StewardError.unsafePath("la señal interna no es un archivo regular")
+        }
+        // APP_OWNED_TRANSIENT_SIGNAL: consume únicamente la señal privada exacta;
+        // unlink nunca sigue un symlink ni alcanza la carpeta activa.
+        let result = url.path.withCString { pointer -> Int32 in
+#if os(macOS)
+            Darwin.unlink(pointer)
+#else
+            Glibc.unlink(pointer)
+#endif
+        }
+        guard result == 0 else {
+            throw StewardError.commandFailed(
+                "No se pudo consumir la señal interna: \(String(cString: strerror(errno)))"
+            )
+        }
+    }
+
     public static func readRegularFile(
         _ url: URL,
         maximumBytes: UInt64 = defaultJSONMaximumBytes,

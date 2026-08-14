@@ -883,9 +883,12 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSTool
 
     private func kickstartBackgroundAgent() -> Bool {
         do {
-            return try Launchctl.run([
-                "kickstart", "gui/\(getuid())/\(ProductIdentity.agentLabel)"
-            ]) == 0
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            try AgentRunRequestSignal.request(
+                at: resolved.paths.agentRunRequestFile,
+                sourceDirectory: resolved.paths.sourceDirectory
+            )
+            return true
         } catch {
             return false
         }
