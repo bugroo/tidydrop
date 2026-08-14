@@ -1,4 +1,4 @@
-# TidyDrop 1.1.1 Community Preview
+# TidyDrop 1.1.2 Community Preview
 
 TidyDrop keeps one folder organized locally. It does not upload file names,
 metadata, content, or usage information.
@@ -14,12 +14,12 @@ or run a remote installation script.
 
 ## Install
 
-1. Download `TidyDrop-1.1.1-community-preview-macos-universal.dmg` below.
+1. Download `TidyDrop-1.1.2-community-preview-macos-universal.dmg` below.
 2. Open the DMG and drag `TidyDrop.app` to Applications.
 3. Try to open TidyDrop once. macOS is expected to block the first launch.
 4. Open **System Settings → Privacy & Security** and select **Open Anyway**.
 5. Open TidyDrop and allow its background item and selected folder if macOS asks.
-6. Register the background agent and run the safe preview.
+6. Enable background organization and let TidyDrop verify a safe preview run.
 7. Enable automatic organization only after the preview reports zero errors.
 
 The first run and every update start with automatic moving disabled.
@@ -29,7 +29,7 @@ The first run and every update start with automatic moving disabled.
 Place the DMG and `.sha256` file in the same folder, then run:
 
 ```sh
-shasum -a 256 -c TidyDrop-1.1.1-community-preview-macos-universal.sha256
+shasum -a 256 -c TidyDrop-1.1.2-community-preview-macos-universal.sha256
 ```
 
 Contributors with GitHub CLI can also verify that GitHub built the DMG from this
@@ -37,7 +37,7 @@ repository:
 
 ```sh
 gh attestation verify \
-  TidyDrop-1.1.1-community-preview-macos-universal.dmg \
+  TidyDrop-1.1.2-community-preview-macos-universal.dmg \
   --repo bugroo/tidydrop
 ```
 
@@ -46,8 +46,11 @@ itself prove that software is safe.
 
 ## Included
 
-- Correct installed-agent status reporting and a verified Community build-5
-  migration for macOS ad hoc launch constraints.
+- Automatic relaunch verification for an already registered background agent,
+  bound to the exact active folder and a recent safe run.
+- Clearer native setup progress, contextual controls, last-run feedback, and a
+  native application icon.
+- A Community build-6 migration path for macOS ad hoc launch constraints.
 - Protection against selecting `/Applications` or the installed TidyDrop bundle
   as the active folder.
 - Native AppKit onboarding app.

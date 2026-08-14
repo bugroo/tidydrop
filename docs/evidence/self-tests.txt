@@ -64,5 +64,7 @@ PASS  testMIMEDetectorTimesOutBoundedHelper
 PASS  testConfigurationBoundsRuleCountsAndLengths
 PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
 PASS  testScheduledExecutionWritesDryRunSuccessRecord
+PASS  testBackgroundVerificationRequiresFreshMatchingSource
+PASS  testBackgroundVerificationHonorsModeFreshnessAndMoveSafety
 PASS  testScheduledExecutionUnavailableSourceFailsClosed
-Resultado: 66 PASS, 0 SKIP, 0 FAIL; total=66
+Resultado: 68 PASS, 0 SKIP, 0 FAIL; total=68

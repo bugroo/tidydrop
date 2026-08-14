@@ -15,6 +15,7 @@ Sources/TidyDropAgent/main.swift: OK
 Sources/TidyDropApp/main.swift: OK
 Sources/TidyDropCore/ActiveFolder.swift: OK
 Sources/TidyDropCore/Audit.swift: OK
+Sources/TidyDropCore/BackgroundVerificationPolicy.swift: OK
 Sources/TidyDropCore/Classifier.swift: OK
 Sources/TidyDropCore/Configuration.swift: OK
 Sources/TidyDropCore/FileSystem.swift: OK
@@ -27,7 +28,10 @@ Sources/TidyDropCore/Transactions.swift: OK
 VERSION: OK
 app/Distribution-Info.plist: OK
 app/Info.plist: OK
+app/assets/TidyDrop.icns: OK
+app/assets/TidyDropIcon-1024.png: OK
 app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
+app/io.github.bugroo.tidydrop.agent.community.v6.plist: OK
 app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
 docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md: OK
@@ -42,6 +46,7 @@ docs/adr/0001-native-macos-application-architecture.md: OK
 docs/adr/0002-distribution-updates-and-tcc-continuity.md: OK
 docs/adr/0003-end-user-installation-experience.md: OK
 docs/adr/0004-community-preview-without-developer-id.md: OK
+docs/adr/0005-source-bound-relaunch-verification-and-setup-ui.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -92,4 +97,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 94 archivos
+Manifest verificado: 99 archivos

@@ -1565,6 +1565,109 @@ private final class TidyDropCoreTests {
         XCTAssertEqual(record.mode, ExecutionMode.dryRun.rawValue)
         XCTAssertEqual(record.moved, 0)
         XCTAssertEqual(record.errors, 0)
+        XCTAssertEqual(record.sourceDirectory, resolved.paths.sourceDirectory.path)
+    }
+
+    func testBackgroundVerificationRequiresFreshMatchingSource() throws {
+        let workspace = try TemporaryWorkspace()
+        let now = Date()
+        let matching = ScheduledRunRecord(
+            timestamp: now.addingTimeInterval(-30),
+            outcome: .success,
+            runID: "matching-source",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            errors: 0,
+            sourceDirectory: workspace.source.path
+        )
+        XCTAssertTrue(BackgroundVerificationPolicy.accepts(
+            matching,
+            sourceDirectory: workspace.source,
+            applyEnabled: false,
+            now: now
+        ))
+
+        let otherSource = workspace.root.appendingPathComponent("other", isDirectory: true)
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            matching,
+            sourceDirectory: otherSource,
+            applyEnabled: false,
+            now: now
+        ))
+
+        let legacyRecordWithoutSource = ScheduledRunRecord(
+            timestamp: now,
+            outcome: .success,
+            runID: "legacy",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            errors: 0
+        )
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            legacyRecordWithoutSource,
+            sourceDirectory: workspace.source,
+            applyEnabled: false,
+            now: now
+        ))
+    }
+
+    func testBackgroundVerificationHonorsModeFreshnessAndMoveSafety() throws {
+        let workspace = try TemporaryWorkspace()
+        let now = Date()
+        let dryRun = ScheduledRunRecord(
+            timestamp: now,
+            outcome: .success,
+            runID: "dry-run",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            errors: 0,
+            sourceDirectory: workspace.source.path
+        )
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            dryRun,
+            sourceDirectory: workspace.source,
+            applyEnabled: true,
+            now: now
+        ))
+
+        let unsafeDryRun = ScheduledRunRecord(
+            timestamp: now,
+            outcome: .success,
+            runID: "unexpected-move",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 1,
+            errors: 0,
+            sourceDirectory: workspace.source.path
+        )
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            unsafeDryRun,
+            sourceDirectory: workspace.source,
+            applyEnabled: false,
+            now: now
+        ))
+
+        let stale = ScheduledRunRecord(
+            timestamp: now.addingTimeInterval(-601),
+            outcome: .success,
+            runID: "stale",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            errors: 0,
+            sourceDirectory: workspace.source.path
+        )
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            stale,
+            sourceDirectory: workspace.source,
+            applyEnabled: false,
+            now: now
+        ))
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            dryRun,
+            sourceDirectory: workspace.source,
+            applyEnabled: false,
+            notOlderThan: now.addingTimeInterval(1),
+            now: now
+        ))
     }
 
     func testScheduledExecutionUnavailableSourceFailsClosed() throws {
@@ -1662,6 +1765,8 @@ private let tests: [(String, () throws -> Void)] = [
     ("testConfigurationBoundsRuleCountsAndLengths", suite.testConfigurationBoundsRuleCountsAndLengths),
     ("testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions", suite.testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions),
     ("testScheduledExecutionWritesDryRunSuccessRecord", suite.testScheduledExecutionWritesDryRunSuccessRecord),
+    ("testBackgroundVerificationRequiresFreshMatchingSource", suite.testBackgroundVerificationRequiresFreshMatchingSource),
+    ("testBackgroundVerificationHonorsModeFreshnessAndMoveSafety", suite.testBackgroundVerificationHonorsModeFreshnessAndMoveSafety),
     ("testScheduledExecutionUnavailableSourceFailsClosed", suite.testScheduledExecutionUnavailableSourceFailsClosed),
 ]
 

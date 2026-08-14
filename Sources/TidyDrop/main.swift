@@ -9,7 +9,7 @@ import Darwin
 import Glibc
 #endif
 
-private let programVersion = "1.1.1"
+private let programVersion = "1.1.2"
 
 private struct Arguments {
     let command: String
@@ -260,7 +260,8 @@ private func launchAgentAccessStatus(for resolved: ResolvedConfiguration) -> Str
     let legacyAgent = home
         .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
         .appendingPathComponent("com.local.tidydrop.plist")
-    let agentInstalled = launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v5")
+    let agentInstalled = launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v6")
+        || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v5")
         || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent")
         || launchAgentIsLoaded(label: "com.local.tidydrop")
         || FileManager.default.fileExists(atPath: legacyAgent.path)

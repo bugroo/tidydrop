@@ -25,7 +25,8 @@ public enum ScheduledExecution {
                         moved: summary.moved,
                         deferred: summary.deferred,
                         skipped: summary.skipped,
-                        errors: summary.errors
+                        errors: summary.errors,
+                        sourceDirectory: resolved.paths.sourceDirectory.path
                     ),
                     to: resolved.paths.scheduledStatusFile
                 )
@@ -48,7 +49,8 @@ public enum ScheduledExecution {
                         mode: mode.rawValue,
                         moved: 0,
                         errors: 1,
-                        detail: path
+                        detail: path,
+                        sourceDirectory: resolved.paths.sourceDirectory.path
                     ),
                     to: resolved.paths.scheduledStatusFile
                 )

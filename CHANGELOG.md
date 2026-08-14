@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.2 — Community Preview
+
+- Rechecks an already registered background agent automatically when the app
+  opens, without attempting a duplicate `SMAppService.register()` call.
+- Binds background verification to a recent successful run for the exact active
+  folder and expected mode; older records remain readable but cannot authorize
+  automatic moving without a fresh run.
+- Adds a resizable AppKit setup window with clearer progress, native path
+  presentation, last-run feedback, contextual background controls, and one
+  automatic-organization toggle.
+- Adds a native application icon and verifies that the packaged bundle declares
+  and contains the regular `.icns` resource.
+- Community build 6 uses a new versioned agent label and safely migrates the
+  prior build-5 service before registration.
+- Adds two independent regressions for source-bound verification, freshness,
+  expected execution mode, and zero-move dry-run safety.
+
 ## 1.1.1 — Community Preview
 
 - Fixed the installed CLI's background-agent status check so it recognizes the
