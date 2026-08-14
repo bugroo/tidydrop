@@ -1,5 +1,7 @@
+import CryptoKit
 import Foundation
 import TidyDropCore
+import TidyDropUpdateSecurity
 #if os(macOS)
 import Darwin
 
@@ -303,6 +305,92 @@ private final class TemporaryWorkspace {
         )
         try Data(contents.utf8).write(to: url)
         return url
+    }
+}
+
+private struct SignedReleaseManifestFixture {
+    let workspace: TemporaryWorkspace
+    let artifactURL: URL
+    let artifactData: Data
+    let manifest: ReleaseManifest
+    let manifestData: Data
+    let signature: Data
+    let publicKey: Data
+    let currentVersion: ReleaseVersion
+    let now: Date
+
+    init(
+        publishedAt: Date = Date(timeIntervalSince1970: 1_786_640_000),
+        artifactName: String = "TidyDrop-1.3.0-community-preview-macos-universal.dmg"
+    ) throws {
+        guard let currentVersion = ReleaseVersion.parse(
+            tag: "v1.3.0-community.1",
+            channel: .community
+        ), let nextVersion = ReleaseVersion.parse(
+            tag: "v1.3.0-community.2",
+            channel: .community
+        ) else {
+            throw NSError(domain: "TidyDropTests.ReleaseManifest", code: 1)
+        }
+        let workspace = try TemporaryWorkspace()
+        let artifactData = Data("signed update artifact\n".utf8)
+        let artifactURL = workspace.root.appendingPathComponent(artifactName)
+        try artifactData.write(to: artifactURL, options: .atomic)
+        let manifest = ReleaseManifest(
+            version: nextVersion,
+            channel: .community,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            artifactName: artifactName,
+            artifactLength: UInt64(artifactData.count),
+            artifactSHA256: ReleaseManifestVerifier.sha256Hex(of: artifactData),
+            minimumMacOS: OperatingSystemVersion(
+                majorVersion: 13,
+                minorVersion: 0,
+                patchVersion: 0
+            ),
+            publishedAt: publishedAt
+        )
+        let manifestData = try ReleaseManifestCodec.encode(manifest)
+        let ephemeralSigner = Curve25519.Signing.PrivateKey()
+        self.workspace = workspace
+        self.artifactURL = artifactURL
+        self.artifactData = artifactData
+        self.manifest = manifest
+        self.manifestData = manifestData
+        self.signature = try ephemeralSigner.signature(for: manifestData)
+        self.publicKey = ephemeralSigner.publicKey.rawRepresentation
+        self.currentVersion = currentVersion
+        self.now = publishedAt.addingTimeInterval(60)
+    }
+
+    func policy(
+        currentVersion: ReleaseVersion? = nil,
+        channel: UpdateChannel = .community,
+        bundleIdentifier: String = "io.github.bugroo.tidydrop",
+        artifactName: String? = nil,
+        maximumArtifactBytes: UInt64 = 100 * 1_024 * 1_024,
+        currentSystem: OperatingSystemVersion = OperatingSystemVersion(
+            majorVersion: 14,
+            minorVersion: 0,
+            patchVersion: 0
+        ),
+        now: Date? = nil,
+        newestAcceptedPublication: Date? = nil,
+        maximumManifestAge: TimeInterval = 90 * 24 * 60 * 60,
+        futureTolerance: TimeInterval = 5 * 60
+    ) -> ReleaseManifestPolicy {
+        ReleaseManifestPolicy(
+            currentVersion: currentVersion ?? self.currentVersion,
+            channel: channel,
+            bundleIdentifier: bundleIdentifier,
+            artifactName: artifactName ?? manifest.artifactName,
+            maximumArtifactBytes: maximumArtifactBytes,
+            currentSystem: currentSystem,
+            now: now ?? self.now,
+            newestAcceptedPublication: newestAcceptedPublication,
+            maximumManifestAge: maximumManifestAge,
+            futureTolerance: futureTolerance
+        )
     }
 }
 
@@ -2341,6 +2429,263 @@ private final class TidyDropCoreTests {
         XCTAssertEqual(decoded.first?.publishedAt, "2026-08-14T12:00:00Z")
     }
 
+    func testSignedReleaseManifestVerifiesCanonicalArtifact() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        XCTAssertEqual(
+            try ReleaseManifestCodec.decodeCanonical(fixture.manifestData),
+            fixture.manifest
+        )
+        XCTAssertEqual(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy()
+            ),
+            fixture.manifest
+        )
+    }
+
+    func testReleaseManifestRejectsNonCanonicalAndOversizedEncoding() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        var lines = String(decoding: fixture.manifestData, as: UTF8.self)
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+        lines.swapAt(1, 2)
+        XCTAssertThrowsError(
+            try ReleaseManifestCodec.decodeCanonical(Data(lines.joined(separator: "\n").utf8))
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .nonCanonicalManifest)
+        }
+
+        let carriageReturns = Data(
+            String(decoding: fixture.manifestData, as: UTF8.self)
+                .replacingOccurrences(of: "\n", with: "\r\n").utf8
+        )
+        XCTAssertThrowsError(try ReleaseManifestCodec.decodeCanonical(carriageReturns)) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .invalidEncoding)
+        }
+        XCTAssertThrowsError(
+            try ReleaseManifestCodec.decodeCanonical(
+                Data(repeating: 65, count: ReleaseManifest.maximumEncodedBytes + 1)
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .oversizedManifest)
+        }
+    }
+
+    func testReleaseManifestRejectsWrongKeyAndMalformedSignature() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let unrelatedSigner = Curve25519.Signing.PrivateKey()
+        let cases: [(Data, Data, ReleaseManifestFailure)] = [
+            (unrelatedSigner.publicKey.rawRepresentation, fixture.signature, .invalidSignature),
+            (fixture.publicKey, Data(fixture.signature.dropLast()), .invalidSignature),
+            (Data(repeating: 0, count: 31), fixture.signature, .invalidPublicKey)
+        ]
+        for (publicKey, signature, expected) in cases {
+            XCTAssertThrowsError(
+                try ReleaseManifestVerifier.verify(
+                    manifestData: fixture.manifestData,
+                    signature: signature,
+                    publicKey: publicKey,
+                    artifactURL: fixture.artifactURL,
+                    policy: fixture.policy()
+                )
+            ) { error in
+                XCTAssertEqual(error as? ReleaseManifestFailure, expected)
+            }
+        }
+
+        let replacementPrefix = fixture.manifest.artifactSHA256.first == "0" ? "1" : "0"
+        let alteredDigest = replacementPrefix + fixture.manifest.artifactSHA256.dropFirst()
+        let alteredManifest = Data(
+            String(decoding: fixture.manifestData, as: UTF8.self)
+                .replacingOccurrences(
+                    of: fixture.manifest.artifactSHA256,
+                    with: String(alteredDigest)
+                ).utf8
+        )
+        XCTAssertThrowsError(
+            try ReleaseManifestVerifier.verify(
+                manifestData: alteredManifest,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy()
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .invalidSignature)
+        }
+    }
+
+    func testReleaseManifestRejectsChannelDowngradeAndIdentityMismatch() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        guard let stableCurrent = ReleaseVersion.parse(tag: "v1.3.0", channel: .stable),
+              let sameVersion = ReleaseVersion.parse(
+                  tag: "v1.3.0-community.2",
+                  channel: .community
+              ) else {
+            XCTFail("Policy versions must parse")
+            return
+        }
+        let cases: [(ReleaseManifestPolicy, ReleaseManifestFailure)] = [
+            (fixture.policy(currentVersion: stableCurrent, channel: .stable), .wrongChannel),
+            (fixture.policy(currentVersion: sameVersion), .downgrade),
+            (fixture.policy(bundleIdentifier: "io.github.attacker.tidydrop"), .wrongBundleIdentifier),
+            (fixture.policy(artifactName: "TidyDrop-unexpected.dmg"), .wrongArtifactName)
+        ]
+        for (policy, expected) in cases {
+            XCTAssertThrowsError(
+                try ReleaseManifestVerifier.verify(
+                    manifestData: fixture.manifestData,
+                    signature: fixture.signature,
+                    publicKey: fixture.publicKey,
+                    artifactURL: fixture.artifactURL,
+                    policy: policy
+                )
+            ) { error in
+                XCTAssertEqual(error as? ReleaseManifestFailure, expected)
+            }
+        }
+    }
+
+    func testReleaseManifestRejectsReplayStaleAndFuturePublication() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let cases: [(ReleaseManifestPolicy, ReleaseManifestFailure)] = [
+            (fixture.policy(newestAcceptedPublication: fixture.manifest.publishedAt), .replay),
+            (
+                fixture.policy(
+                    now: fixture.manifest.publishedAt.addingTimeInterval(121),
+                    maximumManifestAge: 120
+                ),
+                .staleManifest
+            ),
+            (
+                fixture.policy(
+                    now: fixture.manifest.publishedAt.addingTimeInterval(-61),
+                    futureTolerance: 60
+                ),
+                .futurePublication
+            )
+        ]
+        for (policy, expected) in cases {
+            XCTAssertThrowsError(
+                try ReleaseManifestVerifier.verify(
+                    manifestData: fixture.manifestData,
+                    signature: fixture.signature,
+                    publicKey: fixture.publicKey,
+                    artifactURL: fixture.artifactURL,
+                    policy: policy
+                )
+            ) { error in
+                XCTAssertEqual(error as? ReleaseManifestFailure, expected)
+            }
+        }
+    }
+
+    func testReleaseManifestHashesArtifactAndEnforcesBounds() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        XCTAssertThrowsError(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy(maximumArtifactBytes: UInt64(fixture.artifactData.count - 1))
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .oversizedArtifact)
+        }
+
+        try Data(repeating: 120, count: fixture.artifactData.count).write(
+            to: fixture.artifactURL,
+            options: .atomic
+        )
+        XCTAssertThrowsError(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy()
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .artifactDigestMismatch)
+        }
+
+        try fixture.artifactData.write(to: fixture.artifactURL, options: .atomic)
+        var longerArtifact = fixture.artifactData
+        longerArtifact.append(0)
+        try longerArtifact.write(to: fixture.artifactURL, options: .atomic)
+        XCTAssertThrowsError(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy()
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .artifactLengthMismatch)
+        }
+
+        try fixture.artifactData.write(to: fixture.artifactURL, options: .atomic)
+        XCTAssertThrowsError(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy(
+                    currentSystem: OperatingSystemVersion(
+                        majorVersion: 12,
+                        minorVersion: 6,
+                        patchVersion: 0
+                    )
+                )
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .unsupportedSystem)
+        }
+    }
+
+    func testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let unsafeManifest = ReleaseManifest(
+            version: fixture.manifest.version,
+            channel: fixture.manifest.channel,
+            bundleIdentifier: fixture.manifest.bundleIdentifier,
+            artifactName: "../TidyDrop.dmg",
+            artifactLength: fixture.manifest.artifactLength,
+            artifactSHA256: fixture.manifest.artifactSHA256,
+            minimumMacOS: fixture.manifest.minimumMacOS,
+            publishedAt: fixture.manifest.publishedAt
+        )
+        XCTAssertThrowsError(try ReleaseManifestCodec.encode(unsafeManifest)) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .invalidField("artifact-name"))
+        }
+
+        let target = fixture.workspace.root.appendingPathComponent("artifact-target.dmg")
+        try fixture.artifactData.write(to: target)
+        try FileManager.default.removeItem(at: fixture.artifactURL)
+        try FileManager.default.createSymbolicLink(
+            at: fixture.artifactURL,
+            withDestinationURL: target
+        )
+        XCTAssertThrowsError(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: fixture.artifactURL,
+                policy: fixture.policy()
+            )
+        ) { error in
+            XCTAssertEqual(error as? ReleaseManifestFailure, .invalidArtifact)
+        }
+    }
+
 }
 
 
@@ -2438,6 +2783,13 @@ private let tests: [(String, () throws -> Void)] = [
     ("testReleaseSelectionIsBoundedAndChannelLocked", suite.testReleaseSelectionIsBoundedAndChannelLocked),
     ("testReleaseDisplayFieldsAreBounded", suite.testReleaseDisplayFieldsAreBounded),
     ("testReleaseMetadataDecodesOnlyRequiredFields", suite.testReleaseMetadataDecodesOnlyRequiredFields),
+    ("testSignedReleaseManifestVerifiesCanonicalArtifact", suite.testSignedReleaseManifestVerifiesCanonicalArtifact),
+    ("testReleaseManifestRejectsNonCanonicalAndOversizedEncoding", suite.testReleaseManifestRejectsNonCanonicalAndOversizedEncoding),
+    ("testReleaseManifestRejectsWrongKeyAndMalformedSignature", suite.testReleaseManifestRejectsWrongKeyAndMalformedSignature),
+    ("testReleaseManifestRejectsChannelDowngradeAndIdentityMismatch", suite.testReleaseManifestRejectsChannelDowngradeAndIdentityMismatch),
+    ("testReleaseManifestRejectsReplayStaleAndFuturePublication", suite.testReleaseManifestRejectsReplayStaleAndFuturePublication),
+    ("testReleaseManifestHashesArtifactAndEnforcesBounds", suite.testReleaseManifestHashesArtifactAndEnforcesBounds),
+    ("testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames", suite.testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames),
 ]
 
 var passed = 0

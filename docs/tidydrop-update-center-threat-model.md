@@ -200,7 +200,7 @@ the updater.
 | Response status/size/time bounds | 1 | Client code and static/integration checks |
 | No artifact download/install APIs | 1 | Source audit |
 | Immutable future releases | Release operation | Repository setting and release checklist |
-| Independent signed manifest | 2 | Pinned verification key and negative signature tests |
+| Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
 | Private no-follow staging | 2 | POSIX implementation and race tests |
 | Prior verified bundle and state backup | 2 | Fault-injection integration tests |
 | Out-of-process recovery | 2 | Kill/crash/power-loss tests |

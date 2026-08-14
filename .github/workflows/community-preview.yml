@@ -60,6 +60,7 @@ jobs:
           ./scripts/test-uninstall.sh
           ./scripts/audit-project.sh
           ./scripts/test-update-center.sh
+          ./scripts/test-release-manifest-foundation.sh
           ./scripts/demo.sh
           ./scripts/test-community-preview-workflow.sh
           git diff --check

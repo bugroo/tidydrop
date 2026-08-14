@@ -37,6 +37,7 @@ Sources/TidyDropCore/StewardEngine.swift: OK
 Sources/TidyDropCore/Transactions.swift: OK
 Sources/TidyDropCore/UpdatePolicy.swift: OK
 Sources/TidyDropCore/WorkbenchData.swift: OK
+Sources/TidyDropUpdateSecurity/ReleaseManifest.swift: OK
 VERSION: OK
 app/Distribution-Info.plist: OK
 app/Info.plist: OK
@@ -56,6 +57,7 @@ docs/RELEASE-PHASE-1.md: OK
 docs/RELEASE-PHASE-2.md: OK
 docs/RUNTIME-AUDIT-2026-08-13.md: OK
 docs/RUNTIME-AUDIT-2026-08-14-1.2.0-BUILD8.md: OK
+docs/RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD9.md: OK
 docs/RUNTIME-AUDIT-2026-08-14.md: OK
 docs/SECURITY-AUDIT-2026-08-12.md: OK
 docs/SECURITY.md: OK
@@ -73,6 +75,7 @@ docs/adr/0009-signed-xpc-and-security-scoped-bookmark-prototypes.md: OK
 docs/adr/0010-community-1.2-release-boundary.md: OK
 docs/adr/0011-manual-update-center-and-recovery-boundary.md: OK
 docs/adr/0012-community-1.3-release-boundary.md: OK
+docs/adr/0013-offline-ed25519-release-manifest-foundation.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -88,7 +91,9 @@ docs/evidence/generated-default-config.json: OK
 docs/evidence/launchagent-rendering.txt: OK
 docs/evidence/manifest-verification.txt: OK
 docs/evidence/package-description.txt: OK
+docs/evidence/public-release-1.3.0-community.1.txt: OK
 docs/evidence/release-build.txt: OK
+docs/evidence/release-manifest-foundation.txt: OK
 docs/evidence/release-pipeline.txt: OK
 docs/evidence/runtime-power-audit-2026-08-12.md: OK
 docs/evidence/security-prototypes.txt: OK
@@ -118,6 +123,7 @@ scripts/test-doctor.sh: OK
 scripts/test-event-agent.sh: OK
 scripts/test-folder-chooser.sh: OK
 scripts/test-launchagent.sh: OK
+scripts/test-release-manifest-foundation.sh: OK
 scripts/test-release-pipeline.sh: OK
 scripts/test-security-prototypes.sh: OK
 scripts/test-stability-race.sh: OK
@@ -130,4 +136,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 132 archivos
+Manifest verificado: 138 archivos

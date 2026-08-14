@@ -15,6 +15,13 @@ Products:
     Targets:
         TidyDropCore
 
+    Name: TidyDropUpdateSecurity
+    Type:
+        Library:
+            automatic
+    Targets:
+        TidyDropUpdateSecurity
+
     Name: TidyDropApp
     Type:
         Executable: nil
@@ -40,6 +47,19 @@ Products:
         TidyDropSelfTests
 
 Targets:
+    Name: TidyDropUpdateSecurity
+    Type: library
+    C99name: TidyDropUpdateSecurity
+    Module type: SwiftTarget
+    Path: Sources/TidyDropUpdateSecurity
+    Sources:
+        ReleaseManifest.swift
+    Target dependencies:
+        TidyDropCore
+    Product memberships:
+        TidyDropUpdateSecurity
+        tidydrop-self-test
+
     Name: TidyDropSelfTests
     Type: executable
     C99name: TidyDropSelfTests
@@ -49,6 +69,7 @@ Targets:
         main.swift
     Target dependencies:
         TidyDropCore
+        TidyDropUpdateSecurity
     Product memberships:
         tidydrop-self-test
 
@@ -79,6 +100,7 @@ Targets:
         WorkbenchData.swift
     Product memberships:
         TidyDropCore
+        TidyDropUpdateSecurity
         TidyDropApp
         tidydrop
         tidydrop-agent
