@@ -97,6 +97,16 @@ lleno, tamaño incompleto, symlinks y colisión tardía. No contiene red, montaj
 extracción, instalación ni reemplazo de `/Applications`; esas fronteras siguen
 bloqueadas.
 
+[ADR-0017](adr/0017-fixed-origin-authenticated-update-transport.md) conecta esas
+bases únicamente desde un módulo de transporte no distribuido y separado del
+verificador offline: deriva la URL desde el
+manifiesto autenticado, limita redirects al origen de assets de GitHub, usa una
+sesión efímera sin cookies, caché o credenciales y transmite por chunks al
+staging privado. El SHA-256 autenticado se comprueba antes de finalizar el
+artefacto. Los tests inyectan el protocolo dentro de la sesión y no pueden caer
+accidentalmente a la red real. La app, CLI, Core y LaunchAgent no importan esta
+ruta; extracción, instalación y rollback continúan bloqueados.
+
 ## Fuera de alcance
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.

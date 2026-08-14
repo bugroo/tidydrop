@@ -51,6 +51,7 @@ unexpected_runtime_network=$(
     /usr/bin/grep -RInE 'URLSession|NWConnection|Network\.framework|CFNetwork|socket\(' \
         "$PROJECT_ROOT/Sources" 2>/dev/null \
         | /usr/bin/grep -v '/Sources/TidyDropApp/UpdateCheckService.swift:' \
+        | /usr/bin/grep -v '/Sources/TidyDropUpdateTransport/FixedOriginUpdateTransport.swift:' \
         || true
 )
 if [ -n "$unexpected_runtime_network" ]; then
@@ -65,7 +66,8 @@ if ! /usr/bin/grep -Fq 'URLSessionConfiguration.ephemeral' \
     printf '%s\n' '[FALLO] El cliente manual de updates perdió sus límites de privacidad.' >&2
     exit 1
 fi
-printf '%s\n' '[OK] Red runtime limitada al Update Center manual, efímero y sin credenciales'
+"$SCRIPT_DIR/test-update-transport-foundation.sh"
+printf '%s\n' '[OK] Red runtime limitada al Update Center; transporte autenticado aislado y no distribuido'
 
 if /usr/bin/grep -RInE '^[[:space:]]*(curl|wget|nc|ncat|ssh|scp|sftp)[[:space:]]' \
     "$PROJECT_ROOT/scripts" >/dev/null 2>&1; then

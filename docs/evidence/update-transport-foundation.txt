@@ -1,0 +1,1 @@
+Fixed-origin authenticated update transport: PASS (ephemeral, injected tests, non-shipping)
