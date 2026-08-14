@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Makes the automated folder-chooser gate nonvisual by default, preventing a
+  brief AppKit panel from flashing during validation and installation while
+  retaining an explicit opt-in UI smoke test.
 - Adds an isolated, non-shipping private update-staging writer with
   descriptor-anchored `0700`/`0600` storage, exclusive finalization, bounded
   streaming and cancellation/disk-full/collision regressions. Network download,

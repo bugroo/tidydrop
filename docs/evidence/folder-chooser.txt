@@ -1,1 +1,1 @@
-Native folder chooser open/cancel test: PASS
+Native folder chooser nonvisual contract: PASS (interactive panel not opened)

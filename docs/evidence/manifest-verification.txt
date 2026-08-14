@@ -81,6 +81,7 @@ docs/adr/0012-community-1.3-release-boundary.md: OK
 docs/adr/0013-offline-ed25519-release-manifest-foundation.md: OK
 docs/adr/0014-two-phase-agent-startup-readiness.md: OK
 docs/adr/0015-private-update-staging-foundation.md: OK
+docs/adr/0016-nonvisual-automated-folder-chooser-validation.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -144,4 +145,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 146 archivos
+Manifest verificado: 147 archivos
