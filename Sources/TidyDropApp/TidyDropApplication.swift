@@ -205,6 +205,7 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSTool
     private var previewRunning = false
     private var undoRunning = false
     private var workbenchController: WorkbenchViewController?
+    private var updateCenterController: UpdateCenterWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -396,6 +397,12 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSTool
         let applicationItem = NSMenuItem()
         let applicationMenu = NSMenu()
         applicationMenu.addItem(withTitle: "About TidyDrop", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let updatesItem = applicationMenu.addItem(
+            withTitle: "Software Updates…",
+            action: #selector(showUpdateCenter),
+            keyEquivalent: ""
+        )
+        updatesItem.target = self
         applicationMenu.addItem(.separator())
         applicationMenu.addItem(withTitle: "Quit TidyDrop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         applicationItem.submenu = applicationMenu
@@ -494,6 +501,19 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSTool
 
     @objc private func refreshWorkbenchAction() {
         refreshWorkbench()
+    }
+
+    @objc private func showUpdateCenter() {
+        if updateCenterController == nil {
+            updateCenterController = UpdateCenterWindowController(
+                productVersion: ProductIdentity.version,
+                buildIdentity: ProductIdentity.buildIdentity,
+                distributionChannel: ProductIdentity.distributionChannel
+            )
+        }
+        updateCenterController?.showWindow(nil)
+        updateCenterController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func showActiveFolder() {

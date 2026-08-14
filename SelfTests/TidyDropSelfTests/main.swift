@@ -2195,6 +2195,152 @@ private final class TidyDropCoreTests {
 #endif
     }
 
+    func testReleaseVersionParsingIsStrictAndOverflowSafe() {
+        let community = ReleaseVersion.parse(tag: "v1.2.0-community.2", channel: .community)
+        XCTAssertEqual(community?.major, 1)
+        XCTAssertEqual(community?.minor, 2)
+        XCTAssertEqual(community?.patch, 0)
+        XCTAssertEqual(community?.communitySequence, 2)
+        XCTAssertEqual(community?.tag, "v1.2.0-community.2")
+
+        let stable = ReleaseVersion.parse(tag: "v2.0.1", channel: .stable)
+        XCTAssertEqual(stable?.tag, "v2.0.1")
+        XCTAssertEqual(stable?.channel, .stable)
+
+        let invalid: [(String, UpdateChannel)] = [
+            ("1.2.0-community.2", .community),
+            ("v1.2-community.2", .community),
+            ("v1.2.0-community.0", .community),
+            ("v1.2.0-community.02", .community),
+            ("v01.2.0-community.2", .community),
+            ("v1.2.0-community.-1", .community),
+            ("v1.2.0-community.2-extra", .community),
+            ("v1.2.0", .community),
+            ("v1.2.0-community.2", .stable),
+            ("v1.2.0-beta", .stable),
+            ("v1.2.999999999999999999999999999999", .stable),
+            ("v1.2.0-communitý.2", .community)
+        ]
+        for (tag, channel) in invalid {
+            XCTAssertEqual(ReleaseVersion.parse(tag: tag, channel: channel), nil, tag)
+        }
+    }
+
+    func testCommunityReleaseSelectionRejectsDraftStableMalformedAndDowngrade() {
+        guard let current = ReleaseVersion.parse(tag: "v1.2.0-community.2", channel: .community) else {
+            XCTAssertTrue(false, "Current Community version must parse")
+            return
+        }
+        let releases = [
+            ReleaseMetadata(tagName: "v9.0.0-community.1", draft: true, prerelease: true),
+            ReleaseMetadata(tagName: "v8.0.0-community.1", draft: false, prerelease: false),
+            ReleaseMetadata(tagName: "v7.0.0", draft: false, prerelease: false),
+            ReleaseMetadata(tagName: "v1.2.0-community.2", draft: false, prerelease: true),
+            ReleaseMetadata(tagName: "v1.1.9-community.99", draft: false, prerelease: true),
+            ReleaseMetadata(tagName: "v1.2.0-community.latest", draft: false, prerelease: true),
+            ReleaseMetadata(
+                tagName: "v1.2.0-community.4",
+                name: "TidyDrop 1.2 Community Preview 4",
+                draft: false,
+                prerelease: true,
+                publishedAt: "2026-08-14T12:00:00Z"
+            ),
+            ReleaseMetadata(tagName: "v1.2.0-community.3", draft: false, prerelease: true)
+        ]
+        let selected = ReleaseSelectionPolicy.latestNewerRelease(
+            in: releases,
+            channel: .community,
+            currentVersion: current
+        )
+        XCTAssertEqual(selected?.version.tag, "v1.2.0-community.4")
+        XCTAssertEqual(selected?.displayName, "TidyDrop 1.2 Community Preview 4")
+        XCTAssertEqual(
+            selected?.officialPageURL.absoluteString,
+            "https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.4"
+        )
+    }
+
+    func testStableReleaseSelectionRejectsPrereleaseAndDowngrade() {
+        guard let current = ReleaseVersion.parse(tag: "v1.2.0", channel: .stable) else {
+            XCTAssertTrue(false, "Current stable version must parse")
+            return
+        }
+        let releases = [
+            ReleaseMetadata(tagName: "v2.0.0-community.1", draft: false, prerelease: true),
+            ReleaseMetadata(tagName: "v9.0.0", draft: false, prerelease: true),
+            ReleaseMetadata(tagName: "v1.2.0", draft: false, prerelease: false),
+            ReleaseMetadata(tagName: "v1.1.9", draft: false, prerelease: false),
+            ReleaseMetadata(tagName: "v1.3.0", draft: false, prerelease: false)
+        ]
+        let selected = ReleaseSelectionPolicy.latestNewerRelease(
+            in: releases,
+            channel: .stable,
+            currentVersion: current
+        )
+        XCTAssertEqual(selected?.version.tag, "v1.3.0")
+    }
+
+    func testReleaseSelectionIsBoundedAndChannelLocked() {
+        guard let current = ReleaseVersion.parse(tag: "v1.2.0-community.2", channel: .community),
+              let stableCurrent = ReleaseVersion.parse(tag: "v1.2.0", channel: .stable) else {
+            XCTAssertTrue(false, "Current versions must parse")
+            return
+        }
+        var releases = Array(repeating:
+            ReleaseMetadata(tagName: "invalid", draft: false, prerelease: true),
+            count: ReleaseSelectionPolicy.maximumReleaseCount
+        )
+        releases.append(
+            ReleaseMetadata(tagName: "v99.0.0-community.1", draft: false, prerelease: true)
+        )
+        XCTAssertEqual(
+            ReleaseSelectionPolicy.latestNewerRelease(
+                in: releases,
+                channel: .community,
+                currentVersion: current
+            ),
+            nil
+        )
+        XCTAssertEqual(
+            ReleaseSelectionPolicy.latestNewerRelease(
+                in: [],
+                channel: .community,
+                currentVersion: stableCurrent
+            ),
+            nil
+        )
+    }
+
+    func testReleaseDisplayFieldsAreBounded() {
+        guard let current = ReleaseVersion.parse(tag: "v1.2.0-community.2", channel: .community) else {
+            XCTAssertTrue(false, "Current Community version must parse")
+            return
+        }
+        let oversizedName = String(repeating: "x", count: 161)
+        let oversizedDate = String(repeating: "2", count: 65)
+        let selected = ReleaseSelectionPolicy.latestNewerRelease(
+            in: [ReleaseMetadata(
+                tagName: "v1.2.0-community.3",
+                name: oversizedName,
+                draft: false,
+                prerelease: true,
+                publishedAt: oversizedDate
+            )],
+            channel: .community,
+            currentVersion: current
+        )
+        XCTAssertEqual(selected?.displayName, "v1.2.0-community.3")
+        XCTAssertEqual(selected?.publishedAt, nil)
+    }
+
+    func testReleaseMetadataDecodesOnlyRequiredFields() throws {
+        let data = Data(#"[{"tag_name":"v1.2.0-community.3","name":null,"draft":false,"prerelease":true,"published_at":"2026-08-14T12:00:00Z","html_url":"https://attacker.invalid/","body":"ignored"}]"#.utf8)
+        let decoded = try JSONDecoder().decode([ReleaseMetadata].self, from: data)
+        XCTAssertEqual(decoded.count, 1)
+        XCTAssertEqual(decoded.first?.tagName, "v1.2.0-community.3")
+        XCTAssertEqual(decoded.first?.publishedAt, "2026-08-14T12:00:00Z")
+    }
+
 }
 
 
@@ -2286,6 +2432,12 @@ private let tests: [(String, () throws -> Void)] = [
     ("testCodeSigningRequirementMatchesOnlyCurrentSignedCode", suite.testCodeSigningRequirementMatchesOnlyCurrentSignedCode),
     ("testSecurityScopedBookmarkRoundTripBalancesAccess", suite.testSecurityScopedBookmarkRoundTripBalancesAccess),
     ("testXPCMutualCodeSigningRequirementAcceptsAndRejects", suite.testXPCMutualCodeSigningRequirementAcceptsAndRejects),
+    ("testReleaseVersionParsingIsStrictAndOverflowSafe", suite.testReleaseVersionParsingIsStrictAndOverflowSafe),
+    ("testCommunityReleaseSelectionRejectsDraftStableMalformedAndDowngrade", suite.testCommunityReleaseSelectionRejectsDraftStableMalformedAndDowngrade),
+    ("testStableReleaseSelectionRejectsPrereleaseAndDowngrade", suite.testStableReleaseSelectionRejectsPrereleaseAndDowngrade),
+    ("testReleaseSelectionIsBoundedAndChannelLocked", suite.testReleaseSelectionIsBoundedAndChannelLocked),
+    ("testReleaseDisplayFieldsAreBounded", suite.testReleaseDisplayFieldsAreBounded),
+    ("testReleaseMetadataDecodesOnlyRequiredFields", suite.testReleaseMetadataDecodesOnlyRequiredFields),
 ]
 
 var passed = 0

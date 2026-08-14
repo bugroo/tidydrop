@@ -12,7 +12,7 @@ TidyDrop — auditoría estática local
 <repository-root>/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
 [OK] Versión e identidad comunitaria coherentes
-[OK] Sin APIs de red detectadas en Sources
+[OK] Red runtime limitada al Update Center manual, efímero y sin credenciales
 [OK] Sin utilidades de red ejecutadas por scripts
 [OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta
 [OK] Apply/undo con rename exclusivo y archivos propios abiertos con O_NOFOLLOW
@@ -23,7 +23,7 @@ TidyDrop — auditoría estática local
 [OK] LaunchAgent sin logs stdout/stderr ilimitados
 [OK] FSEvents usa entrega agrupada sin wakeup inmediato NoDefer
 [OK] Prototipos Sandbox mínimos y bloqueados fuera de releases
-[OK] Red limitada a notarización Apple durante release; runtime sin red
+[OK] Red de release limitada a notarización Apple; agente y motor permanecen sin red
 Community Preview workflow: PASS (prerelease + checksum + provenance + revalidation)
 [OK] Actions fijadas; PR read-only y publicación comunitaria fail-closed
 [OK] Evidencia pública sin rutas de usuario ni hostnames locales

@@ -3,7 +3,7 @@
 **A private, native macOS file organizer that keeps Downloads tidy without
 uploading, indexing, or profiling your files.**
 
-`🍎 macOS 13+` · `🔒 Local-only runtime` · `↩️ Conservative undo` ·
+`🍎 macOS 13+` · `🔒 Local-only file processing` · `↩️ Conservative undo` ·
 `⚡ Low-overhead background work` · `🧩 Apple Silicon + Intel`
 
 [⬇️ **Download TidyDrop 1.2.0 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.2/TidyDrop-1.2.0-community-preview-macos-universal.dmg)
@@ -52,7 +52,9 @@ promises:
 - Records completed moves so the latest transaction can be undone safely.
 - Responds to filesystem events, reconciles once at startup, and uses one
   short-lived timer only while a candidate is still changing.
-- Uses no network connection, telemetry, advertising, or cloud processing.
+- Background organization uses no network connection, telemetry, advertising,
+  or cloud processing. The optional Update Center contacts only the official
+  GitHub release channel after an explicit button press.
 
 ### Default categories
 
@@ -84,6 +86,19 @@ not need Terminal or development tools.
 The native workbench provides four focused sections: Active Folder, Activity,
 Rules, and History. Its inspector explains the selected item and exposes rule
 editing or conservative undo only where those actions are valid.
+
+### Check for updates
+
+Choose **TidyDrop → Software Updates…**, then press **Check for Updates**.
+TidyDrop makes one ephemeral HTTPS request to the official `bugroo/tidydrop`
+GitHub release channel. It sends no file names, folder paths, cookies,
+credentials, device identifier, or telemetry.
+
+The Community Preview Update Center reports a newer strict Community tag and can
+open its official release page. It does not download, install, or roll back the
+application. Update and recovery automation remain blocked until signed release
+metadata, safe staging, external recovery, agent migration, and TCC gates are
+implemented and verified.
 
 This preview is not signed with Apple Developer ID and is not notarized by
 Apple. macOS therefore requires a one-time manual exception. The notarized
@@ -198,8 +213,10 @@ matches the recorded move.
 
 ## 🔐 Privacy and macOS permissions
 
-File names and metadata stay on the Mac. TidyDrop does not transmit file content
-or usage information.
+File names, file metadata, and content stay on the Mac. TidyDrop does not
+transmit usage information. A manual update check necessarily discloses normal
+HTTPS connection metadata, such as the source IP, to GitHub; it is never run by
+the background agent or on a timer.
 
 macOS may request access to Downloads, Documents, Desktop, removable volumes, or
 network volumes. Grant access only under:
@@ -253,6 +270,8 @@ Uninstalling TidyDrop never removes organized files or category folders.
 - App Sandbox and security-scoped bookmarks are validated prototypes but are
   not enabled in the Community bundle without a stable Developer ID identity.
 - A macOS or TidyDrop update may require Files & Folders permission again.
+- Community updates are installed manually. The current build has update
+  discovery, not automatic installation or automatic app rollback.
 - Cloud and removable-volume files must be available locally before they can be
   organized.
 - A file-writing application can still change a file in the very small interval

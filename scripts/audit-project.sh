@@ -40,14 +40,25 @@ else
     printf '%s\n' '[AVISO] plutil no disponible; se omite lint de plists.'
 fi
 
-if /usr/bin/grep -RInE 'URLSession|NWConnection|Network\.framework|CFNetwork|socket\(' \
-    "$PROJECT_ROOT/Sources" >/dev/null 2>&1; then
-    printf '%s\n' '[FALLO] Se detectó una API de red en Sources.' >&2
+unexpected_runtime_network=$(
     /usr/bin/grep -RInE 'URLSession|NWConnection|Network\.framework|CFNetwork|socket\(' \
-        "$PROJECT_ROOT/Sources" >&2 || true
+        "$PROJECT_ROOT/Sources" 2>/dev/null \
+        | /usr/bin/grep -v '/Sources/TidyDropApp/UpdateCheckService.swift:' \
+        || true
+)
+if [ -n "$unexpected_runtime_network" ]; then
+    printf '%s\n' '[FALLO] Se detectó una API de red fuera del Update Center manual.' >&2
+    printf '%s\n' "$unexpected_runtime_network" >&2
     exit 1
 fi
-printf '%s\n' '[OK] Sin APIs de red detectadas en Sources'
+if ! /usr/bin/grep -Fq 'URLSessionConfiguration.ephemeral' \
+        "$PROJECT_ROOT/Sources/TidyDropApp/UpdateCheckService.swift" \
+   || /usr/bin/grep -Eqi 'Authorization|Bearer|private[_ -]?token|downloadTask' \
+        "$PROJECT_ROOT/Sources/TidyDropApp/UpdateCheckService.swift"; then
+    printf '%s\n' '[FALLO] El cliente manual de updates perdió sus límites de privacidad.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Red runtime limitada al Update Center manual, efímero y sin credenciales'
 
 if /usr/bin/grep -RInE '^[[:space:]]*(curl|wget|nc|ncat|ssh|scp|sftp)[[:space:]]' \
     "$PROJECT_ROOT/scripts" >/dev/null 2>&1; then
@@ -209,7 +220,7 @@ if [ -n "$unexpected_notary" ]; then
     printf '%s\n' "$unexpected_notary" >&2
     exit 1
 fi
-printf '%s\n' '[OK] Red limitada a notarización Apple durante release; runtime sin red'
+printf '%s\n' '[OK] Red de release limitada a notarización Apple; agente y motor permanecen sin red'
 
 invalid_action_refs=$(
     /usr/bin/grep -RhE '^[[:space:]]*uses:[[:space:]]+' "$PROJECT_ROOT/.github/workflows" 2>/dev/null \

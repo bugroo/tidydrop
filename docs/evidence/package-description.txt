@@ -75,6 +75,7 @@ Targets:
         Stability.swift
         StewardEngine.swift
         Transactions.swift
+        UpdatePolicy.swift
         WorkbenchData.swift
     Product memberships:
         TidyDropCore
@@ -90,6 +91,8 @@ Targets:
     Path: Sources/TidyDropApp
     Sources:
         TidyDropApplication.swift
+        UpdateCenterWindowController.swift
+        UpdateCheckService.swift
         WorkbenchViewController.swift
     Target dependencies:
         TidyDropCore
