@@ -64,6 +64,10 @@ PASS  testMIMEDetectorTimesOutBoundedHelper
 PASS  testConfigurationBoundsRuleCountsAndLengths
 PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
 PASS  testScheduledExecutionWritesDryRunSuccessRecord
+PASS  testAgentActivityDatabaseMigratesAndReadsNewestFirst
+PASS  testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase
+PASS  testAgentActivityDatabaseRejectsSymlink
+PASS  testAgentActivityDatabaseRejectsSymlinkSidecar
 PASS  testBackgroundVerificationRequiresFreshMatchingSource
 PASS  testBackgroundVerificationHonorsModeFreshnessAndMoveSafety
 PASS  testScheduledExecutionUnavailableSourceFailsClosed
@@ -77,4 +81,4 @@ PASS  testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded
 PASS  testAgentRunRequestIsPrivateAndSourceBound
 PASS  testAgentRunRequestRejectsSymlinkDestination
 PASS  testAgentRunRequestValidationRejectsStaleOrDifferentSource
-Resultado: 78 PASS, 0 SKIP, 0 FAIL; total=78
+Resultado: 82 PASS, 0 SKIP, 0 FAIL; total=82

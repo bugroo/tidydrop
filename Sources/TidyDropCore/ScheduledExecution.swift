@@ -15,7 +15,7 @@ public enum ScheduledExecution {
                         && resolved.config.logging.suppressScheduledNoopAudit
                 )
                 let outcome: ScheduledRunOutcome = summary.errors == 0 ? .success : .error
-                try JSONFile.save(
+                try persist(
                     ScheduledRunRecord(
                         outcome: outcome,
                         runID: summary.runID,
@@ -28,21 +28,21 @@ public enum ScheduledExecution {
                         errors: summary.errors,
                         sourceDirectory: resolved.paths.sourceDirectory.path
                     ),
-                    to: resolved.paths.scheduledStatusFile
+                    resolved: resolved
                 )
                 return summary.errors == 0 ? 0 : 5
             } catch StewardError.lockBusy(let path) {
-                try JSONFile.save(
+                try persist(
                     ScheduledRunRecord(
                         outcome: .lockBusy,
                         runID: "agent-lock-\(RunIdentifier.make())",
                         detail: path
                     ),
-                    to: resolved.paths.scheduledStatusFile
+                    resolved: resolved
                 )
                 return 0
             } catch StewardError.sourceUnavailable(let path) {
-                try JSONFile.save(
+                try persist(
                     ScheduledRunRecord(
                         outcome: .sourceUnavailable,
                         runID: "agent-source-\(RunIdentifier.make())",
@@ -52,13 +52,35 @@ public enum ScheduledExecution {
                         detail: path,
                         sourceDirectory: resolved.paths.sourceDirectory.path
                     ),
-                    to: resolved.paths.scheduledStatusFile
+                    resolved: resolved
                 )
                 return 0
             }
         } catch {
             recordFailure(error, configurationURL: configurationURL)
             return 2
+        }
+    }
+
+    private static func persist(
+        _ record: ScheduledRunRecord,
+        resolved: ResolvedConfiguration
+    ) throws {
+        try JSONFile.save(record, to: resolved.paths.scheduledStatusFile)
+        do {
+            try AgentActivityDatabase.record(record, at: resolved.paths.activityDatabaseFile)
+        } catch {
+            let timestamp = ISO8601DateFormatter().string(from: Date())
+            let detail = String(describing: error)
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+            let line = "\(timestamp) ERROR component=activity_database detail=\(detail)\n"
+            try? FileSystemSecurity.appendBounded(
+                Data(line.utf8),
+                to: resolved.paths.agentErrorLogFile,
+                maxBytes: resolved.config.logging.maxFileBytes,
+                retainedFiles: resolved.config.logging.rotatedFileCount
+            )
         }
     }
 

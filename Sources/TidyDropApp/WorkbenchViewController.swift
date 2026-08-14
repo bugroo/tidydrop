@@ -53,9 +53,11 @@ final class WorkbenchViewController: NSSplitViewController, NSTableViewDataSourc
     private let applyUndoButton = NSButton()
     private var selectedSection: WorkbenchSection = .activeFolder
     private var activity: [AuditEvent] = []
+    private var agentRuns: [StoredAgentRun] = []
     private var rules: [CategoryRule] = []
     private var history: [TransactionManifest] = []
     private var loadError: String?
+    private var activityDatabaseError: String?
 
     init(configurationURL: URL, activeFolderView: NSView, actions: WorkbenchActions) {
         self.configurationURL = configurationURL
@@ -112,6 +114,16 @@ final class WorkbenchViewController: NSSplitViewController, NSTableViewDataSourc
             ).filter { event in
                 !["run_started", "run_finished"].contains(event.action)
             }
+            do {
+                agentRuns = try AgentActivityDatabase.recentRuns(
+                    at: resolved.paths.activityDatabaseFile,
+                    limit: 100
+                )
+                activityDatabaseError = nil
+            } catch {
+                agentRuns = []
+                activityDatabaseError = "Background activity index unavailable: \(error)"
+            }
             if try FileSystemSecurity.pathEntryExists(resolved.paths.transactionsDirectory) {
                 history = try TransactionStore(directory: resolved.paths.transactionsDirectory)
                     .manifests(limit: 200)
@@ -121,9 +133,11 @@ final class WorkbenchViewController: NSSplitViewController, NSTableViewDataSourc
             loadError = nil
         } catch {
             activity = []
+            agentRuns = []
             rules = []
             history = []
             loadError = "TidyDrop could not load this section safely: \(error)"
+            activityDatabaseError = nil
         }
         configureContentColumns()
         contentTable.reloadData()
@@ -445,7 +459,19 @@ final class WorkbenchViewController: NSSplitViewController, NSTableViewDataSourc
         switch selectedSection {
         case .activeFolder:
             inspectorTitle.stringValue = "Privacy boundary"
-            inspectorBody.stringValue = "TidyDrop works only inside the selected folder. It does not upload file names, metadata, content, or usage information."
+            var details = [
+                "TidyDrop works only inside the selected folder. It does not upload file names, metadata, content, or usage information."
+            ]
+            if let latestRun = agentRuns.first {
+                details.append(
+                    "Last background run\n\(Self.dateFormatter.string(from: latestRun.timestamp)) · "
+                        + "\(latestRun.outcome.rawValue) · \(latestRun.mode ?? "unknown")"
+                )
+            }
+            if let activityDatabaseError {
+                details.append(activityDatabaseError)
+            }
+            inspectorBody.stringValue = details.joined(separator: "\n\n")
         case .activity:
             inspectorTitle.stringValue = "Drop Path"
             guard activity.indices.contains(row) else {

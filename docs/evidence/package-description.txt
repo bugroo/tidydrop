@@ -59,6 +59,7 @@ Targets:
     Path: Sources/TidyDropCore
     Sources:
         ActiveFolder.swift
+        AgentActivityDatabase.swift
         AgentRunRequest.swift
         AgentSchedulingPolicy.swift
         Audit.swift

@@ -7,8 +7,9 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 78, incluidas las fronteras balanceadas de auditoría,
-   workbench AppKit, canonicalización FSEvents y señal app-agente privada,
+4. Self-tests propios: 82, incluidas las fronteras balanceadas de auditoría,
+   workbench AppKit, canonicalización FSEvents, señal app-agente privada e
+   índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
 5. Veinte repeticiones de las carreras de estabilidad.
 6. Selector AppKit real abierto y cancelado automáticamente por un seam de prueba, con checksum de configuración invariable.
@@ -41,6 +42,9 @@ Gates obligatorios:
 22. La integración FSEvents temporal verifica reconciliación inicial, evento de
     fuente, ráfaga coalescida, señal privada de un solo uso, `apply_enabled=false`,
     cero movimientos y ausencia de nuevas pasadas durante reposo.
+23. El agente es el único escritor del índice SQLite derivado; la integración
+    comprueba que el archivo es regular y privado, mientras la app lo consume
+    read-only y un fallo del índice no gobierna apply, recuperación o undo.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

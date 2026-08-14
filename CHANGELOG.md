@@ -9,6 +9,9 @@
   deferred candidates exist.
 - Validates and consumes app-to-agent wake requests once using a private,
   source-bound, recent JSON signal until the signed XPC gate is complete.
+- Adds a bounded SQLite activity index owned by the scheduled agent, with a
+  read-only AppKit consumer, explicit schema migration, private permissions,
+  verified WAL mode, and fail-soft UI behavior.
 - Adds isolated event, burst, idle-resource, rule-edit, history, and undo
   regressions without running apply or undo against personal folders.
 

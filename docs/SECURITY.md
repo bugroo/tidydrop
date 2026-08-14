@@ -25,6 +25,16 @@ Lock, JSON y logs se abren con `O_NOFOLLOW`, se comprueban mediante descriptor y
 
 La caché de dry-run solo suprime trabajo de previsualización ya auditado. Nunca se consulta en apply y no autoriza movimientos.
 
+El índice `activity.sqlite3` es estado derivado y no autoritativo. Solo la ruta
+de ejecución programada escribe; la interfaz abre en modo read-only. Los
+manifiestos JSON siguen gobernando apply, recuperación y undo. SQLite se abre
+sin seguir symlinks, con esquema no confiable desactivado, límites de tamaño y
+retención, permisos `0600` y un padre `0700`. WAL se acepta únicamente si SQLite
+confirma el modo, sus sidecars no se eliminan directamente y el índice permanece
+en Application Support local aunque la carpeta observada esté en otro volumen.
+Un fallo del índice queda acotado al resumen de actividad y no debilita el
+journal de archivos.
+
 La validación de carpeta protege tanto `~/Applications/TidyDrop.app` como
 `/Applications/TidyDrop.app`; tampoco admite una raíz que contenga cualquiera
 de esos bundles. De este modo, la clasificación nunca puede abarcar el código
@@ -36,9 +46,10 @@ Una pasada programada con actividad abre y cierra siempre una unidad de auditor�
 
 El bundle declara las claves de Downloads, Documents, Desktop, volúmenes extraíbles y red. El acceso manual y mediante LaunchAgent se verifica por separado. No se solicita Full Disk Access, no se modifica la base TCC y seleccionar una carpeta no se presenta como garantía de acceso persistente para `launchd`.
 
-La aplicación nativa registra un agente incluido con `SMAppService`. El agente
-solo enlaza Foundation/TidyDropCore, ejecuta una pasada y termina; AppKit y
-ServiceManagement quedan en el proceso de interfaz. La activación permanece
+La aplicación nativa registra un agente incluido con `SMAppService`. La rama
+1.2 mantiene un agente Foundation/CoreServices residente y bloqueado sobre
+FSEvents cuando está inactivo; AppKit y ServiceManagement quedan en el proceso
+de interfaz. La activación permanece
 bloqueada hasta observar una pasada nueva del agente con `success`, `dry-run`,
 cero movimientos y cero errores. La verificación también exige que el registro
 sea reciente y corresponda a la ruta canónica exacta de la carpeta activa. La

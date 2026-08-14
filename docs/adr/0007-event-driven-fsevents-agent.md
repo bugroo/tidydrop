@@ -78,9 +78,9 @@ memory footprint, so release gates must compare RSS, CPU time, wakeups, and I/O
 against the one-shot baseline. FSEvents-specific behavior remains macOS-only;
 the shared engine and self-tests stay portable.
 
-Two isolated Apple Silicon integration samples after source, burst, and
+Current isolated Apple Silicon integration samples after source, burst, and
 app-request events held CPU time unchanged, sampled `0.0%` CPU, and measured
-12,560–12,672 KiB RSS. These are bounded observations rather than an energy
+11,824–13,072 KiB RSS. These are bounded observations rather than an energy
 guarantee; wakeups and I/O still require Instruments during the release
 candidate gate, and physical Intel measurement remains external.
 

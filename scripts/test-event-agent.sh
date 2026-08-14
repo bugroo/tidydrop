@@ -31,6 +31,7 @@ STATE="$TEST_ROOT/state"
 LOGS="$TEST_ROOT/logs"
 CONFIG="$TEST_ROOT/config.json"
 RUN_STATE="$STATE/last-scheduled-run.json"
+ACTIVITY_DATABASE="$STATE/activity.sqlite3"
 /bin/mkdir -p "$SOURCE"
 "$CLI_BINARY" print-default-config >"$CONFIG"
 /usr/bin/plutil -replace paths.source_directory -string "$SOURCE" "$CONFIG"
@@ -81,6 +82,9 @@ assert_safe_state() {
 AGENT_PID=$!
 INITIAL_RUN=$(wait_for_new_run '' 'startup')
 assert_safe_state
+[ -f "$ACTIVITY_DATABASE" ]
+[ ! -L "$ACTIVITY_DATABASE" ]
+[ "$(/usr/bin/stat -f '%Lp' "$ACTIVITY_DATABASE")" = '600' ]
 
 /usr/bin/printf '%s\n' 'event-driven' >"$SOURCE/event file.pdf"
 FILE_EVENT_RUN=$(wait_for_new_run "$INITIAL_RUN" 'source-event')

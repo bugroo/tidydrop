@@ -101,6 +101,30 @@ if /usr/bin/grep -nE '\.package[[:space:]]*\(' "$PROJECT_ROOT/Package.swift" >/d
 fi
 printf '%s\n' '[OK] Swift Package sin dependencias externas declaradas'
 
+if ! /usr/bin/grep -q '\.linkedLibrary("sqlite3")' "$PROJECT_ROOT/Package.swift" \
+   || ! /usr/bin/grep -q 'SQLITE_OPEN_NOFOLLOW' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift" \
+   || ! /usr/bin/grep -q 'SQLITE_OPEN_READONLY' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift" \
+   || ! /usr/bin/grep -q 'PRAGMA trusted_schema=OFF' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift" \
+   || ! /usr/bin/grep -q 'APP_OWNED_SQLITE_RETENTION' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift"; then
+    printf '%s\n' '[FALLO] El índice SQLite perdió un control obligatorio.' >&2
+    exit 1
+fi
+unexpected_activity_writers=$(
+    /usr/bin/grep -RIn 'AgentActivityDatabase.record' "$PROJECT_ROOT/Sources" 2>/dev/null \
+        | /usr/bin/grep -v '/ScheduledExecution.swift:' \
+        || true
+)
+if [ -n "$unexpected_activity_writers" ]; then
+    printf '%s\n' '[FALLO] Solo la ejecución programada puede escribir el índice SQLite.' >&2
+    printf '%s\n' "$unexpected_activity_writers" >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Índice SQLite derivado con escritor único, reader read-only y controles de symlink'
+
 if /usr/bin/grep -RInE '(^|[[:space:]])import[[:space:]]+XCTest|\.testTarget[[:space:]]*\(' \
     "$PROJECT_ROOT/Package.swift" "$PROJECT_ROOT/Sources" "$PROJECT_ROOT/SelfTests" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] Se detectó una dependencia de XCTest.' >&2

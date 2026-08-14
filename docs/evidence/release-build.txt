@@ -5,9 +5,9 @@ Building for production...
 [6/14] Compiling TidyDropCore ActiveFolder.swift
 [7/18] Compiling TidyDropAgent EventDrivenAgent.swift
 [7/18] Write Objects.LinkFileList
-[9/18] Compiling TidyDrop main.swift
-[9/18] Write Objects.LinkFileList
-[10/18] Linking tidydrop-agent
+[8/18] Linking tidydrop-agent
+[10/18] Compiling TidyDrop main.swift
+[10/18] Write Objects.LinkFileList
 [11/18] Linking tidydrop
 [13/18] Compiling TidyDropApp TidyDropApplication.swift
 [13/18] Write Objects.LinkFileList
@@ -15,4 +15,4 @@ Building for production...
 [16/18] Compiling TidyDropSelfTests main.swift
 [16/18] Write Objects.LinkFileList
 [17/18] Linking tidydrop-self-test
-Build complete! (9.91s)
+Build complete! (10.14s)

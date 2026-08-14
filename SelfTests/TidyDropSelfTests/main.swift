@@ -1566,6 +1566,97 @@ private final class TidyDropCoreTests {
         XCTAssertEqual(record.moved, 0)
         XCTAssertEqual(record.errors, 0)
         XCTAssertEqual(record.sourceDirectory, resolved.paths.sourceDirectory.path)
+        let indexedRuns = try AgentActivityDatabase.recentRuns(
+            at: resolved.paths.activityDatabaseFile,
+            limit: 10
+        )
+        XCTAssertEqual(indexedRuns.map(\.runID), [record.runID])
+        XCTAssertEqual(indexedRuns.first?.outcome, .success)
+        XCTAssertEqual(indexedRuns.first?.mode, ExecutionMode.dryRun.rawValue)
+    }
+
+    func testAgentActivityDatabaseMigratesAndReadsNewestFirst() throws {
+        let workspace = try TemporaryWorkspace()
+        let databaseURL = workspace.state.appendingPathComponent("activity.sqlite3")
+        let older = ScheduledRunRecord(
+            timestamp: Date(timeIntervalSince1970: 1),
+            outcome: .success,
+            runID: "older",
+            mode: "dry-run",
+            moved: 0,
+            errors: 0,
+            sourceDirectory: ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        let newer = ScheduledRunRecord(
+            timestamp: Date(timeIntervalSince1970: 2),
+            outcome: .sourceUnavailable,
+            runID: "newer",
+            mode: "dry-run",
+            moved: 0,
+            errors: 1,
+            sourceDirectory: ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        try AgentActivityDatabase.record(older, at: databaseURL)
+        try AgentActivityDatabase.record(newer, at: databaseURL)
+
+        var rows = try AgentActivityDatabase.recentRuns(at: databaseURL, limit: 10)
+        XCTAssertEqual(rows.map(\.runID), ["newer", "older"])
+        XCTAssertEqual(rows.first?.outcome, .sourceUnavailable)
+
+        let updatedOlder = ScheduledRunRecord(
+            timestamp: Date(timeIntervalSince1970: 3),
+            outcome: .error,
+            runID: "older",
+            mode: "dry-run",
+            moved: 0,
+            errors: 1,
+            detail: "updated"
+        )
+        try AgentActivityDatabase.record(updatedOlder, at: databaseURL)
+        rows = try AgentActivityDatabase.recentRuns(at: databaseURL, limit: 10)
+        XCTAssertEqual(rows.map(\.runID), ["older", "newer"])
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows.first?.detail, "updated")
+        let attributes = try FileManager.default.attributesOfItem(atPath: databaseURL.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+    }
+
+    func testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase() throws {
+        let workspace = try TemporaryWorkspace()
+        let databaseURL = workspace.state.appendingPathComponent("missing.sqlite3")
+        XCTAssertEqual(try AgentActivityDatabase.recentRuns(at: databaseURL, limit: 10), [])
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(databaseURL))
+    }
+
+    func testAgentActivityDatabaseRejectsSymlink() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let target = workspace.root.appendingPathComponent("outside.sqlite3")
+        try Data("not-a-database".utf8).write(to: target)
+        let databaseURL = workspace.state.appendingPathComponent("activity.sqlite3")
+        try FileManager.default.createSymbolicLink(at: databaseURL, withDestinationURL: target)
+        XCTAssertThrowsError(try AgentActivityDatabase.record(
+            ScheduledRunRecord(outcome: .success, runID: "must-fail"),
+            at: databaseURL
+        ))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "not-a-database")
+    }
+
+    func testAgentActivityDatabaseRejectsSymlinkSidecar() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let databaseURL = workspace.state.appendingPathComponent("activity.sqlite3")
+        let target = workspace.root.appendingPathComponent("outside-wal")
+        try Data("protected".utf8).write(to: target)
+        let sidecar = URL(fileURLWithPath: databaseURL.path + "-wal")
+        try FileManager.default.createSymbolicLink(at: sidecar, withDestinationURL: target)
+
+        XCTAssertThrowsError(try AgentActivityDatabase.record(
+            ScheduledRunRecord(outcome: .success, runID: "must-fail"),
+            at: databaseURL
+        ))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "protected")
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(databaseURL))
     }
 
     func testBackgroundVerificationRequiresFreshMatchingSource() throws {
@@ -2043,6 +2134,10 @@ private let tests: [(String, () throws -> Void)] = [
     ("testConfigurationBoundsRuleCountsAndLengths", suite.testConfigurationBoundsRuleCountsAndLengths),
     ("testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions", suite.testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions),
     ("testScheduledExecutionWritesDryRunSuccessRecord", suite.testScheduledExecutionWritesDryRunSuccessRecord),
+    ("testAgentActivityDatabaseMigratesAndReadsNewestFirst", suite.testAgentActivityDatabaseMigratesAndReadsNewestFirst),
+    ("testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase", suite.testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase),
+    ("testAgentActivityDatabaseRejectsSymlink", suite.testAgentActivityDatabaseRejectsSymlink),
+    ("testAgentActivityDatabaseRejectsSymlinkSidecar", suite.testAgentActivityDatabaseRejectsSymlinkSidecar),
     ("testBackgroundVerificationRequiresFreshMatchingSource", suite.testBackgroundVerificationRequiresFreshMatchingSource),
     ("testBackgroundVerificationHonorsModeFreshnessAndMoveSafety", suite.testBackgroundVerificationHonorsModeFreshnessAndMoveSafety),
     ("testScheduledExecutionUnavailableSourceFailsClosed", suite.testScheduledExecutionUnavailableSourceFailsClosed),
