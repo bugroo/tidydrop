@@ -75,7 +75,12 @@ hoc, that changed agent must use a new versioned label rather than silently
 reusing build 9.
 
 The decision and rollout gate are recorded in
-[ADR-0013](adr/0013-offline-ed25519-release-manifest-foundation.md).
+[ADR-0014](adr/0014-two-phase-agent-startup-readiness.md).
+
+Follow-up: [ADR-0014](adr/0014-two-phase-agent-startup-readiness.md) implements
+the two-phase `agent_ready` protocol and assigns it the new Community build-10
+identity. That source correction does not change the installed build-9 state
+described by this audit until a separately validated release is installed.
 
 ## Current installed state at the end of the audit
 

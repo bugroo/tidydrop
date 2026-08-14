@@ -52,8 +52,9 @@ run_id() {
 wait_for_new_run() {
     previous_run=$1
     wait_label=$2
+    maximum_attempts=${3:-25}
     attempts=0
-    while [ "$attempts" -lt 25 ]; do
+    while [ "$attempts" -lt "$maximum_attempts" ]; do
         current_run=$(run_id)
         if [ -n "$current_run" ] && [ "$current_run" != "$previous_run" ]; then
             printf '%s\n' "$current_run"
@@ -78,16 +79,21 @@ assert_safe_state() {
     /usr/bin/plutil -extract automation.apply_enabled raw -o - "$CONFIG" | /usr/bin/grep -qx 'false'
 }
 
-"$AGENT_BINARY" --config "$CONFIG" >"$TEST_ROOT/agent.stdout" 2>"$TEST_ROOT/agent.stderr" &
+TIDYDROP_TEST_FSEVENTS_SETUP_DELAY_MILLISECONDS=3000 \
+    "$AGENT_BINARY" --config "$CONFIG" >"$TEST_ROOT/agent.stdout" 2>"$TEST_ROOT/agent.stderr" &
 AGENT_PID=$!
-INITIAL_RUN=$(wait_for_new_run '' 'startup')
+INITIAL_RUN=$(wait_for_new_run '' 'startup-reconciliation' 2)
 assert_safe_state
+/usr/bin/plutil -extract agent_ready raw -o - "$RUN_STATE" | /usr/bin/grep -qx 'false'
+WATCHER_READY_RUN=$(wait_for_new_run "$INITIAL_RUN" 'watcher-ready')
+assert_safe_state
+/usr/bin/plutil -extract agent_ready raw -o - "$RUN_STATE" | /usr/bin/grep -qx 'true'
 [ -f "$ACTIVITY_DATABASE" ]
 [ ! -L "$ACTIVITY_DATABASE" ]
 [ "$(/usr/bin/stat -f '%Lp' "$ACTIVITY_DATABASE")" = '600' ]
 
 /usr/bin/printf '%s\n' 'event-driven' >"$SOURCE/event file.pdf"
-FILE_EVENT_RUN=$(wait_for_new_run "$INITIAL_RUN" 'source-event')
+FILE_EVENT_RUN=$(wait_for_new_run "$WATCHER_READY_RUN" 'source-event')
 assert_safe_state
 /usr/bin/plutil -extract planned raw -o - "$RUN_STATE" | /usr/bin/grep -qx '1'
 [ -f "$SOURCE/event file.pdf" ]

@@ -6,9 +6,11 @@
   parsing, direct no-follow artifact hashing, replay/downgrade controls and
   negative regressions. Production key custody and updater activation remain
   gated.
-- Records the installed build-9 runtime audit and the requirement that the next
-  versioned agent persist an initial safe reconciliation before potentially
-  blocking FSEvents setup.
+- Adds Community build 10 with two-phase startup reconciliation: the first
+  record is diagnostic and cannot authorize moving; only a second fresh run
+  after FSEvents starts reports `agent_ready=true`.
+- Migrates the build-9 registration without reusing its ad hoc service identity
+  and keeps apply disabled until build 10 proves a ready zero-move run.
 
 ## 1.3.0 — Community Preview
 

@@ -63,8 +63,10 @@ itself prove that software is safe.
 - A bounded local SQLite activity index written only by the agent and consumed
   read-only by the workbench; JSON journals remain authoritative for recovery
   and undo.
-- A Community build-9 migration path from builds 8, 7, 6, and 5 for macOS ad hoc
-  launch constraints.
+- A Community build-10 migration path from builds 9, 8, 7, 6, and 5 for macOS ad
+  hoc launch constraints.
+- Two-phase agent startup: an early diagnostic scan cannot authorize moving;
+  only a fresh second scan after FSEvents starts reports the watcher ready.
 - Signed-XPC, security-scoped bookmark, and minimal Sandbox prototypes verified
   in tests but deliberately excluded from this ad hoc release until a stable
   Developer ID identity is available.

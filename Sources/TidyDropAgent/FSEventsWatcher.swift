@@ -38,6 +38,13 @@ final class FSEventsWatcher: @unchecked Sendable {
 
     init(paths: [String], queue: DispatchQueue, handler: @escaping @Sendable ([FileSystemEvent]) -> Void) throws {
         self.handler = handler
+#if DEBUG
+        if let delayText = ProcessInfo.processInfo.environment[
+            "TIDYDROP_TEST_FSEVENTS_SETUP_DELAY_MILLISECONDS"
+        ], let delay = UInt32(delayText), delay > 0, delay <= 10_000 {
+            usleep(delay * 1_000)
+        }
+#endif
         var context = FSEventStreamContext(
             version: 0,
             info: Unmanaged.passUnretained(self).toOpaque(),

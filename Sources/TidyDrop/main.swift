@@ -260,7 +260,8 @@ private func launchAgentAccessStatus(for resolved: ResolvedConfiguration) -> Str
     let legacyAgent = home
         .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
         .appendingPathComponent("com.local.tidydrop.plist")
-    let agentInstalled = launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v9")
+    let agentInstalled = launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v10")
+        || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v9")
         || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v8")
         || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v7")
         || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v6")

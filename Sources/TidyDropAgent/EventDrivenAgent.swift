@@ -19,8 +19,11 @@ final class EventDrivenAgent: @unchecked Sendable {
         installTerminationHandlers()
         queue.async { [self] in
             do {
+                performRun(reason: "startup_reconciliation", agentReady: false)
                 try rebuildWatcher()
-                performRun(reason: "startup")
+                timer?.cancel()
+                timer = nil
+                performRun(reason: "watcher_ready", agentReady: true)
             } catch {
                 fputs("TidyDrop agent failed to start: \(error)\n", stderr)
                 exit(1)
@@ -140,14 +143,17 @@ final class EventDrivenAgent: @unchecked Sendable {
             guard let self else { return }
             self.timer?.cancel()
             self.timer = nil
-            self.performRun(reason: reason)
+            self.performRun(reason: reason, agentReady: true)
         }
         timer = next
         next.resume()
     }
 
-    private func performRun(reason: String) {
-        let exitCode = ScheduledExecution.run(configurationURL: configurationURL)
+    private func performRun(reason: String, agentReady: Bool) {
+        let exitCode = ScheduledExecution.run(
+            configurationURL: configurationURL,
+            agentReady: agentReady
+        )
         guard exitCode == 0 else {
             scheduleBoundedErrorRetry(reason: "\(reason)_exit_\(exitCode)")
             return

@@ -1,7 +1,10 @@
 import Foundation
 
 public enum ScheduledExecution {
-    public static func run(configurationURL: URL = ConfigurationIO.defaultConfigPath()) -> Int32 {
+    public static func run(
+        configurationURL: URL = ConfigurationIO.defaultConfigPath(),
+        agentReady: Bool? = nil
+    ) -> Int32 {
         do {
             let resolved = try ConfigurationIO.load(from: configurationURL)
             let mode: ExecutionMode = resolved.config.automation.applyEnabled ? .apply : .dryRun
@@ -26,7 +29,8 @@ public enum ScheduledExecution {
                         deferred: summary.deferred,
                         skipped: summary.skipped,
                         errors: summary.errors,
-                        sourceDirectory: resolved.paths.sourceDirectory.path
+                        sourceDirectory: resolved.paths.sourceDirectory.path,
+                        agentReady: agentReady
                     ),
                     resolved: resolved
                 )
@@ -36,7 +40,8 @@ public enum ScheduledExecution {
                     ScheduledRunRecord(
                         outcome: .lockBusy,
                         runID: "agent-lock-\(RunIdentifier.make())",
-                        detail: path
+                        detail: path,
+                        agentReady: agentReady
                     ),
                     resolved: resolved
                 )
@@ -50,14 +55,15 @@ public enum ScheduledExecution {
                         moved: 0,
                         errors: 1,
                         detail: path,
-                        sourceDirectory: resolved.paths.sourceDirectory.path
+                        sourceDirectory: resolved.paths.sourceDirectory.path,
+                        agentReady: agentReady
                     ),
                     resolved: resolved
                 )
                 return 0
             }
         } catch {
-            recordFailure(error, configurationURL: configurationURL)
+            recordFailure(error, configurationURL: configurationURL, agentReady: agentReady)
             return 2
         }
     }
@@ -84,14 +90,23 @@ public enum ScheduledExecution {
         }
     }
 
-    private static func recordFailure(_ error: Error, configurationURL: URL) {
+    private static func recordFailure(
+        _ error: Error,
+        configurationURL: URL,
+        agentReady: Bool?
+    ) {
         let context = failureContext(configurationURL: configurationURL)
         let detail = String(describing: error)
             .replacingOccurrences(of: "\n", with: "\\n")
             .replacingOccurrences(of: "\r", with: "\\r")
         let runID = "agent-error-\(RunIdentifier.make())"
         try? JSONFile.save(
-            ScheduledRunRecord(outcome: .error, runID: runID, detail: detail),
+            ScheduledRunRecord(
+                outcome: .error,
+                runID: runID,
+                detail: detail,
+                agentReady: agentReady
+            ),
             to: context.statusURL
         )
 

@@ -533,6 +533,7 @@ public struct ScheduledRunRecord: Codable, Equatable, Sendable {
     public let errors: Int?
     public let detail: String?
     public let sourceDirectory: String?
+    public let agentReady: Bool?
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -548,6 +549,7 @@ public struct ScheduledRunRecord: Codable, Equatable, Sendable {
         case errors
         case detail
         case sourceDirectory = "source_directory"
+        case agentReady = "agent_ready"
     }
 
     public init(
@@ -562,7 +564,8 @@ public struct ScheduledRunRecord: Codable, Equatable, Sendable {
         skipped: Int? = nil,
         errors: Int? = nil,
         detail: String? = nil,
-        sourceDirectory: String? = nil
+        sourceDirectory: String? = nil,
+        agentReady: Bool? = nil
     ) {
         self.version = 1
         self.timestamp = timestamp
@@ -577,6 +580,7 @@ public struct ScheduledRunRecord: Codable, Equatable, Sendable {
         self.errors = errors
         self.detail = detail
         self.sourceDirectory = sourceDirectory
+        self.agentReady = agentReady
     }
 
     public init(summary: RunSummary, timestamp: Date = Date()) {
