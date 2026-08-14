@@ -19,6 +19,7 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v9.plist"
     plutil -lint "$PROJECT_ROOT/app/TidyDrop.entitlements"
     plutil -lint "$PROJECT_ROOT/app/TidyDropAgent.entitlements"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
@@ -30,8 +31,13 @@ if command -v plutil >/dev/null 2>&1; then
         printf '%s\n' '[FALLO] VERSION, plists, CLI y app no comparten la misma versión.' >&2
         exit 1
     }
-    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist")" = 'io.github.bugroo.tidydrop.agent.community.v8' ] || {
-        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 8.' >&2
+    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v9.plist")" = 'io.github.bugroo.tidydrop.agent.community.v9' ] || {
+        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 9.' >&2
+        exit 1
+    }
+    [ "$(plutil -extract CFBundleVersion raw -o - "$PROJECT_ROOT/app/Info.plist")" = '9' ] \
+        && [ "$(plutil -extract CFBundleVersion raw -o - "$PROJECT_ROOT/app/Distribution-Info.plist")" = '9' ] || {
+        printf '%s\n' '[FALLO] CFBundleVersion no coincide con el agente comunitario build 9.' >&2
         exit 1
     }
     printf '%s\n' '[OK] Plists válidos'
@@ -166,6 +172,7 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist" \
+    "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v9.plist" \
     "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1

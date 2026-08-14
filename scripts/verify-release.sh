@@ -15,7 +15,8 @@ STABLE_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop
 OLDER_COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
 PREVIOUS_COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v6.plist"
 RECENT_COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v7.plist"
-COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v8.plist"
+PRIOR_COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v8.plist"
+COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v9.plist"
 APP_ICON="$APP/Contents/Resources/TidyDrop.icns"
 INFO_PLIST="$APP/Contents/Info.plist"
 
@@ -25,7 +26,7 @@ case "$MODE" in
 esac
 if [ "$MODE" = community ]; then
     AGENT_PLIST=$COMMUNITY_AGENT_PLIST
-    EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent.community.v8'
+    EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent.community.v9'
 else
     AGENT_PLIST=$STABLE_AGENT_PLIST
     EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent'
@@ -40,6 +41,7 @@ fi
     && [ -f "$STABLE_AGENT_PLIST" ] && [ -f "$OLDER_COMMUNITY_AGENT_PLIST" ] \
     && [ -f "$PREVIOUS_COMMUNITY_AGENT_PLIST" ] \
     && [ -f "$RECENT_COMMUNITY_AGENT_PLIST" ] \
+    && [ -f "$PRIOR_COMMUNITY_AGENT_PLIST" ] \
     && [ -f "$COMMUNITY_AGENT_PLIST" ] && [ -f "$APP_ICON" ] \
     && [ ! -L "$EXECUTABLE" ] && [ ! -L "$CLI_EXECUTABLE" ] \
     && [ ! -L "$AGENT_EXECUTABLE" ] && [ ! -L "$INFO_PLIST" ] \
@@ -47,6 +49,7 @@ fi
     && [ ! -L "$OLDER_COMMUNITY_AGENT_PLIST" ] \
     && [ ! -L "$PREVIOUS_COMMUNITY_AGENT_PLIST" ] \
     && [ ! -L "$RECENT_COMMUNITY_AGENT_PLIST" ] \
+    && [ ! -L "$PRIOR_COMMUNITY_AGENT_PLIST" ] \
     && [ ! -L "$COMMUNITY_AGENT_PLIST" ] && [ ! -L "$APP_ICON" ] || {
     printf '%s\n' 'ERROR: bundle incompleto o con entradas inseguras.' >&2
     exit 1
@@ -66,9 +69,11 @@ fi
 /usr/bin/plutil -lint "$OLDER_COMMUNITY_AGENT_PLIST"
 /usr/bin/plutil -lint "$PREVIOUS_COMMUNITY_AGENT_PLIST"
 /usr/bin/plutil -lint "$RECENT_COMMUNITY_AGENT_PLIST"
+/usr/bin/plutil -lint "$PRIOR_COMMUNITY_AGENT_PLIST"
 /usr/bin/plutil -lint "$COMMUNITY_AGENT_PLIST"
 BUNDLE_ID=$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$INFO_PLIST")
 BUNDLE_VERSION=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")
+BUNDLE_BUILD=$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$INFO_PLIST")
 MINIMUM_SYSTEM=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$INFO_PLIST")
 CHANNEL=$(/usr/bin/plutil -extract TidyDropDistributionChannel raw -o - "$INFO_PLIST")
 BUILD_IDENTITY=$(/usr/bin/plutil -extract TidyDropBuildIdentity raw -o - "$INFO_PLIST")
@@ -87,6 +92,13 @@ ICON_FILE=$(/usr/bin/plutil -extract CFBundleIconFile raw -o - "$INFO_PLIST")
 }
 [ "$MINIMUM_SYSTEM" = '13.0' ] || {
     printf 'ERROR: versión mínima inesperada: %s\n' "$MINIMUM_SYSTEM" >&2
+    exit 1
+}
+case "$BUNDLE_BUILD" in
+    ''|*[!0-9]*) printf 'ERROR: build del bundle inválido: %s\n' "$BUNDLE_BUILD" >&2; exit 1 ;;
+esac
+[ "$BUNDLE_BUILD" -gt 0 ] || {
+    printf 'ERROR: build del bundle inválido: %s\n' "$BUNDLE_BUILD" >&2
     exit 1
 }
 [ "$CHANNEL" = "$MODE" ] || {
@@ -164,6 +176,11 @@ done
     printf '%s\n' 'ERROR: label del agente inesperado.' >&2
     exit 1
 }
+if [ "$MODE" = community ] \
+   && [ "$EXPECTED_AGENT_LABEL" != "io.github.bugroo.tidydrop.agent.community.v$BUNDLE_BUILD" ]; then
+    printf '%s\n' 'ERROR: CFBundleVersion y label del agente comunitario no coinciden.' >&2
+    exit 1
+fi
 [ "$(/usr/bin/plutil -extract BundleProgram raw -o - "$AGENT_PLIST")" = 'Contents/Resources/tidydrop-agent' ] || {
     printf '%s\n' 'ERROR: BundleProgram del agente inesperado.' >&2
     exit 1

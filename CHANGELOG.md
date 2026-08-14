@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0 — Community Preview
+
+- Adds a native manual Update Center under **TidyDrop → Software Updates…**.
+- Uses one ephemeral, bounded request to the official `bugroo/tidydrop` release
+  channel only after the user presses **Check for Updates**.
+- Keeps file names, folder paths, cookies, credentials, telemetry, the CLI,
+  TidyDropCore, and the LaunchAgent out of the update request.
+- Adds strict Community/stable tag parsing, draft rejection, fixed-origin release
+  links, response bounds, and downgrade/channel-confusion protection.
+- Adds ADR-0011, a dedicated updater threat model, and explicit gates that block
+  automatic installation and app rollback until artifacts and recovery are
+  independently authenticated and fault-tested.
+- Enables immutable GitHub releases for future publications; the earlier 1.2.0
+  Community Preview remains outside that guarantee.
+- Community build 9 migrates the build-8 agent registration before enabling the
+  updated ad hoc-signed agent and returns every update to dry-run.
+
 ## 1.2.0 — Community Preview
 
 - Adds the native three-pane AppKit workbench for active folder, activity,

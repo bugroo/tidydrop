@@ -1,4 +1,4 @@
-# Modelo de seguridad de TidyDrop 1.2.0 Community Preview
+# Modelo de seguridad de TidyDrop 1.3.0 Community Preview
 
 TidyDrop procesa archivos localmente, sin telemetría, servicios cloud, `sudo` ni dependencias de ejecución. El agente y el motor de organización permanecen sin red. La única excepción de runtime es el Update Center manual: tras una acción explícita consulta metadatos de releases del repositorio oficial sin enviar nombres, rutas o contenido de archivos.
 
@@ -65,7 +65,7 @@ antiguo reaparezca silenciosamente en el siguiente inicio de sesión.
 ## Firma y confianza
 
 La aplicación Community Preview se firma ad hoc localmente. No es Developer ID
-ni está notarizada. La versión 1.2.0 conserva explícitamente
+ni está notarizada. La versión 1.3.0 conserva explícitamente
 esa limitación: macOS exige una excepción manual y una actualización puede
 provocar nuevas decisiones Gatekeeper o TCC. El DMG se construye desde un tag de
 `main`, se publica como prerelease y se acompaña de SHA-256 y GitHub Artifact
@@ -91,14 +91,14 @@ La selección de releases exige tags y canales estrictos, ignora drafts y downgr
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.
 
 La firma ad hoc de la instalación actual y la ausencia de App Sandbox son
-limitaciones deliberadas. La rama 1.2 sustituye el polling del agente incluido
-por FSEvents, reconciliación al inicio y un único temporizador cuando existen
+limitaciones deliberadas. La rama 1.3 conserva el agente FSEvents introducido en
+1.2, con reconciliación al inicio y un único temporizador cuando existen
 archivos aplazados. La integración temporal verifica dry-run, coalescing,
 señales privadas de un solo uso y reposo sin nuevas pasadas. Sandbox, bookmarks,
 Developer ID y notarización permanecen sujetos a gates separados y no se
 declaran resueltos por este prototipo.
 
-La rama 1.2 contiene además prototipos verificables de requisitos designados de
+La rama 1.3 contiene además prototipos verificables de requisitos designados de
 firma, rechazo de un peer XPC con identidad imposible, bookmarks con scope y
 entitlements mínimos sin red. Estos controles todavía no están habilitados en
 el bundle Community: una firma ad hoc no ofrece continuidad de identidad y un
