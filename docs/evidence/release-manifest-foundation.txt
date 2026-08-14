@@ -1,0 +1,1 @@
+Signed release-manifest foundation: PASS (offline verifier; production key and activation absent)

@@ -8,6 +8,7 @@ let package = Package(
     ],
     products: [
         .library(name: "TidyDropCore", targets: ["TidyDropCore"]),
+        .library(name: "TidyDropUpdateSecurity", targets: ["TidyDropUpdateSecurity"]),
         .executable(name: "TidyDropApp", targets: ["TidyDropApp"]),
         .executable(name: "tidydrop", targets: ["TidyDrop"]),
         .executable(name: "tidydrop-agent", targets: ["TidyDropAgent"]),
@@ -21,6 +22,11 @@ let package = Package(
                 .linkedLibrary("sqlite3"),
                 .linkedFramework("Security", .when(platforms: [.macOS]))
             ]
+        ),
+        .target(
+            name: "TidyDropUpdateSecurity",
+            dependencies: ["TidyDropCore"],
+            path: "Sources/TidyDropUpdateSecurity"
         ),
         .executableTarget(
             name: "TidyDrop",
@@ -39,7 +45,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "TidyDropSelfTests",
-            dependencies: ["TidyDropCore"],
+            dependencies: ["TidyDropCore", "TidyDropUpdateSecurity"],
             path: "SelfTests/TidyDropSelfTests"
         )
     ]

@@ -91,4 +91,11 @@ PASS  testStableReleaseSelectionRejectsPrereleaseAndDowngrade
 PASS  testReleaseSelectionIsBoundedAndChannelLocked
 PASS  testReleaseDisplayFieldsAreBounded
 PASS  testReleaseMetadataDecodesOnlyRequiredFields
-Resultado: 92 PASS, 0 SKIP, 0 FAIL; total=92
+PASS  testSignedReleaseManifestVerifiesCanonicalArtifact
+PASS  testReleaseManifestRejectsNonCanonicalAndOversizedEncoding
+PASS  testReleaseManifestRejectsWrongKeyAndMalformedSignature
+PASS  testReleaseManifestRejectsChannelDowngradeAndIdentityMismatch
+PASS  testReleaseManifestRejectsReplayStaleAndFuturePublication
+PASS  testReleaseManifestHashesArtifactAndEnforcesBounds
+PASS  testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames
+Resultado: 99 PASS, 0 SKIP, 0 FAIL; total=99

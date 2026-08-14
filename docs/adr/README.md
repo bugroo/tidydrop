@@ -25,3 +25,4 @@ Las decisiones que cambian arquitectura, seguridad, distribución, permisos o ci
 | [ADR-0010](0010-community-1.2-release-boundary.md) | Accepted | Ship the completed 1.2 workbench and event agent while keeping Developer ID/Sandbox claims gated |
 | [ADR-0011](0011-manual-update-center-and-recovery-boundary.md) | Accepted; phase 1 implemented and validated | Manual private update discovery now; authenticated staged install and recovery remain gated |
 | [ADR-0012](0012-community-1.3-release-boundary.md) | Accepted, published, and independently revalidated | Ship the manual Update Center as 1.3.0 Community Preview with a versioned build-9 agent migration |
+| [ADR-0013](0013-offline-ed25519-release-manifest-foundation.md) | Accepted and implemented as a non-shipping foundation | Canonical offline Ed25519 artifact verification now; production key custody and updater activation remain gated |

@@ -96,6 +96,8 @@ capture "$EVIDENCE_DIR/demo-dry-run.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRI
 capture "$EVIDENCE_DIR/release-build.txt" swift build -c release -Xswiftc -warnings-as-errors
 capture "$EVIDENCE_DIR/static-audit.txt" "$SCRIPT_DIR/audit-project.sh"
 capture "$EVIDENCE_DIR/update-center.txt" "$SCRIPT_DIR/test-update-center.sh"
+capture "$EVIDENCE_DIR/release-manifest-foundation.txt" \
+    "$SCRIPT_DIR/test-release-manifest-foundation.sh"
 capture "$EVIDENCE_DIR/release-pipeline.txt" "$SCRIPT_DIR/test-release-pipeline.sh"
 package_description=$(swift package describe)
 printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"

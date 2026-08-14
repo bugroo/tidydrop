@@ -57,8 +57,11 @@ Acceptance criteria:
 
 Dependencies: release-operation design and key-custody approval.
 
-Progress: repository-level immutability is enabled for future releases. The
-independently signed manifest and key lifecycle remain unimplemented gates.
+Progress: repository-level immutability is enabled. ADR-0013 adds a separate,
+offline, canonical Ed25519 manifest verifier with direct no-follow artifact
+hashing and negative tests. It is not linked into the shipping app or agent.
+Release asset signing, a pinned production public key, key custody,
+rotation/revocation rehearsal and product activation remain mandatory gates.
 
 ### U4 — Download and stage without installing (5 points)
 
@@ -128,3 +131,20 @@ Acceptance criteria:
   XPC, energy, and rollback assessment.
 
 Dependencies: Apple Developer Program identity, signing-key custody, U6.
+
+## Gate measurement — 2026-08-14
+
+| Work item | Acceptance status | What remains |
+| --- | --- | --- |
+| U1 | Complete | None for manual discovery |
+| U2 | Complete | Keep static/network gates green |
+| U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
+| U4 | Not started | Private bounded downloader, staging, extraction and cancellation/disk-full fault tests |
+| U5 | Not started | External recovery process, state compatibility, atomic replacement and interruption/reboot fault injection |
+| U6 | Not implemented as updater orchestration | Existing manual upgrade demonstrated unregister, register and zero-move verification; automatic recovery and explicit apply confirmation remain unbuilt |
+| U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
+
+ADR-0013 deliberately stops before production key creation and shipping-target
+activation. The next autonomous code task that does not require signing authority
+is U4's private staging design and fault-test harness. Production signing cannot
+be completed safely without an owner-approved custody procedure.

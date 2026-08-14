@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 92, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 99, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -55,15 +55,20 @@ Gates obligatorios:
 26. El bundle Community build 9 contiene el agente actual y los plists de
     migración 8, 7, 6 y 5; el registro anterior se retira antes de registrar el
     nuevo y apply permanece desactivado hasta una verificación fresca.
+27. La base de manifiesto Ed25519 verifica formato canónico, firma, canal,
+    versión, identidad, fechas, tamaño, hash y macOS mínimo directamente sobre
+    un artefacto regular abierto con `O_NOFOLLOW`; una puerta estática confirma
+    que sigue offline, sin clave de producción y fuera de targets distribuidos.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 
 Las auditorías instaladas del 14 de agosto de 2026 están resumidas en
 `docs/RUNTIME-AUDIT-2026-08-14.md` y
-`docs/RUNTIME-AUDIT-2026-08-14-1.2.0-BUILD8.md`. La segunda verifica la
-actualización oficial a 1.2.0 build 8, el agente FSEvents agrupado, dry-run y el
-estado de reposo. Conservan únicamente métricas y conteos; no publican nombres
-de archivos personales.
+`docs/RUNTIME-AUDIT-2026-08-14-1.2.0-BUILD8.md`, más la actualización a build 9
+en `docs/RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD9.md`. Verifican agentes FSEvents,
+dry-run, migración y reposo, y registran el hallazgo de orden de arranque de
+build 9. Conservan únicamente métricas y conteos; no publican nombres de archivos
+personales.
 
 El DMG de desarrollo verifica estructura y portabilidad y no se publica. El DMG
 Community Preview añade procedencia y una instalación explícitamente no

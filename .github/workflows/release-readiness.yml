@@ -51,6 +51,7 @@ jobs:
           ./scripts/test-uninstall.sh
           ./scripts/audit-project.sh
           ./scripts/test-update-center.sh
+          ./scripts/test-release-manifest-foundation.sh
           ./scripts/demo.sh
 
       - name: Validate fail-closed release pipeline

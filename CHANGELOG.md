@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Adds a separate, non-shipping Ed25519 release-manifest verifier with canonical
+  parsing, direct no-follow artifact hashing, replay/downgrade controls and
+  negative regressions. Production key custody and updater activation remain
+  gated.
+- Records the installed build-9 runtime audit and the requirement that the next
+  versioned agent persist an initial safe reconciliation before potentially
+  blocking FSEvents setup.
+
 ## 1.3.0 — Community Preview
 
 - Adds a native manual Update Center under **TidyDrop → Software Updates…**.
