@@ -1,6 +1,6 @@
 # ADR-0014: Two-phase agent startup readiness
 
-- Status: Accepted; implemented and validated locally
+- Status: Accepted; implemented and validated locally and in public CI
 - Date: 2026-08-14
 - Decision makers: project owner and Codex
 - Related: [ADR-0007](0007-event-driven-fsevents-agent.md), [ADR-0012](0012-community-1.3-release-boundary.md), [ADR-0013](0013-offline-ed25519-release-manifest-foundation.md)
@@ -67,8 +67,9 @@ ready=true zero-move run before apply may be restored explicitly.
 Local validation on 2026-08-14 passed all six gates: 99 self-tests, 20 repeated
 stability-race runs, the delayed-watcher event integration, warnings-as-errors
 builds, Universal 2 assembly, Community and development DMG verification, and
-the full static audit. Public CI and installed-runtime verification remain
-release gates rather than prerequisites for accepting the source decision.
+the full static audit. The protected public CI gate then reproduced the result
+on PR #19. Installed-runtime verification remains a release gate rather than a
+prerequisite for accepting the source decision.
 
 ## Consequences
 

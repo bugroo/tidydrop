@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Nothing yet.
+
+## 1.3.0 — Community Preview 2
+
 - Adds a separate, non-shipping Ed25519 release-manifest verifier with canonical
   parsing, direct no-follow artifact hashing, replay/downgrade controls and
   negative regressions. Production key custody and updater activation remain
