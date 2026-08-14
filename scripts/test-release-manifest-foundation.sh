@@ -6,11 +6,27 @@ PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 SOURCE="$PROJECT_ROOT/Sources/TidyDropUpdateSecurity/ReleaseManifest.swift"
 RG=$(command -v rg || true)
 
-[ -n "$RG" ] && [ -x "$RG" ] || {
-    printf '%s\n' 'ERROR: rg is required for the release-manifest gate.' >&2
-    exit 1
-}
 [ -f "$SOURCE" ]
+
+search_fixed() {
+    needle=$1
+    shift
+    if [ -n "$RG" ] && [ -x "$RG" ]; then
+        "$RG" -F -q -- "$needle" "$@"
+    else
+        /usr/bin/grep -R -F -q -- "$needle" "$@"
+    fi
+}
+
+search_regex() {
+    pattern=$1
+    shift
+    if [ -n "$RG" ] && [ -x "$RG" ]; then
+        "$RG" -n -- "$pattern" "$@"
+    else
+        /usr/bin/grep -R -n -E -- "$pattern" "$@"
+    fi
+}
 
 for required in \
     'Curve25519.Signing.PublicKey' \
@@ -24,25 +40,25 @@ for required in \
     'wrongArtifactName' \
     'downgrade' \
     'replay'; do
-    "$RG" -F -q "$required" "$SOURCE" || {
+    search_fixed "$required" "$SOURCE" || {
         printf 'ERROR: missing release-manifest control: %s\n' "$required" >&2
         exit 1
     }
 done
 
-if "$RG" -n 'PrivateKey|rawRepresentation:[[:space:]]*\[[^]]+\]|BEGIN (EC |OPENSSH |)PRIVATE KEY' \
+if search_regex 'PrivateKey|rawRepresentation:[[:space:]]*\[[^]]+\]|BEGIN ((EC|OPENSSH) )?PRIVATE KEY' \
     "$PROJECT_ROOT/Sources/TidyDropUpdateSecurity"; then
     printf '%s\n' 'ERROR: production signing material or private-key code entered product sources.' >&2
     exit 1
 fi
 
-if "$RG" -n 'URLSession|https?://|Network\.framework|WebKit' \
+if search_regex 'URLSession|https?://|Network\.framework|WebKit' \
     "$PROJECT_ROOT/Sources/TidyDropUpdateSecurity"; then
     printf '%s\n' 'ERROR: the offline manifest verifier gained a network dependency.' >&2
     exit 1
 fi
 
-if "$RG" -n 'import TidyDropUpdateSecurity' \
+if search_regex 'import TidyDropUpdateSecurity' \
     "$PROJECT_ROOT/Sources/TidyDropApp" \
     "$PROJECT_ROOT/Sources/TidyDropAgent" \
     "$PROJECT_ROOT/Sources/TidyDropCore" \
@@ -51,11 +67,11 @@ if "$RG" -n 'import TidyDropUpdateSecurity' \
     exit 1
 fi
 
-"$RG" -q 'name: "TidyDropUpdateSecurity"' "$PROJECT_ROOT/Package.swift"
-"$RG" -q '"TidyDropUpdateSecurity"' "$PROJECT_ROOT/Package.swift"
-"$RG" -q 'testSignedReleaseManifestVerifiesCanonicalArtifact' \
+search_fixed 'name: "TidyDropUpdateSecurity"' "$PROJECT_ROOT/Package.swift"
+search_fixed '"TidyDropUpdateSecurity"' "$PROJECT_ROOT/Package.swift"
+search_fixed 'testSignedReleaseManifestVerifiesCanonicalArtifact' \
     "$PROJECT_ROOT/SelfTests/TidyDropSelfTests/main.swift"
-"$RG" -q 'testReleaseManifestRejectsWrongKeyAndMalformedSignature' \
+search_fixed 'testReleaseManifestRejectsWrongKeyAndMalformedSignature' \
     "$PROJECT_ROOT/SelfTests/TidyDropSelfTests/main.swift"
 
 printf '%s\n' 'Signed release-manifest foundation: PASS (offline verifier; production key and activation absent)'
