@@ -1,13 +1,21 @@
-# TidyDrop
+# 🗂️ TidyDrop
 
-Keep your Downloads folder organized without uploading your files or giving a
-cloud service access to them.
+**A private, native macOS file organizer that keeps Downloads tidy without
+uploading, indexing, or profiling your files.**
 
-TidyDrop watches one folder and moves finished files into clear category
-folders. It runs locally, records completed moves for conservative undo, and
-stays out of the way when there is nothing to organize.
+`🍎 macOS 13+` · `🔒 Local-only runtime` · `↩️ Conservative undo` ·
+`⚡ Low-overhead background work` · `🧩 Apple Silicon + Intel`
 
-## The problem
+[⬇️ **Download TidyDrop 1.1.0 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.1.0-community.1/TidyDrop-1.1.0-community-preview-macos-universal.dmg)
+· [Release notes](docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md)
+· [Security](docs/SECURITY.md)
+
+> [!IMPORTANT]
+> The current Community Preview is ad hoc signed and is not Apple-notarized.
+> macOS requires a one-time **Open Anyway** approval. Install only from the
+> official `bugroo/tidydrop` release and never disable Gatekeeper.
+
+## ✨ Why TidyDrop
 
 Downloads folders quickly become a mix of documents, images, installers,
 archives, media, and unfinished downloads. Cleaning them manually is repetitive,
@@ -15,9 +23,27 @@ but many automatic organizers are difficult to trust: they may overwrite files,
 move downloads that are still being written, require broad permissions, or send
 file information to another service.
 
-TidyDrop provides a small, predictable alternative for macOS.
+TidyDrop provides a small, predictable alternative built around a few clear
+promises:
 
-## What TidyDrop does
+- **Private by default.** File names, metadata, and content stay on the Mac.
+- **Safe before automatic.** Every installation and folder change returns to a
+  non-moving preview before organization can be enabled.
+- **Transparent.** Categories and decisions are visible, logged locally, and
+  auditable.
+- **Reversible.** Completed moves are journaled for a conservative undo that
+  refuses unsafe restores.
+- **Quiet.** TidyDrop exits after each short pass and avoids repeated log writes
+  when nothing changes.
+
+## 🧭 How it works
+
+1. TidyDrop watches the first level of one selected folder.
+2. It waits for downloads to stop changing before classifying them.
+3. It previews the result or moves each stable file into a clear category.
+4. It records successful moves locally so the latest transaction can be undone.
+
+### Safety boundaries
 
 - Organizes only the first level of one selected folder.
 - Waits until a file appears stable before moving it.
@@ -27,8 +53,10 @@ TidyDrop provides a small, predictable alternative for macOS.
 - Runs briefly every five minutes and exits after each pass.
 - Uses no network connection, telemetry, advertising, or cloud processing.
 
-The default folder is `~/Downloads`. Files are placed into these folders when
-needed:
+### Default categories
+
+The default folder is `~/Downloads`. TidyDrop creates category folders only when
+they are needed:
 
 - Documents (`Documentos`)
 - Images (`Imágenes`)
@@ -44,7 +72,7 @@ needed:
 
 TidyDrop never reorganizes subfolders recursively.
 
-## Download
+## ⬇️ Download
 
 TidyDrop 1.1.0 Community Preview is available as a Universal 2 DMG from
 [GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.1.0-community.1).
@@ -79,13 +107,15 @@ required.
 Never disable Gatekeeper, remove quarantine attributes, grant Full Disk Access,
 or install TidyDrop through a remote `curl | sh` command.
 
-The DMG and checksum can be verified with:
+Download the matching
+[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.1.0-community.1/TidyDrop-1.1.0-community-preview-macos-universal.sha256)
+and verify the DMG with:
 
 ```sh
 shasum -a 256 -c TidyDrop-1.1.0-community-preview-macos-universal.sha256
 ```
 
-## Install from source
+## 🛠️ Install from source
 
 The source installation remains available for contributors and auditors:
 
@@ -116,7 +146,7 @@ Disable moving at any time:
 "$HOME/.local/bin/tidydrop" deactivate
 ```
 
-## Choose a folder
+## 📁 Choose a folder
 
 TidyDrop manages one active folder at a time.
 
@@ -137,7 +167,7 @@ writable subfolder in iCloud Drive, Google Drive, a network volume, or an extern
 drive may be selected, but macOS permissions and offline availability must be
 checked separately.
 
-## Preview and undo
+## ↩️ Preview and undo
 
 Preview a pass without moving files:
 
@@ -160,7 +190,7 @@ Restore that transaction:
 Undo refuses to overwrite a new file or restore an item whose identity no longer
 matches the recorded move.
 
-## Privacy and macOS permissions
+## 🔐 Privacy and macOS permissions
 
 File names and metadata stay on the Mac. TidyDrop does not transmit file content
 or usage information.
@@ -175,7 +205,7 @@ System Settings → Privacy & Security → Files & Folders
 Do not grant Full Disk Access. If the selected folder becomes unavailable or
 permission is revoked, TidyDrop moves nothing and tries again on a later pass.
 
-## Status and logs
+## 📋 Status and logs
 
 ```sh
 "$HOME/.local/bin/tidydrop" status
@@ -192,7 +222,7 @@ Local logs and reversible transaction records are stored under:
 Logs are size-limited and rotated. Empty scheduled passes do not continuously
 append log entries.
 
-## Uninstall
+## 🧹 Uninstall
 
 Remove the app, command, and scheduled agent while preserving configuration and
 history:
@@ -209,7 +239,7 @@ Also remove TidyDrop's configuration, logs, and transaction history:
 
 Uninstalling TidyDrop never removes organized files or category folders.
 
-## Known limitations
+## ⚠️ Known limitations
 
 - One active folder is supported at a time.
 - The Community Preview is ad hoc signed and requires a manual Gatekeeper
@@ -220,11 +250,21 @@ Uninstalling TidyDrop never removes organized files or category folders.
 - A file-writing application can still change a file in the very small interval
   between the final safety check and the move.
 
-## Security
+## 🛡️ Security
 
 Please report vulnerabilities through
 [GitHub's private security reporting](https://github.com/bugroo/tidydrop/security/advisories/new).
 Do not publish unpatched vulnerability details in a public issue.
+
+## 🤝 Contributing
+
+Bug reports, macOS compatibility results, accessibility feedback, documentation
+improvements, and focused pull requests are welcome. Please review the
+[architecture decisions](docs/adr/README.md) and run the repository's validation
+scripts before submitting code.
+
+If TidyDrop is useful to you, starring the repository helps other people find a
+private macOS Downloads organizer without ads, telemetry, or cloud processing.
 
 ## License
 

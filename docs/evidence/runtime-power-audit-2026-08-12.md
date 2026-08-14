@@ -63,15 +63,12 @@ ejecuciones acumuladas: 19
 
 ```text
 alimentación durante la medición: AC Power
-batería: 80 %, conectada, no cargando
-ciclos: 102
 condición: Normal
-capacidad máxima: 100 %
 Low Power Mode: No
 power assertions propiedad de TidyDrop: ninguna
 ```
 
-El sistema sí tenía aserciones ajenas a TidyDrop: Amphetamine y procesos `caffeinate` impedían reposo. Si se mantienen al usar batería pueden aumentar el consumo, pero no fueron creadas por TidyDrop.
+Las métricas específicas del dispositivo se omiten de esta evidencia pública. El sistema sí tenía aserciones ajenas a TidyDrop que impedían reposo. Si se mantienen al usar batería pueden aumentar el consumo, pero no fueron creadas por TidyDrop.
 
 ## Incidencia de aislamiento y restauración
 

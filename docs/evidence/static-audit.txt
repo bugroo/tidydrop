@@ -1,9 +1,9 @@
 TidyDrop — auditoría estática local
 [OK] Sintaxis POSIX sh
-/Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/Info.plist: OK
-/Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/Distribution-Info.plist: OK
-/Users/rootml/TidyDrop-1.0.2-work/tidydrop/app/io.github.bugroo.tidydrop.agent.plist: OK
-/Users/rootml/TidyDrop-1.0.2-work/tidydrop/launchd/com.local.tidydrop.plist.example: OK
+<repository-root>/app/Info.plist: OK
+<repository-root>/app/Distribution-Info.plist: OK
+<repository-root>/app/io.github.bugroo.tidydrop.agent.plist: OK
+<repository-root>/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
 [OK] Sin APIs de red detectadas en Sources
 [OK] Sin utilidades de red ejecutadas por scripts
@@ -16,4 +16,6 @@ TidyDrop — auditoría estática local
 [OK] Red limitada a notarización Apple durante release; runtime sin red
 Community Preview workflow: PASS (prerelease + checksum + provenance + revalidation)
 [OK] Actions fijadas; PR read-only y publicación comunitaria fail-closed
+[OK] Evidencia pública sin rutas de usuario ni hostnames locales
+[OK] Sin patrones comunes de secretos en la distribución pública
 Auditoría estática: PASS

@@ -32,9 +32,26 @@ VERIFY_ROOT=$(/usr/bin/mktemp -d "/private/tmp/TidyDropDMG.verify.XXXXXX")
 MOUNT_POINT="$VERIFY_ROOT/mount"
 /bin/mkdir -p "$MOUNT_POINT"
 attached=0
+detach_with_retry() {
+    detach_attempt=1
+    while [ "$detach_attempt" -le 10 ]; do
+        if /usr/bin/hdiutil detach "$MOUNT_POINT" -quiet >/dev/null 2>&1; then
+            attached=0
+            return 0
+        fi
+        if [ "$detach_attempt" -lt 10 ]; then
+            /bin/sleep 1
+        fi
+        detach_attempt=$((detach_attempt + 1))
+    done
+    return 1
+}
 cleanup() {
     if [ "$attached" -eq 1 ]; then
-        /usr/bin/hdiutil detach "$MOUNT_POINT" -quiet >/dev/null 2>&1 || true
+        if ! detach_with_retry; then
+            printf 'AVISO: no se pudo desmontar el DMG temporal: %s\n' "$MOUNT_POINT" >&2
+            return
+        fi
     fi
     /bin/rm -rf "$VERIFY_ROOT"
 }
@@ -51,6 +68,8 @@ attached=1
 APP_MODE=$MODE
 [ "$MODE" = 'distribution-pre-notary' ] && APP_MODE=distribution
 "$SCRIPT_DIR/verify-release.sh" "$MOUNT_POINT/TidyDrop.app" "$APP_MODE"
-/usr/bin/hdiutil detach "$MOUNT_POINT" -quiet
-attached=0
+detach_with_retry || {
+    printf 'ERROR: no se pudo desmontar el DMG temporal tras 10 intentos: %s\n' "$MOUNT_POINT" >&2
+    exit 1
+}
 printf 'DMG verification: PASS mode=%s\n' "$MODE"
