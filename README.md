@@ -6,7 +6,7 @@ uploading, indexing, or profiling your files.**
 `🍎 macOS 13+` · `🔒 Local-only runtime` · `↩️ Conservative undo` ·
 `⚡ Low-overhead background work` · `🧩 Apple Silicon + Intel`
 
-[⬇️ **Download TidyDrop 1.2.0 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.1/TidyDrop-1.2.0-community-preview-macos-universal.dmg)
+[⬇️ **Download TidyDrop 1.2.0 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.2/TidyDrop-1.2.0-community-preview-macos-universal.dmg)
 · [Release notes](docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md)
 · [Security](docs/SECURITY.md)
 
@@ -77,7 +77,7 @@ TidyDrop never reorganizes subfolders recursively.
 ## ⬇️ Download
 
 TidyDrop 1.2.0 Community Preview is available as a Universal 2 DMG from
-[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.1).
+[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.2).
 It contains a native setup app and a bundled background agent, so recipients do
 not need Terminal or development tools.
 
@@ -103,7 +103,7 @@ required.
 ## Install the Community Preview
 
 1. Download the DMG and checksum from the
-   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.1).
+   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.2).
 2. Open the DMG and drag `TidyDrop.app` to Applications.
 3. Try to open TidyDrop once. macOS is expected to block the first launch.
 4. Open **System Settings → Privacy & Security** and select **Open Anyway**.
@@ -114,7 +114,7 @@ Never disable Gatekeeper, remove quarantine attributes, grant Full Disk Access,
 or install TidyDrop through a remote `curl | sh` command.
 
 Download the matching
-[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.1/TidyDrop-1.2.0-community-preview-macos-universal.sha256)
+[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.2/TidyDrop-1.2.0-community-preview-macos-universal.sha256)
 and verify the DMG with:
 
 ```sh

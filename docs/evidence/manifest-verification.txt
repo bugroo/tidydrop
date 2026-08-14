@@ -44,6 +44,7 @@ app/assets/TidyDropIcon-1024.png: OK
 app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
 app/io.github.bugroo.tidydrop.agent.community.v6.plist: OK
 app/io.github.bugroo.tidydrop.agent.community.v7.plist: OK
+app/io.github.bugroo.tidydrop.agent.community.v8.plist: OK
 app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
 docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md: OK
@@ -118,4 +119,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 120 archivos
+Manifest verificado: 121 archivos

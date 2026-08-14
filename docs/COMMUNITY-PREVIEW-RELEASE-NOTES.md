@@ -50,11 +50,13 @@ itself prove that software is safe.
   rules, transaction history, inspection, and conservative undo.
 - A Foundation/CoreServices FSEvents agent that sleeps while idle, reconciles at
   startup, and uses one bounded timer only for files still changing.
+- Background-oriented FSEvents delivery that coalesces bursts instead of using
+  the interactive `NoDefer` flag, reducing avoidable wakeups.
 - A bounded local SQLite activity index written only by the agent and consumed
   read-only by the workbench; JSON journals remain authoritative for recovery
   and undo.
-- A Community build-7 migration path from builds 6 and 5 for macOS ad hoc launch
-  constraints.
+- A Community build-8 migration path from builds 7, 6, and 5 for macOS ad hoc
+  launch constraints.
 - Signed-XPC, security-scoped bookmark, and minimal Sandbox prototypes verified
   in tests but deliberately excluded from this ad hoc release until a stable
   Developer ID identity is available.

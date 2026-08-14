@@ -1,5 +1,6 @@
 import CoreServices
 import Foundation
+import TidyDropCore
 
 struct FileSystemEvent: Sendable {
     let path: String
@@ -48,7 +49,6 @@ final class FSEventsWatcher: @unchecked Sendable {
             kFSEventStreamCreateFlagUseCFTypes
                 | kFSEventStreamCreateFlagFileEvents
                 | kFSEventStreamCreateFlagWatchRoot
-                | kFSEventStreamCreateFlagNoDefer
         )
         guard let stream = FSEventStreamCreate(
             nil,
@@ -56,7 +56,7 @@ final class FSEventsWatcher: @unchecked Sendable {
             &context,
             paths as CFArray,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
-            1,
+            AgentSchedulingPolicy.eventStreamLatencySeconds,
             flags
         ) else {
             throw NSError(

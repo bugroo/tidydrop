@@ -18,7 +18,8 @@ INFO_PLIST_SOURCE="$PROJECT_ROOT/app/Distribution-Info.plist"
 STABLE_AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
 OLDER_COMMUNITY_AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist"
 PREVIOUS_COMMUNITY_AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
-COMMUNITY_AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
+RECENT_COMMUNITY_AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
+COMMUNITY_AGENT_PLIST_SOURCE="$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist"
 APP_ICON_SOURCE="$PROJECT_ROOT/app/assets/TidyDrop.icns"
 DEPLOYMENT_TARGET='13.0'
 [ -n "$BUILD_IDENTITY" ] || BUILD_IDENTITY="$(/bin/cat "$PROJECT_ROOT/VERSION")-$CHANNEL"
@@ -165,8 +166,10 @@ printf '%s\n' '[4/5] Ensamblando bundle Universal 2...'
     "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
 /bin/cp "$PREVIOUS_COMMUNITY_AGENT_PLIST_SOURCE" \
     "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v6.plist"
-/bin/cp "$COMMUNITY_AGENT_PLIST_SOURCE" \
+/bin/cp "$RECENT_COMMUNITY_AGENT_PLIST_SOURCE" \
     "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v7.plist"
+/bin/cp "$COMMUNITY_AGENT_PLIST_SOURCE" \
+    "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v8.plist"
 
 remove_developer_rpaths() {
     thin_binary=$1
@@ -214,6 +217,7 @@ assemble_binary agent "$ARM_AGENT" "$X86_AGENT" "$STAGING_APP/Contents/Resources
 /bin/chmod 644 "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
 /bin/chmod 644 "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v6.plist"
 /bin/chmod 644 "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v7.plist"
+/bin/chmod 644 "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v8.plist"
 
 printf '%s\n' '[5/5] Verificando arquitectura, versión mínima y dependencias...'
 for bundled_binary in \
@@ -245,11 +249,12 @@ done
 /usr/bin/plutil -lint "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
 /usr/bin/plutil -lint "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v6.plist"
 /usr/bin/plutil -lint "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v7.plist"
+/usr/bin/plutil -lint "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v8.plist"
 [ "$(/usr/bin/plutil -extract BundleProgram raw -o - "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist")" = 'Contents/Resources/tidydrop-agent' ] || {
     printf '%s\n' 'ERROR: BundleProgram del agente es inesperado.' >&2
     exit 1
 }
-[ "$(/usr/bin/plutil -extract BundleProgram raw -o - "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v7.plist")" = 'Contents/Resources/tidydrop-agent' ] || {
+[ "$(/usr/bin/plutil -extract BundleProgram raw -o - "$STAGING_APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v8.plist")" = 'Contents/Resources/tidydrop-agent' ] || {
     printf '%s\n' 'ERROR: BundleProgram del agente comunitario es inesperado.' >&2
     exit 1
 }

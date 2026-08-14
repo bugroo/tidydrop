@@ -1998,6 +1998,14 @@ private final class TidyDropCoreTests {
         )
     }
 
+    func testAgentSchedulingUsesBackgroundEventCoalescing() throws {
+        XCTAssertEqual(AgentSchedulingPolicy.eventStreamLatencySeconds, 2)
+        XCTAssertTrue(
+            AgentSchedulingPolicy.eventStreamLatencySeconds
+                >= AgentSchedulingPolicy.eventDebounceSeconds
+        )
+    }
+
     func testAgentRunRequestIsPrivateAndSourceBound() throws {
         let workspace = try TemporaryWorkspace()
         let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
@@ -2271,6 +2279,7 @@ private let tests: [(String, () throws -> Void)] = [
     ("testWorkbenchRuleEditRejectsInvalidIndex", suite.testWorkbenchRuleEditRejectsInvalidIndex),
     ("testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery", suite.testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery),
     ("testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded", suite.testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded),
+    ("testAgentSchedulingUsesBackgroundEventCoalescing", suite.testAgentSchedulingUsesBackgroundEventCoalescing),
     ("testAgentRunRequestIsPrivateAndSourceBound", suite.testAgentRunRequestIsPrivateAndSourceBound),
     ("testAgentRunRequestRejectsSymlinkDestination", suite.testAgentRunRequestRejectsSymlinkDestination),
     ("testAgentRunRequestValidationRejectsStaleOrDifferentSource", suite.testAgentRunRequestValidationRejectsStaleOrDifferentSource),

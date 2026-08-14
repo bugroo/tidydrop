@@ -17,8 +17,9 @@
   Community release before persistent LaunchAgent access is proven.
 - Adds isolated event, burst, idle-resource, rule-edit, history, and undo
   regressions without running apply or undo against personal folders.
-- Community build 7 uses a new ad hoc agent label and migrates build 6 and
-  build 5 registrations before enabling the FSEvents agent.
+- Community build 8 removes immediate `NoDefer` delivery and lets FSEvents
+  coalesce background changes for fewer wakeups. It migrates build 7, build 6,
+  and build 5 registrations before enabling the updated agent.
 
 ## 1.1.2 — Community Preview
 

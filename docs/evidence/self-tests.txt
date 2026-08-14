@@ -78,10 +78,11 @@ PASS  testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions
 PASS  testWorkbenchRuleEditRejectsInvalidIndex
 PASS  testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery
 PASS  testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded
+PASS  testAgentSchedulingUsesBackgroundEventCoalescing
 PASS  testAgentRunRequestIsPrivateAndSourceBound
 PASS  testAgentRunRequestRejectsSymlinkDestination
 PASS  testAgentRunRequestValidationRejectsStaleOrDifferentSource
 PASS  testCodeSigningRequirementMatchesOnlyCurrentSignedCode
 PASS  testSecurityScopedBookmarkRoundTripBalancesAccess
 PASS  testXPCMutualCodeSigningRequirementAcceptsAndRejects
-Resultado: 85 PASS, 0 SKIP, 0 FAIL; total=85
+Resultado: 86 PASS, 0 SKIP, 0 FAIL; total=86
