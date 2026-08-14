@@ -12,7 +12,9 @@ Gates obligatorios:
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
 5. Veinte repeticiones de las carreras de estabilidad.
-6. Selector AppKit real abierto y cancelado automáticamente por un seam de prueba, con checksum de configuración invariable.
+6. Contrato del selector AppKit validado sin abrir UI durante gates automáticos;
+   la cancelación conserva una regresión propia y el smoke test visual real
+   requiere opt-in explícito para no mostrar ventanas durante instalación o CI.
 7. Integración CLI temporal: dry-run, apply, colisiones, undo, carpeta activa y `source_unavailable`.
 8. Renderizado del LaunchAgent y plist.
 9. Desinstalador en HOME temporal.
