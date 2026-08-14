@@ -16,7 +16,11 @@ let package = Package(
     targets: [
         .target(
             name: "TidyDropCore",
-            path: "Sources/TidyDropCore"
+            path: "Sources/TidyDropCore",
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
+                .linkedFramework("Security", .when(platforms: [.macOS]))
+            ]
         ),
         .executableTarget(
             name: "TidyDrop",

@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>io.github.bugroo.tidydrop.agent.community.v6</string>
+  <string>io.github.bugroo.tidydrop.agent.community.v7</string>
   <key>BundleProgram</key>
   <string>Contents/Resources/tidydrop-agent</string>
+  <key>AssociatedBundleIdentifiers</key>
+  <array>
+    <string>io.github.bugroo.tidydrop</string>
+  </array>
+  <key>LimitLoadToSessionType</key>
+  <string>Aqua</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -15,17 +21,11 @@
   </dict>
   <key>ProcessType</key>
   <string>Background</string>
-  <key>ThrottleInterval</key>
-  <integer>10</integer>
   <key>Nice</key>
+  <integer>10</integer>
+  <key>ThrottleInterval</key>
   <integer>10</integer>
   <key>Umask</key>
   <integer>63</integer>
-  <key>LimitLoadToSessionType</key>
-  <string>Aqua</string>
-  <key>AssociatedBundleIdentifiers</key>
-  <array>
-    <string>io.github.bugroo.tidydrop</string>
-  </array>
 </dict>
 </plist>

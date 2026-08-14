@@ -6,7 +6,7 @@ uploading, indexing, or profiling your files.**
 `🍎 macOS 13+` · `🔒 Local-only runtime` · `↩️ Conservative undo` ·
 `⚡ Low-overhead background work` · `🧩 Apple Silicon + Intel`
 
-[⬇️ **Download TidyDrop 1.1.2 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.1.2-community.1/TidyDrop-1.1.2-community-preview-macos-universal.dmg)
+[⬇️ **Download TidyDrop 1.2.0 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.1/TidyDrop-1.2.0-community-preview-macos-universal.dmg)
 · [Release notes](docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md)
 · [Security](docs/SECURITY.md)
 
@@ -33,8 +33,8 @@ promises:
   auditable.
 - **Reversible.** Completed moves are journaled for a conservative undo that
   refuses unsafe restores.
-- **Quiet.** TidyDrop exits after each short pass and avoids repeated log writes
-  when nothing changes.
+- **Quiet.** The background agent sleeps on FSEvents when nothing changes and
+  avoids periodic scans and repeated log writes.
 
 ## 🧭 How it works
 
@@ -50,7 +50,8 @@ promises:
 - Ignores hidden files, folders, apps, symbolic links, and incomplete downloads.
 - Never overwrites an existing file.
 - Records completed moves so the latest transaction can be undone safely.
-- Runs briefly every five minutes and exits after each pass.
+- Responds to filesystem events, reconciles once at startup, and uses one
+  short-lived timer only while a candidate is still changing.
 - Uses no network connection, telemetry, advertising, or cloud processing.
 
 ### Default categories
@@ -75,10 +76,14 @@ TidyDrop never reorganizes subfolders recursively.
 
 ## ⬇️ Download
 
-TidyDrop 1.1.2 Community Preview is available as a Universal 2 DMG from
-[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.1.2-community.1).
+TidyDrop 1.2.0 Community Preview is available as a Universal 2 DMG from
+[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.1).
 It contains a native setup app and a bundled background agent, so recipients do
 not need Terminal or development tools.
+
+The native workbench provides four focused sections: Active Folder, Activity,
+Rules, and History. Its inspector explains the selected item and exposes rule
+editing or conservative undo only where those actions are valid.
 
 This preview is not signed with Apple Developer ID and is not notarized by
 Apple. macOS therefore requires a one-time manual exception. The notarized
@@ -98,7 +103,7 @@ required.
 ## Install the Community Preview
 
 1. Download the DMG and checksum from the
-   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.1.2-community.1).
+   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.2.0-community.1).
 2. Open the DMG and drag `TidyDrop.app` to Applications.
 3. Try to open TidyDrop once. macOS is expected to block the first launch.
 4. Open **System Settings → Privacy & Security** and select **Open Anyway**.
@@ -109,11 +114,11 @@ Never disable Gatekeeper, remove quarantine attributes, grant Full Disk Access,
 or install TidyDrop through a remote `curl | sh` command.
 
 Download the matching
-[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.1.2-community.1/TidyDrop-1.1.2-community-preview-macos-universal.sha256)
+[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.2.0-community.1/TidyDrop-1.2.0-community-preview-macos-universal.sha256)
 and verify the DMG with:
 
 ```sh
-shasum -a 256 -c TidyDrop-1.1.2-community-preview-macos-universal.sha256
+shasum -a 256 -c TidyDrop-1.2.0-community-preview-macos-universal.sha256
 ```
 
 ## 🛠️ Install from source
@@ -245,6 +250,8 @@ Uninstalling TidyDrop never removes organized files or category folders.
 - One active folder is supported at a time.
 - The Community Preview is ad hoc signed and requires a manual Gatekeeper
   exception; it is not Apple notarized.
+- App Sandbox and security-scoped bookmarks are validated prototypes but are
+  not enabled in the Community bundle without a stable Developer ID identity.
 - A macOS or TidyDrop update may require Files & Folders permission again.
 - Cloud and removable-volume files must be available locally before they can be
   organized.

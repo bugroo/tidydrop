@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0 — Community Preview
+
+- Adds the native three-pane AppKit workbench for active folder, activity,
+  ordered rules, transaction history, and conservative undo.
+- Replaces the bundled five-minute polling agent with a Foundation/CoreServices
+  FSEvents process that reconciles at startup and uses one timer only while
+  deferred candidates exist.
+- Validates and consumes app-to-agent wake requests once using a private,
+  source-bound, recent JSON signal until the signed XPC gate is complete.
+- Adds a bounded SQLite activity index owned by the scheduled agent, with a
+  read-only AppKit consumer, explicit schema migration, private permissions,
+  verified WAL mode, and fail-soft UI behavior.
+- Adds verified signed-XPC, designated-requirement, security-scoped bookmark,
+  and minimal Sandbox-entitlement prototypes without enabling Sandbox in the
+  Community release before persistent LaunchAgent access is proven.
+- Adds isolated event, burst, idle-resource, rule-edit, history, and undo
+  regressions without running apply or undo against personal folders.
+- Community build 7 uses a new ad hoc agent label and migrates build 6 and
+  build 5 registrations before enabling the FSEvents agent.
+
 ## 1.1.2 — Community Preview
 
 - Rechecks an already registered background agent automatically when the app

@@ -17,8 +17,24 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
+    plutil -lint "$PROJECT_ROOT/app/TidyDrop.entitlements"
+    plutil -lint "$PROJECT_ROOT/app/TidyDropAgent.entitlements"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
+    PRODUCT_VERSION=$(/bin/cat "$PROJECT_ROOT/VERSION")
+    [ "$(plutil -extract CFBundleShortVersionString raw -o - "$PROJECT_ROOT/app/Info.plist")" = "$PRODUCT_VERSION" ] \
+        && [ "$(plutil -extract CFBundleShortVersionString raw -o - "$PROJECT_ROOT/app/Distribution-Info.plist")" = "$PRODUCT_VERSION" ] \
+        && /usr/bin/grep -Fq "private let programVersion = \"$PRODUCT_VERSION\"" "$PROJECT_ROOT/Sources/TidyDrop/main.swift" \
+        && /usr/bin/grep -Fq "static let version = \"$PRODUCT_VERSION\"" "$PROJECT_ROOT/Sources/TidyDropApp/TidyDropApplication.swift" || {
+        printf '%s\n' '[FALLO] VERSION, plists, CLI y app no comparten la misma versión.' >&2
+        exit 1
+    }
+    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist")" = 'io.github.bugroo.tidydrop.agent.community.v7' ] || {
+        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 7.' >&2
+        exit 1
+    }
     printf '%s\n' '[OK] Plists válidos'
+    printf '%s\n' '[OK] Versión e identidad comunitaria coherentes'
 else
     printf '%s\n' '[AVISO] plutil no disponible; se omite lint de plists.'
 fi
@@ -55,11 +71,24 @@ if ! /usr/bin/grep -q 'APP_OWNED_RETENTION' "$PROJECT_ROOT/Sources/TidyDropCore/
     printf '%s\n' '[FALLO] Las eliminaciones de retención no están etiquetadas y acotadas.' >&2
     exit 1
 fi
+unexpected_unlinks=$(
+    /usr/bin/grep -RInE '(^|[^[:alnum:]_])unlink[[:space:]]*\(' "$PROJECT_ROOT/Sources" 2>/dev/null \
+        | /usr/bin/grep -v '/FileSystem.swift:' \
+        || true
+)
+if [ -n "$unexpected_unlinks" ] \
+   || ! /usr/bin/grep -q 'APP_OWNED_TRANSIENT_SIGNAL' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift" \
+   || ! /usr/bin/grep -q 'lastPathComponent == "agent-run-request.json"' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift"; then
+    printf '%s\n' '[FALLO] La señal transitoria no está eliminada por una primitiva exacta y acotada.' >&2
+    [ -z "$unexpected_unlinks" ] || printf '%s\n' "$unexpected_unlinks" >&2
+    exit 1
+fi
 if /usr/bin/grep -n 'removeItem' "$PROJECT_ROOT/Sources/TidyDropCore/StewardEngine.swift" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El motor de organización no debe borrar archivos.' >&2
     exit 1
 fi
-printf '%s\n' '[OK] Sin borrado en la carpeta activa; solo retención de logs/manifiestos propios'
+printf '%s\n' '[OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta'
 
 if ! /usr/bin/grep -q 'renameatx_np' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift" \
    || ! /usr/bin/grep -q 'RENAME_EXCL' "$PROJECT_ROOT/Sources/TidyDropCore/FileSystem.swift"; then
@@ -88,6 +117,30 @@ if /usr/bin/grep -nE '\.package[[:space:]]*\(' "$PROJECT_ROOT/Package.swift" >/d
 fi
 printf '%s\n' '[OK] Swift Package sin dependencias externas declaradas'
 
+if ! /usr/bin/grep -q '\.linkedLibrary("sqlite3")' "$PROJECT_ROOT/Package.swift" \
+   || ! /usr/bin/grep -q 'SQLITE_OPEN_NOFOLLOW' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift" \
+   || ! /usr/bin/grep -q 'SQLITE_OPEN_READONLY' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift" \
+   || ! /usr/bin/grep -q 'PRAGMA trusted_schema=OFF' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift" \
+   || ! /usr/bin/grep -q 'APP_OWNED_SQLITE_RETENTION' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/AgentActivityDatabase.swift"; then
+    printf '%s\n' '[FALLO] El índice SQLite perdió un control obligatorio.' >&2
+    exit 1
+fi
+unexpected_activity_writers=$(
+    /usr/bin/grep -RIn 'AgentActivityDatabase.record' "$PROJECT_ROOT/Sources" 2>/dev/null \
+        | /usr/bin/grep -v '/ScheduledExecution.swift:' \
+        || true
+)
+if [ -n "$unexpected_activity_writers" ]; then
+    printf '%s\n' '[FALLO] Solo la ejecución programada puede escribir el índice SQLite.' >&2
+    printf '%s\n' "$unexpected_activity_writers" >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Índice SQLite derivado con escritor único, reader read-only y controles de symlink'
+
 if /usr/bin/grep -RInE '(^|[[:space:]])import[[:space:]]+XCTest|\.testTarget[[:space:]]*\(' \
     "$PROJECT_ROOT/Package.swift" "$PROJECT_ROOT/Sources" "$PROJECT_ROOT/SelfTests" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] Se detectó una dependencia de XCTest.' >&2
@@ -99,11 +152,24 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     "$PROJECT_ROOT/launchd" "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist" \
+    "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist" \
     "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1
 fi
 printf '%s\n' '[OK] LaunchAgent sin logs stdout/stderr ilimitados'
+
+if /usr/bin/grep -q -- '--entitlements' "$PROJECT_ROOT/scripts/sign-app.sh"; then
+    printf '%s\n' '[FALLO] Sandbox no puede entrar en releases antes del gate integrado.' >&2
+    exit 1
+fi
+if /usr/bin/grep -E 'com.apple.security.network|com.apple.security.temporary-exception' \
+    "$PROJECT_ROOT/app/TidyDrop.entitlements" \
+    "$PROJECT_ROOT/app/TidyDropAgent.entitlements" >/dev/null 2>&1; then
+    printf '%s\n' '[FALLO] Los prototipos Sandbox contienen entitlements excesivos.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Prototipos Sandbox mínimos y bloqueados fuera de releases'
 
 if ! /usr/bin/grep -q 'notarytool submit' "$PROJECT_ROOT/scripts/notarize-app.sh" \
    || ! /usr/bin/grep -q -- '--wait' "$PROJECT_ROOT/scripts/notarize-app.sh" \

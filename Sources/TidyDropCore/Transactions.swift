@@ -418,6 +418,19 @@ public final class TransactionStore {
         return latest
     }
 
+    public func manifests(
+        limit: Int = 200,
+        fileManager: FileManager = .default
+    ) throws -> [TransactionManifest] {
+        guard limit > 0, limit <= 10_000 else {
+            throw StewardError.invalidConfiguration("invalid transaction history limit")
+        }
+        let manifests = try manifestFiles(fileManager: fileManager).map { file in
+            try decodeManifest(at: file)
+        }
+        return Array(manifests.sorted { $0.startedAt > $1.startedAt }.prefix(limit))
+    }
+
     /// Limits completed transaction history while preserving every in-progress
     /// manifest and the newest transaction that can still be undone.
     @discardableResult

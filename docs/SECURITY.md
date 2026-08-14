@@ -1,4 +1,4 @@
-# Modelo de seguridad de TidyDrop 1.1.2 (candidato)
+# Modelo de seguridad de TidyDrop 1.2.0 Community Preview
 
 TidyDrop es local, sin red, telemetría, servicios externos, `sudo` ni dependencias de ejecución. La amenaza principal es el error operativo y el cambio concurrente de archivos por aplicaciones de descarga.
 
@@ -25,6 +25,16 @@ Lock, JSON y logs se abren con `O_NOFOLLOW`, se comprueban mediante descriptor y
 
 La caché de dry-run solo suprime trabajo de previsualización ya auditado. Nunca se consulta en apply y no autoriza movimientos.
 
+El índice `activity.sqlite3` es estado derivado y no autoritativo. Solo la ruta
+de ejecución programada escribe; la interfaz abre en modo read-only. Los
+manifiestos JSON siguen gobernando apply, recuperación y undo. SQLite se abre
+sin seguir symlinks, con esquema no confiable desactivado, límites de tamaño y
+retención, permisos `0600` y un padre `0700`. WAL se acepta únicamente si SQLite
+confirma el modo, sus sidecars no se eliminan directamente y el índice permanece
+en Application Support local aunque la carpeta observada esté en otro volumen.
+Un fallo del índice queda acotado al resumen de actividad y no debilita el
+journal de archivos.
+
 La validación de carpeta protege tanto `~/Applications/TidyDrop.app` como
 `/Applications/TidyDrop.app`; tampoco admite una raíz que contenga cualquiera
 de esos bundles. De este modo, la clasificación nunca puede abarcar el código
@@ -36,9 +46,10 @@ Una pasada programada con actividad abre y cierra siempre una unidad de auditor�
 
 El bundle declara las claves de Downloads, Documents, Desktop, volúmenes extraíbles y red. El acceso manual y mediante LaunchAgent se verifica por separado. No se solicita Full Disk Access, no se modifica la base TCC y seleccionar una carpeta no se presenta como garantía de acceso persistente para `launchd`.
 
-La aplicación nativa registra un agente incluido con `SMAppService`. El agente
-solo enlaza Foundation/TidyDropCore, ejecuta una pasada y termina; AppKit y
-ServiceManagement quedan en el proceso de interfaz. La activación permanece
+La aplicación nativa registra un agente incluido con `SMAppService`. La rama
+1.2 mantiene un agente Foundation/CoreServices residente y bloqueado sobre
+FSEvents cuando está inactivo; AppKit y ServiceManagement quedan en el proceso
+de interfaz. La activación permanece
 bloqueada hasta observar una pasada nueva del agente con `success`, `dry-run`,
 cero movimientos y cero errores. La verificación también exige que el registro
 sea reciente y corresponda a la ruta canónica exacta de la carpeta activa. La
@@ -54,7 +65,7 @@ antiguo reaparezca silenciosamente en el siguiente inicio de sesión.
 ## Firma y confianza
 
 La aplicación Community Preview se firma ad hoc localmente. No es Developer ID
-ni está notarizada. El candidato 1.1.2 conserva explícitamente
+ni está notarizada. La versión 1.2.0 conserva explícitamente
 esa limitación: macOS exige una excepción manual y una actualización puede
 provocar nuevas decisiones Gatekeeper o TCC. El DMG se construye desde un tag de
 `main`, se publica como prerelease y se acompaña de SHA-256 y GitHub Artifact
@@ -77,9 +88,18 @@ El runtime continúa sin red. La única operación de red nueva pertenece al pro
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.
 
-La firma ad hoc de la instalación actual, la ausencia de App Sandbox y el
-polling cada 300 segundos son limitaciones deliberadas. El candidato 1.1.2 ya
-separa interfaz y agente y exige Hardened Runtime/Developer ID/notarización para
-distribución, pero no declara resueltos Sandbox, bookmarks ni FSEvents. Esos
-cambios permanecen sujetos al prototipo y ADR de arquitectura, no se simulan en
-esta release.
+La firma ad hoc de la instalación actual y la ausencia de App Sandbox son
+limitaciones deliberadas. La rama 1.2 sustituye el polling del agente incluido
+por FSEvents, reconciliación al inicio y un único temporizador cuando existen
+archivos aplazados. La integración temporal verifica dry-run, coalescing,
+señales privadas de un solo uso y reposo sin nuevas pasadas. Sandbox, bookmarks,
+Developer ID y notarización permanecen sujetos a gates separados y no se
+declaran resueltos por este prototipo.
+
+La rama 1.2 contiene además prototipos verificables de requisitos designados de
+firma, rechazo de un peer XPC con identidad imposible, bookmarks con scope y
+entitlements mínimos sin red. Estos controles todavía no están habilitados en
+el bundle Community: una firma ad hoc no ofrece continuidad de identidad y un
+round trip de bookmark no demuestra acceso persistente del LaunchAgent
+sandboxed. ADR-0009 mantiene ese rollout bloqueado hasta probar el servicio
+Mach real, relanzamiento, stale bookmark y volúmenes externos con Developer ID.

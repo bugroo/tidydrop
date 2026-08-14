@@ -76,11 +76,20 @@ SELF_TEST_BINARY="$DEBUG_BIN_DIR/tidydrop-self-test"
 [ -x "$SELF_TEST_BINARY" ] || { printf 'FALLO: no existe %s\n' "$SELF_TEST_BINARY" >&2; exit 1; }
 
 capture "$EVIDENCE_DIR/self-tests.txt" "$SELF_TEST_BINARY"
+capture "$EVIDENCE_DIR/security-prototypes.txt" env \
+    TIDYDROP_SELF_TEST_BIN="$SELF_TEST_BINARY" \
+    "$SCRIPT_DIR/test-security-prototypes.sh"
 capture "$EVIDENCE_DIR/doctor.txt" "$SCRIPT_DIR/doctor.sh"
 capture "$EVIDENCE_DIR/doctor-tests.txt" "$SCRIPT_DIR/test-doctor.sh"
 capture "$EVIDENCE_DIR/folder-chooser.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRIPT_DIR/test-folder-chooser.sh"
 capture "$EVIDENCE_DIR/stability-race.txt" env TIDYDROP_SELF_TEST_BIN="$SELF_TEST_BINARY" "$SCRIPT_DIR/test-stability-race.sh"
 capture "$EVIDENCE_DIR/cli-integration.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRIPT_DIR/test-cli.sh"
+AGENT_BINARY="$DEBUG_BIN_DIR/tidydrop-agent"
+[ -x "$AGENT_BINARY" ] || { printf 'FALLO: no existe %s\n' "$AGENT_BINARY" >&2; exit 1; }
+capture "$EVIDENCE_DIR/event-agent.txt" env \
+    TIDYDROP_BIN="$DEBUG_BINARY" \
+    TIDYDROP_AGENT_BIN="$AGENT_BINARY" \
+    "$SCRIPT_DIR/test-event-agent.sh"
 capture "$EVIDENCE_DIR/launchagent-rendering.txt" "$SCRIPT_DIR/test-launchagent.sh"
 capture "$EVIDENCE_DIR/uninstall-safety.txt" "$SCRIPT_DIR/test-uninstall.sh"
 capture "$EVIDENCE_DIR/demo-dry-run.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRIPT_DIR/demo.sh"

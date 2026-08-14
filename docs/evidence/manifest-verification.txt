@@ -11,27 +11,39 @@ Package.swift: OK
 README.md: OK
 SelfTests/TidyDropSelfTests/main.swift: OK
 Sources/TidyDrop/main.swift: OK
+Sources/TidyDropAgent/EventDrivenAgent.swift: OK
+Sources/TidyDropAgent/FSEventsWatcher.swift: OK
 Sources/TidyDropAgent/main.swift: OK
-Sources/TidyDropApp/main.swift: OK
+Sources/TidyDropApp/TidyDropApplication.swift: OK
+Sources/TidyDropApp/WorkbenchViewController.swift: OK
 Sources/TidyDropCore/ActiveFolder.swift: OK
+Sources/TidyDropCore/AgentActivityDatabase.swift: OK
+Sources/TidyDropCore/AgentRunRequest.swift: OK
+Sources/TidyDropCore/AgentSchedulingPolicy.swift: OK
 Sources/TidyDropCore/Audit.swift: OK
 Sources/TidyDropCore/BackgroundVerificationPolicy.swift: OK
 Sources/TidyDropCore/Classifier.swift: OK
+Sources/TidyDropCore/CodeSigningRequirement.swift: OK
 Sources/TidyDropCore/Configuration.swift: OK
 Sources/TidyDropCore/FileSystem.swift: OK
 Sources/TidyDropCore/LaunchAgentStatus.swift: OK
 Sources/TidyDropCore/Models.swift: OK
 Sources/TidyDropCore/ScheduledExecution.swift: OK
+Sources/TidyDropCore/SecurityScopedBookmark.swift: OK
 Sources/TidyDropCore/Stability.swift: OK
 Sources/TidyDropCore/StewardEngine.swift: OK
 Sources/TidyDropCore/Transactions.swift: OK
+Sources/TidyDropCore/WorkbenchData.swift: OK
 VERSION: OK
 app/Distribution-Info.plist: OK
 app/Info.plist: OK
+app/TidyDrop.entitlements: OK
+app/TidyDropAgent.entitlements: OK
 app/assets/TidyDrop.icns: OK
 app/assets/TidyDropIcon-1024.png: OK
 app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
 app/io.github.bugroo.tidydrop.agent.community.v6.plist: OK
+app/io.github.bugroo.tidydrop.agent.community.v7.plist: OK
 app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
 docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md: OK
@@ -47,6 +59,11 @@ docs/adr/0002-distribution-updates-and-tcc-continuity.md: OK
 docs/adr/0003-end-user-installation-experience.md: OK
 docs/adr/0004-community-preview-without-developer-id.md: OK
 docs/adr/0005-source-bound-relaunch-verification-and-setup-ui.md: OK
+docs/adr/0006-appkit-workbench-information-architecture.md: OK
+docs/adr/0007-event-driven-fsevents-agent.md: OK
+docs/adr/0008-agent-owned-sqlite-activity-index.md: OK
+docs/adr/0009-signed-xpc-and-security-scoped-bookmark-prototypes.md: OK
+docs/adr/0010-community-1.2-release-boundary.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -56,6 +73,7 @@ docs/evidence/demo-dry-run.txt: OK
 docs/evidence/doctor-tests.txt: OK
 docs/evidence/doctor.txt: OK
 docs/evidence/environment.txt: OK
+docs/evidence/event-agent.txt: OK
 docs/evidence/folder-chooser.txt: OK
 docs/evidence/generated-default-config.json: OK
 docs/evidence/launchagent-rendering.txt: OK
@@ -64,6 +82,7 @@ docs/evidence/package-description.txt: OK
 docs/evidence/release-build.txt: OK
 docs/evidence/release-pipeline.txt: OK
 docs/evidence/runtime-power-audit-2026-08-12.md: OK
+docs/evidence/security-prototypes.txt: OK
 docs/evidence/self-tests.txt: OK
 docs/evidence/stability-race.txt: OK
 docs/evidence/static-audit.txt: OK
@@ -85,9 +104,11 @@ scripts/sign-app.sh: OK
 scripts/test-cli.sh: OK
 scripts/test-community-preview-workflow.sh: OK
 scripts/test-doctor.sh: OK
+scripts/test-event-agent.sh: OK
 scripts/test-folder-chooser.sh: OK
 scripts/test-launchagent.sh: OK
 scripts/test-release-pipeline.sh: OK
+scripts/test-security-prototypes.sh: OK
 scripts/test-stability-race.sh: OK
 scripts/test-uninstall.sh: OK
 scripts/uninstall.sh: OK
@@ -97,4 +118,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 99 archivos
+Manifest verificado: 120 archivos

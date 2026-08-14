@@ -59,17 +59,23 @@ Targets:
     Path: Sources/TidyDropCore
     Sources:
         ActiveFolder.swift
+        AgentActivityDatabase.swift
+        AgentRunRequest.swift
+        AgentSchedulingPolicy.swift
         Audit.swift
         BackgroundVerificationPolicy.swift
         Classifier.swift
+        CodeSigningRequirement.swift
         Configuration.swift
         FileSystem.swift
         LaunchAgentStatus.swift
         Models.swift
         ScheduledExecution.swift
+        SecurityScopedBookmark.swift
         Stability.swift
         StewardEngine.swift
         Transactions.swift
+        WorkbenchData.swift
     Product memberships:
         TidyDropCore
         TidyDropApp
@@ -83,7 +89,8 @@ Targets:
     Module type: SwiftTarget
     Path: Sources/TidyDropApp
     Sources:
-        main.swift
+        TidyDropApplication.swift
+        WorkbenchViewController.swift
     Target dependencies:
         TidyDropCore
     Product memberships:
@@ -95,6 +102,8 @@ Targets:
     Module type: SwiftTarget
     Path: Sources/TidyDropAgent
     Sources:
+        EventDrivenAgent.swift
+        FSEventsWatcher.swift
         main.swift
     Target dependencies:
         TidyDropCore

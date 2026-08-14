@@ -1,4 +1,27 @@
 [0/1] Planning build
 Building for debugging...
-[0/9] Write swift-version--1AB21518FC5DEDBE.txt
-Build complete! (0.11s)
+[0/10] Write swift-version--1AB21518FC5DEDBE.txt
+[2/28] Compiling TidyDropCore ActiveFolder.swift
+[3/28] Compiling TidyDropCore AgentActivityDatabase.swift
+[4/28] Compiling TidyDropCore LaunchAgentStatus.swift
+[5/28] Compiling TidyDropCore Models.swift
+[6/28] Compiling TidyDropCore Transactions.swift
+[7/28] Compiling TidyDropCore Audit.swift
+[8/28] Compiling TidyDropCore BackgroundVerificationPolicy.swift
+[9/28] Compiling TidyDropCore Stability.swift
+[10/28] Compiling TidyDropCore StewardEngine.swift
+[11/28] Compiling TidyDropCore AgentRunRequest.swift
+[12/28] Compiling TidyDropCore AgentSchedulingPolicy.swift
+[13/28] Emitting module TidyDropCore
+[14/28] Compiling TidyDropCore Classifier.swift
+[15/28] Compiling TidyDropCore CodeSigningRequirement.swift
+[16/28] Compiling TidyDropCore Configuration.swift
+[17/28] Compiling TidyDropCore FileSystem.swift
+[18/28] Compiling TidyDropCore ScheduledExecution.swift
+[19/28] Compiling TidyDropCore SecurityScopedBookmark.swift
+[20/29] Compiling TidyDropCore WorkbenchData.swift
+[21/25] Compiling TidyDropSelfTests main.swift
+[22/25] Emitting module TidyDropSelfTests
+[22/24] Linking tidydrop-self-test
+[23/24] Applying tidydrop-self-test
+Build complete! (1.81s)

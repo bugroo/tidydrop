@@ -315,6 +315,8 @@ public struct ResolvedPaths: Equatable, Sendable {
     public let agentErrorLogFile: URL
     public let scheduledStatusFile: URL
     public let scheduledDryRunCacheFile: URL
+    public let agentRunRequestFile: URL
+    public let activityDatabaseFile: URL
 
     public init(
         sourceDirectory: URL,
@@ -334,6 +336,8 @@ public struct ResolvedPaths: Equatable, Sendable {
         self.agentErrorLogFile = logDirectory.appendingPathComponent("agent-errors.log")
         self.scheduledStatusFile = stateDirectory.appendingPathComponent("last-scheduled-run.json")
         self.scheduledDryRunCacheFile = stateDirectory.appendingPathComponent("scheduled-dry-run-cache.json")
+        self.agentRunRequestFile = stateDirectory.appendingPathComponent("agent-run-request.json")
+        self.activityDatabaseFile = stateDirectory.appendingPathComponent("activity.sqlite3")
     }
 }
 

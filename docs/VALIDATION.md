@@ -1,4 +1,4 @@
-# Validación de TidyDrop 1.1.2 (candidato)
+# Validación del candidato actual de TidyDrop
 
 La validación se ejecuta con Apple Command Line Tools, sin Xcode completo ni XCTest, y trata advertencias como errores.
 
@@ -7,9 +7,10 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 68, incluidas las fronteras balanceadas de auditoría
-   programada y el runner del agente aislado, sin reducir las regresiones
-   anteriores.
+4. Self-tests propios: 85, incluidas las fronteras balanceadas de auditoría,
+   workbench AppKit, canonicalización FSEvents, señal app-agente privada e
+   índice SQLite con migración, lectura read-only y rechazo de symlinks,
+   sin reducir las regresiones anteriores.
 5. Veinte repeticiones de las carreras de estabilidad.
 6. Selector AppKit real abierto y cancelado automáticamente por un seam de prueba, con checksum de configuración invariable.
 7. Integración CLI temporal: dry-run, apply, colisiones, undo, carpeta activa y `source_unavailable`.
@@ -38,6 +39,16 @@ Gates obligatorios:
 21. El bundle declara y contiene un icono `.icns` regular, y la aplicación puede
     iniciarse con una configuración aislada para inspección visual sin tocar el
     estado instalado.
+22. La integración FSEvents temporal verifica reconciliación inicial, evento de
+    fuente, ráfaga coalescida, señal privada de un solo uso, `apply_enabled=false`,
+    cero movimientos y ausencia de nuevas pasadas durante reposo.
+23. El agente es el único escritor del índice SQLite derivado; la integración
+    comprueba que el archivo es regular y privado, mientras la app lo consume
+    read-only y un fallo del índice no gobierna apply, recuperación o undo.
+24. Los prototipos de seguridad prueban requisitos de firma reales y falsos en
+    ambos extremos de XPC, round trip y acceso balanceado de bookmarks, SDK
+    macOS 13 en arm64/x86_64 y entitlements mínimos ad hoc sin activarlos en el
+    bundle distribuido.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

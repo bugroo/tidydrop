@@ -4,7 +4,15 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 VERSION=$(/bin/cat "$SCRIPT_DIR/../VERSION")
 TEST_ROOT=$(/usr/bin/mktemp -d "/private/tmp/TidyDropIntegration.release.XXXXXX")
-trap '/bin/rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
+RELEASE_AGENT_PID=''
+cleanup() {
+    if [ -n "$RELEASE_AGENT_PID" ] && /bin/kill -0 "$RELEASE_AGENT_PID" 2>/dev/null; then
+        /bin/kill -TERM "$RELEASE_AGENT_PID" 2>/dev/null || true
+        wait "$RELEASE_AGENT_PID" 2>/dev/null || true
+    fi
+    /bin/rm -rf "$TEST_ROOT"
+}
+trap cleanup EXIT HUP INT TERM
 APP="$TEST_ROOT/TidyDrop.app"
 DEVELOPMENT_APP="$TEST_ROOT/TidyDropDevelopment.app"
 DISTRIBUTION_APP="$TEST_ROOT/TidyDropDistribution.app"
@@ -68,7 +76,19 @@ AGENT_CONFIG="$TEST_ROOT/agent-config.json"
 /usr/bin/plutil -replace paths.state_directory -string "$TEST_ROOT/AgentState" "$AGENT_CONFIG"
 /usr/bin/plutil -replace paths.log_directory -string "$TEST_ROOT/AgentLogs" "$AGENT_CONFIG"
 /usr/bin/plutil -replace automation.apply_enabled -bool false "$AGENT_CONFIG"
-"$APP/Contents/Resources/tidydrop-agent" --config "$AGENT_CONFIG"
+"$APP/Contents/Resources/tidydrop-agent" --config "$AGENT_CONFIG" \
+    >"$TEST_ROOT/agent.stdout" 2>"$TEST_ROOT/agent.stderr" &
+RELEASE_AGENT_PID=$!
+agent_wait_attempt=0
+while [ ! -f "$TEST_ROOT/AgentState/last-scheduled-run.json" ] \
+    && [ "$agent_wait_attempt" -lt 20 ]; do
+    agent_wait_attempt=$((agent_wait_attempt + 1))
+    /bin/sleep 1
+done
+[ -f "$TEST_ROOT/AgentState/last-scheduled-run.json" ] || {
+    printf '%s\n' 'ERROR: el agente incluido no completó la reconciliación inicial.' >&2
+    exit 1
+}
 [ "$(/usr/bin/plutil -extract outcome raw -o - "$TEST_ROOT/AgentState/last-scheduled-run.json")" = 'success' ]
 [ "$(/usr/bin/plutil -extract mode raw -o - "$TEST_ROOT/AgentState/last-scheduled-run.json")" = 'dry-run' ]
 [ "$(/usr/bin/plutil -extract moved raw -o - "$TEST_ROOT/AgentState/last-scheduled-run.json")" = '0' ]
@@ -78,6 +98,11 @@ RECORDED_AGENT_SOURCE=$(/usr/bin/plutil -extract source_directory raw -o - \
 [ -d "$RECORDED_AGENT_SOURCE" ] && [ ! -L "$RECORDED_AGENT_SOURCE" ]
 [ "$(/usr/bin/stat -f '%d:%i' "$RECORDED_AGENT_SOURCE")" \
     = "$(/usr/bin/stat -f '%d:%i' "$TEST_ROOT/AgentSource")" ]
+/bin/kill -TERM "$RELEASE_AGENT_PID"
+wait "$RELEASE_AGENT_PID"
+RELEASE_AGENT_PID=''
+[ ! -s "$TEST_ROOT/agent.stdout" ]
+[ ! -s "$TEST_ROOT/agent.stderr" ]
 
 if TIDYDROP_RELEASE_BUNDLE_ID='bad bundle id' \
    TIDYDROP_RELEASE_TEAM_ID='ABCDE12345' \

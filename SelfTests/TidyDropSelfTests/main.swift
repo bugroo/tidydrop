@@ -2,6 +2,36 @@ import Foundation
 import TidyDropCore
 #if os(macOS)
 import Darwin
+
+@objc private protocol SignedXPCProbeProtocol {
+    func ping(withReply reply: @escaping (String) -> Void)
+}
+
+private final class SignedXPCProbeService: NSObject, SignedXPCProbeProtocol {
+    func ping(withReply reply: @escaping (String) -> Void) {
+        reply("tidydrop-xpc-ok")
+    }
+}
+
+private final class SignedXPCProbeListenerDelegate: NSObject, NSXPCListenerDelegate {
+    private let clientRequirement: String
+    private let service = SignedXPCProbeService()
+
+    init(clientRequirement: String) {
+        self.clientRequirement = clientRequirement
+    }
+
+    func listener(
+        _ listener: NSXPCListener,
+        shouldAcceptNewConnection newConnection: NSXPCConnection
+    ) -> Bool {
+        newConnection.setCodeSigningRequirement(clientRequirement)
+        newConnection.exportedInterface = NSXPCInterface(with: SignedXPCProbeProtocol.self)
+        newConnection.exportedObject = service
+        newConnection.resume()
+        return true
+    }
+}
 #else
 import Glibc
 #endif
@@ -1566,6 +1596,97 @@ private final class TidyDropCoreTests {
         XCTAssertEqual(record.moved, 0)
         XCTAssertEqual(record.errors, 0)
         XCTAssertEqual(record.sourceDirectory, resolved.paths.sourceDirectory.path)
+        let indexedRuns = try AgentActivityDatabase.recentRuns(
+            at: resolved.paths.activityDatabaseFile,
+            limit: 10
+        )
+        XCTAssertEqual(indexedRuns.map(\.runID), [record.runID])
+        XCTAssertEqual(indexedRuns.first?.outcome, .success)
+        XCTAssertEqual(indexedRuns.first?.mode, ExecutionMode.dryRun.rawValue)
+    }
+
+    func testAgentActivityDatabaseMigratesAndReadsNewestFirst() throws {
+        let workspace = try TemporaryWorkspace()
+        let databaseURL = workspace.state.appendingPathComponent("activity.sqlite3")
+        let older = ScheduledRunRecord(
+            timestamp: Date(timeIntervalSince1970: 1),
+            outcome: .success,
+            runID: "older",
+            mode: "dry-run",
+            moved: 0,
+            errors: 0,
+            sourceDirectory: ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        let newer = ScheduledRunRecord(
+            timestamp: Date(timeIntervalSince1970: 2),
+            outcome: .sourceUnavailable,
+            runID: "newer",
+            mode: "dry-run",
+            moved: 0,
+            errors: 1,
+            sourceDirectory: ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        try AgentActivityDatabase.record(older, at: databaseURL)
+        try AgentActivityDatabase.record(newer, at: databaseURL)
+
+        var rows = try AgentActivityDatabase.recentRuns(at: databaseURL, limit: 10)
+        XCTAssertEqual(rows.map(\.runID), ["newer", "older"])
+        XCTAssertEqual(rows.first?.outcome, .sourceUnavailable)
+
+        let updatedOlder = ScheduledRunRecord(
+            timestamp: Date(timeIntervalSince1970: 3),
+            outcome: .error,
+            runID: "older",
+            mode: "dry-run",
+            moved: 0,
+            errors: 1,
+            detail: "updated"
+        )
+        try AgentActivityDatabase.record(updatedOlder, at: databaseURL)
+        rows = try AgentActivityDatabase.recentRuns(at: databaseURL, limit: 10)
+        XCTAssertEqual(rows.map(\.runID), ["older", "newer"])
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows.first?.detail, "updated")
+        let attributes = try FileManager.default.attributesOfItem(atPath: databaseURL.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+    }
+
+    func testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase() throws {
+        let workspace = try TemporaryWorkspace()
+        let databaseURL = workspace.state.appendingPathComponent("missing.sqlite3")
+        XCTAssertEqual(try AgentActivityDatabase.recentRuns(at: databaseURL, limit: 10), [])
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(databaseURL))
+    }
+
+    func testAgentActivityDatabaseRejectsSymlink() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let target = workspace.root.appendingPathComponent("outside.sqlite3")
+        try Data("not-a-database".utf8).write(to: target)
+        let databaseURL = workspace.state.appendingPathComponent("activity.sqlite3")
+        try FileManager.default.createSymbolicLink(at: databaseURL, withDestinationURL: target)
+        XCTAssertThrowsError(try AgentActivityDatabase.record(
+            ScheduledRunRecord(outcome: .success, runID: "must-fail"),
+            at: databaseURL
+        ))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "not-a-database")
+    }
+
+    func testAgentActivityDatabaseRejectsSymlinkSidecar() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let databaseURL = workspace.state.appendingPathComponent("activity.sqlite3")
+        let target = workspace.root.appendingPathComponent("outside-wal")
+        try Data("protected".utf8).write(to: target)
+        let sidecar = URL(fileURLWithPath: databaseURL.path + "-wal")
+        try FileManager.default.createSymbolicLink(at: sidecar, withDestinationURL: target)
+
+        XCTAssertThrowsError(try AgentActivityDatabase.record(
+            ScheduledRunRecord(outcome: .success, runID: "must-fail"),
+            at: databaseURL
+        ))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "protected")
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(databaseURL))
     }
 
     func testBackgroundVerificationRequiresFreshMatchingSource() throws {
@@ -1695,6 +1816,377 @@ private final class TidyDropCoreTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: unavailable.path))
     }
 
+    func testWorkbenchAuditHistoryIsBoundedAndNewestFirst() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.logs, withIntermediateDirectories: true)
+        let auditURL = workspace.logs.appendingPathComponent("audit.jsonl")
+        let logger = try AuditLogger(
+            humanLogURL: workspace.logs.appendingPathComponent("steward.log"),
+            auditLogURL: auditURL,
+            maxFileBytes: 1_048_576,
+            rotatedFileCount: 1
+        )
+        for index in 1...4 {
+            try logger.record(AuditEvent(
+                timestamp: Date(timeIntervalSince1970: TimeInterval(index)),
+                runID: "run-\(index)",
+                level: "info",
+                mode: "dry-run",
+                action: "would_move"
+            ))
+        }
+
+        let events = try WorkbenchData.auditEvents(
+            at: auditURL,
+            rotatedFileCount: 1,
+            maximumFileBytes: 1_048_576,
+            limit: 2
+        )
+        XCTAssertEqual(events.map(\.runID), ["run-4", "run-3"])
+    }
+
+    func testWorkbenchAuditHistoryRejectsCorruptRecord() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.logs, withIntermediateDirectories: true)
+        let auditURL = workspace.logs.appendingPathComponent("audit.jsonl")
+        try Data("{not-json}\n".utf8).write(to: auditURL)
+
+        XCTAssertThrowsError(try WorkbenchData.auditEvents(
+            at: auditURL,
+            rotatedFileCount: 0,
+            maximumFileBytes: 1_048_576,
+            limit: 10
+        ))
+    }
+
+    func testWorkbenchTransactionHistorySortsAndDerivesUndoableState() throws {
+        let workspace = try TemporaryWorkspace()
+        let resolved = try workspace.makeConfig()
+        let store = try TransactionStore(directory: resolved.paths.transactionsDirectory)
+        let old = TransactionManifest(
+            runID: "old",
+            mode: .apply,
+            status: .completed,
+            startedAt: Date(timeIntervalSince1970: 1),
+            moves: [MoveRecord(
+                source: workspace.source.appendingPathComponent("a.pdf").path,
+                destination: workspace.source.appendingPathComponent("Documentos/a.pdf").path,
+                category: "Documentos",
+                reason: "extension:.pdf",
+                executionStatus: .completed
+            )]
+        )
+        let current = TransactionManifest(
+            runID: "current",
+            mode: .apply,
+            status: .fullyUndone,
+            startedAt: Date(timeIntervalSince1970: 2),
+            moves: []
+        )
+        try store.save(old)
+        try store.save(current)
+
+        let history = try store.manifests(limit: 10)
+        XCTAssertEqual(history.map(\.runID), ["current", "old"])
+        XCTAssertFalse(history[0].containsUndoableMove)
+        XCTAssertTrue(history[1].containsUndoableMove)
+    }
+
+    func testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions() throws {
+        let workspace = try TemporaryWorkspace()
+        let configURL = workspace.root.appendingPathComponent("config.json")
+        var configuration = try workspace.makeConfig().config
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configURL)
+        let resolved = try ConfigurationIO.load(from: configURL)
+        try FileManager.default.createDirectory(
+            at: resolved.paths.transactionsDirectory,
+            withIntermediateDirectories: true
+        )
+        let marker = resolved.paths.transactionsDirectory.appendingPathComponent("preserve.marker")
+        try Data("keep".utf8).write(to: marker)
+
+        var edited = configuration.classification.categories[0]
+        edited.extensions.append("workbench-test")
+        let updated = try WorkbenchData.replaceCategory(
+            at: 0,
+            with: edited,
+            configurationURL: configURL,
+            homeDirectory: workspace.root
+        )
+
+        XCTAssertFalse(updated.config.automation.applyEnabled)
+        XCTAssertTrue(updated.config.classification.categories[0].extensions.contains("workbench-test"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    func testWorkbenchRuleEditRejectsInvalidIndex() throws {
+        let workspace = try TemporaryWorkspace()
+        let configURL = workspace.root.appendingPathComponent("config.json")
+        let configuration = try workspace.makeConfig().config
+        try ConfigurationIO.save(configuration, to: configURL)
+
+        XCTAssertThrowsError(try WorkbenchData.replaceCategory(
+            at: configuration.classification.categories.count,
+            with: configuration.classification.categories[0],
+            configurationURL: configURL,
+            homeDirectory: workspace.root
+        ))
+    }
+
+    func testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery() throws {
+        let workspace = try TemporaryWorkspace()
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("file.pdf").path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("alias.pdf").path
+                .replacingOccurrences(of: "/private/tmp/", with: "/tmp/"),
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertFalse(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("Documentos/file.pdf").path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: false
+        ))
+        XCTAssertTrue(AgentSchedulingPolicy.sourceEventRequiresRun(
+            eventPath: workspace.source.appendingPathComponent("Documentos/file.pdf").path,
+            sourceDirectory: workspace.source,
+            requiresFullScan: true
+        ))
+    }
+
+    func testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded() throws {
+        var stability = DefaultConfiguration.make().stability
+        stability.minimumAgeSeconds = 45
+        let deferred = ScheduledRunRecord(
+            outcome: .success,
+            runID: "deferred",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            deferred: 1,
+            errors: 0
+        )
+        XCTAssertEqual(
+            AgentSchedulingPolicy.followUpDelay(after: deferred, stability: stability),
+            46
+        )
+        let idle = ScheduledRunRecord(
+            outcome: .success,
+            runID: "idle",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            deferred: 0,
+            errors: 0
+        )
+        XCTAssertEqual(
+            AgentSchedulingPolicy.followUpDelay(after: idle, stability: stability),
+            nil
+        )
+        let unavailable = ScheduledRunRecord(outcome: .sourceUnavailable, runID: "missing")
+        XCTAssertEqual(
+            AgentSchedulingPolicy.followUpDelay(after: unavailable, stability: stability),
+            nil
+        )
+    }
+
+    func testAgentRunRequestIsPrivateAndSourceBound() throws {
+        let workspace = try TemporaryWorkspace()
+        let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
+        try AgentRunRequestSignal.request(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            timestamp: Date(timeIntervalSince1970: 123)
+        )
+        let request = try JSONFile.load(
+            AgentRunRequest.self,
+            from: requestURL,
+            default: AgentRunRequest(sourceDirectory: "missing")
+        )
+        XCTAssertEqual(
+            request.sourceDirectory,
+            ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        XCTAssertEqual(request.timestamp, Date(timeIntervalSince1970: 123))
+        let attributes = try FileManager.default.attributesOfItem(atPath: requestURL.path)
+        let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+        XCTAssertEqual(permissions, 0o600)
+    }
+
+    func testAgentRunRequestRejectsSymlinkDestination() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let target = workspace.root.appendingPathComponent("outside-request.json")
+        try Data("unchanged".utf8).write(to: target)
+        let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
+        try FileManager.default.createSymbolicLink(at: requestURL, withDestinationURL: target)
+
+        XCTAssertThrowsError(try AgentRunRequestSignal.request(
+            at: requestURL,
+            sourceDirectory: workspace.source
+        ))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "unchanged")
+    }
+
+    func testAgentRunRequestValidationRejectsStaleOrDifferentSource() throws {
+        let workspace = try TemporaryWorkspace()
+        let requestURL = workspace.state.appendingPathComponent("agent-run-request.json")
+        let now = Date(timeIntervalSince1970: 1_000)
+        try AgentRunRequestSignal.request(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            timestamp: now
+        )
+        XCTAssertEqual(AgentRunRequestSignal.validation(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ), .valid)
+        XCTAssertFalse(AgentRunRequestSignal.isValid(
+            at: requestURL,
+            sourceDirectory: workspace.root,
+            now: now
+        ))
+        XCTAssertFalse(AgentRunRequestSignal.isValid(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now.addingTimeInterval(AgentRunRequestSignal.maximumAge + 1)
+        ))
+        XCTAssertTrue(AgentRunRequestSignal.consumeIfValid(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ))
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(requestURL))
+
+        try FileManager.default.createDirectory(at: workspace.state, withIntermediateDirectories: true)
+        let manualRequest = """
+        {
+          "request_id": "00000000-0000-4000-8000-000000000001",
+          "source_directory": "\(workspace.source.path)",
+          "timestamp": "1970-01-01T00:16:40Z",
+          "version": 1
+        }
+        """
+        try Data(manualRequest.utf8).write(to: requestURL)
+        XCTAssertEqual(AgentRunRequestSignal.validation(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ), .sourceMismatch)
+        let canonicalManualRequest = manualRequest.replacingOccurrences(
+            of: workspace.source.path,
+            with: ConfigurationIO.canonicalURL(workspace.source).path
+        )
+        try Data(canonicalManualRequest.utf8).write(to: requestURL)
+        XCTAssertEqual(AgentRunRequestSignal.validation(
+            at: requestURL,
+            sourceDirectory: workspace.source,
+            now: now
+        ), .valid)
+    }
+
+    func testCodeSigningRequirementMatchesOnlyCurrentSignedCode() throws {
+#if os(macOS)
+        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
+        let requirement = try CodeSigningRequirement.designatedRequirement(for: executableURL)
+        XCTAssertTrue(requirement.contains("identifier") || requirement.contains("cdhash"))
+        XCTAssertTrue(try CodeSigningRequirement.currentProcessSatisfies(requirement))
+        XCTAssertFalse(try CodeSigningRequirement.currentProcessSatisfies(
+            "identifier \"io.github.bugroo.tidydrop.invalid-peer\""
+        ))
+#else
+        throw XCTSkip("code-signing requirements are macOS-only")
+#endif
+    }
+
+    func testSecurityScopedBookmarkRoundTripBalancesAccess() throws {
+#if os(macOS)
+        let workspace = try TemporaryWorkspace()
+        let data = try SecurityScopedBookmark.create(for: workspace.source)
+        XCTAssertTrue(data.count <= SecurityScopedBookmark.maximumBytes)
+        let resolved = try SecurityScopedBookmark.resolve(data)
+        XCTAssertEqual(resolved.url, ConfigurationIO.canonicalURL(workspace.source))
+        XCTAssertFalse(resolved.isStale)
+        let accessedPath = try SecurityScopedBookmark.withAccess(to: data) { accessible in
+            let metadata = try FileSystemSecurity.freshPOSIXMetadata(of: accessible.url)
+            XCTAssertEqual(metadata.kind, .directory)
+            return accessible.url.path
+        }
+        XCTAssertEqual(accessedPath, ConfigurationIO.canonicalURL(workspace.source).path)
+#else
+        throw XCTSkip("security-scoped bookmarks are macOS-only")
+#endif
+    }
+
+    func testXPCMutualCodeSigningRequirementAcceptsAndRejects() throws {
+#if os(macOS)
+        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
+        let currentRequirement = try CodeSigningRequirement.designatedRequirement(for: executableURL)
+
+        func invoke(serverRequirement: String, clientRequirement: String) -> String? {
+            let listener = NSXPCListener.anonymous()
+            let delegate = SignedXPCProbeListenerDelegate(clientRequirement: clientRequirement)
+            listener.delegate = delegate
+            listener.resume()
+
+            let connection = NSXPCConnection(listenerEndpoint: listener.endpoint)
+            connection.remoteObjectInterface = NSXPCInterface(with: SignedXPCProbeProtocol.self)
+            connection.setCodeSigningRequirement(serverRequirement)
+            let semaphore = DispatchSemaphore(value: 0)
+            let resultLock = NSLock()
+            var result: String?
+            connection.invalidationHandler = { semaphore.signal() }
+            connection.interruptionHandler = { semaphore.signal() }
+            connection.resume()
+            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+                semaphore.signal()
+            } as? SignedXPCProbeProtocol
+            proxy?.ping { value in
+                resultLock.lock()
+                result = value
+                resultLock.unlock()
+                semaphore.signal()
+            }
+            _ = semaphore.wait(timeout: .now() + 2)
+            connection.invalidate()
+            listener.invalidate()
+            resultLock.lock()
+            defer { resultLock.unlock() }
+            return result
+        }
+
+        XCTAssertEqual(
+            invoke(serverRequirement: currentRequirement, clientRequirement: currentRequirement),
+            "tidydrop-xpc-ok"
+        )
+        XCTAssertEqual(
+            invoke(
+                serverRequirement: "identifier \"io.github.bugroo.tidydrop.invalid-server\"",
+                clientRequirement: currentRequirement
+            ),
+            nil
+        )
+        XCTAssertEqual(
+            invoke(
+                serverRequirement: currentRequirement,
+                clientRequirement: "identifier \"io.github.bugroo.tidydrop.invalid-client\""
+            ),
+            nil
+        )
+#else
+        throw XCTSkip("XPC signing requirements are macOS-only")
+#endif
+    }
+
 }
 
 
@@ -1765,9 +2257,26 @@ private let tests: [(String, () throws -> Void)] = [
     ("testConfigurationBoundsRuleCountsAndLengths", suite.testConfigurationBoundsRuleCountsAndLengths),
     ("testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions", suite.testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions),
     ("testScheduledExecutionWritesDryRunSuccessRecord", suite.testScheduledExecutionWritesDryRunSuccessRecord),
+    ("testAgentActivityDatabaseMigratesAndReadsNewestFirst", suite.testAgentActivityDatabaseMigratesAndReadsNewestFirst),
+    ("testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase", suite.testAgentActivityDatabaseReaderDoesNotCreateMissingDatabase),
+    ("testAgentActivityDatabaseRejectsSymlink", suite.testAgentActivityDatabaseRejectsSymlink),
+    ("testAgentActivityDatabaseRejectsSymlinkSidecar", suite.testAgentActivityDatabaseRejectsSymlinkSidecar),
     ("testBackgroundVerificationRequiresFreshMatchingSource", suite.testBackgroundVerificationRequiresFreshMatchingSource),
     ("testBackgroundVerificationHonorsModeFreshnessAndMoveSafety", suite.testBackgroundVerificationHonorsModeFreshnessAndMoveSafety),
     ("testScheduledExecutionUnavailableSourceFailsClosed", suite.testScheduledExecutionUnavailableSourceFailsClosed),
+    ("testWorkbenchAuditHistoryIsBoundedAndNewestFirst", suite.testWorkbenchAuditHistoryIsBoundedAndNewestFirst),
+    ("testWorkbenchAuditHistoryRejectsCorruptRecord", suite.testWorkbenchAuditHistoryRejectsCorruptRecord),
+    ("testWorkbenchTransactionHistorySortsAndDerivesUndoableState", suite.testWorkbenchTransactionHistorySortsAndDerivesUndoableState),
+    ("testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions", suite.testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions),
+    ("testWorkbenchRuleEditRejectsInvalidIndex", suite.testWorkbenchRuleEditRejectsInvalidIndex),
+    ("testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery", suite.testAgentSchedulingFiltersNestedEventsAndAcceptsRecovery),
+    ("testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded", suite.testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded),
+    ("testAgentRunRequestIsPrivateAndSourceBound", suite.testAgentRunRequestIsPrivateAndSourceBound),
+    ("testAgentRunRequestRejectsSymlinkDestination", suite.testAgentRunRequestRejectsSymlinkDestination),
+    ("testAgentRunRequestValidationRejectsStaleOrDifferentSource", suite.testAgentRunRequestValidationRejectsStaleOrDifferentSource),
+    ("testCodeSigningRequirementMatchesOnlyCurrentSignedCode", suite.testCodeSigningRequirementMatchesOnlyCurrentSignedCode),
+    ("testSecurityScopedBookmarkRoundTripBalancesAccess", suite.testSecurityScopedBookmarkRoundTripBalancesAccess),
+    ("testXPCMutualCodeSigningRequirementAcceptsAndRejects", suite.testXPCMutualCodeSigningRequirementAcceptsAndRejects),
 ]
 
 var passed = 0

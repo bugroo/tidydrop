@@ -5,16 +5,22 @@ TidyDrop — auditoría estática local
 <repository-root>/app/io.github.bugroo.tidydrop.agent.plist: OK
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v6.plist: OK
+<repository-root>/app/io.github.bugroo.tidydrop.agent.community.v7.plist: OK
+<repository-root>/app/TidyDrop.entitlements: OK
+<repository-root>/app/TidyDropAgent.entitlements: OK
 <repository-root>/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
+[OK] Versión e identidad comunitaria coherentes
 [OK] Sin APIs de red detectadas en Sources
 [OK] Sin utilidades de red ejecutadas por scripts
-[OK] Sin borrado en la carpeta activa; solo retención de logs/manifiestos propios
+[OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta
 [OK] Apply/undo con rename exclusivo y archivos propios abiertos con O_NOFOLLOW
 [OK] Sin ejecución de sudo
 [OK] Swift Package sin dependencias externas declaradas
+[OK] Índice SQLite derivado con escritor único, reader read-only y controles de symlink
 [OK] Self-tests ejecutables sin XCTest ni Xcode completo
 [OK] LaunchAgent sin logs stdout/stderr ilimitados
+[OK] Prototipos Sandbox mínimos y bloqueados fuera de releases
 [OK] Red limitada a notarización Apple durante release; runtime sin red
 Community Preview workflow: PASS (prerelease + checksum + provenance + revalidation)
 [OK] Actions fijadas; PR read-only y publicación comunitaria fail-closed
