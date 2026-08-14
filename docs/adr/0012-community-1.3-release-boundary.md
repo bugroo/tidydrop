@@ -1,6 +1,6 @@
 # ADR-0012: TidyDrop 1.3 Community release boundary
 
-- Status: Accepted; release candidate validated, publication pending
+- Status: Accepted, published, and independently revalidated
 - Date: 2026-08-14
 - Decision makers: project owner and Codex
 - Related: [ADR-0010](0010-community-1.2-release-boundary.md), [ADR-0011](0011-manual-update-center-and-recovery-boundary.md)
@@ -96,8 +96,29 @@ The 1.3.0 release-preparation tree passed the complete local gate on macOS on
 - zero personal-file moves and a dry-run result of zero moves and zero errors;
 - internal manifest verification covering 132 files.
 
-Publication and independent revalidation of the immutable public assets remain
-pending and are intentionally separate from this source-tree validation.
+## Published-release evidence
+
+The release workflow completed successfully as GitHub Actions run
+[`31835503865`](https://github.com/bugroo/tidydrop/actions/runs/31835503865).
+It published prerelease
+[`v1.3.0-community.1`](https://github.com/bugroo/tidydrop/releases/tag/v1.3.0-community.1)
+from merge commit `c6de5d3f07b0ddcd4aea34a00b86568e23a71e5d`.
+
+After publication, a separate local download of both public assets verified:
+
+- GitHub reports the release as published, prerelease, and immutable;
+- the checksum file validates the downloaded DMG;
+- DMG SHA-256 is
+  `e007e2ced311ce6490bff06e57afb94c89523bb4bd637d7a8249bb6b2c9e5e18`;
+- the mounted bundle passes its internal self-check and release verification;
+- the bundle contains native `arm64` and `x86_64` slices, version 1.3.0,
+  Community build 9, and the build-9 agent plus migration plists;
+- the ad hoc code signature verifies on disk;
+- GitHub artifact attestation binds that digest to the tagged commit, official
+  repository, pinned Community workflow, and GitHub-hosted runner.
+
+The non-sensitive command record is preserved in
+[`docs/evidence/public-release-1.3.0-community.1.txt`](../evidence/public-release-1.3.0-community.1.txt).
 
 ## Consequences
 

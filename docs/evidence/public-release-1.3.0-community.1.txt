@@ -1,0 +1,36 @@
+TidyDrop 1.3.0 Community Preview — public release verification
+Date: 2026-08-14
+
+Release
+  Tag: v1.3.0-community.1
+  Commit: c6de5d3f07b0ddcd4aea34a00b86568e23a71e5d
+  GitHub Actions run: 31835503865
+  Draft: false
+  Prerelease: true
+  Immutable: true
+
+Public assets
+  TidyDrop-1.3.0-community-preview-macos-universal.dmg
+    Size: 3054250 bytes
+    SHA-256: e007e2ced311ce6490bff06e57afb94c89523bb4bd637d7a8249bb6b2c9e5e18
+  TidyDrop-1.3.0-community-preview-macos-universal.sha256
+    Size: 119 bytes
+    SHA-256: 5c00da0823558a8c31a26ca123e9cf6aa7065194f5a62b9587141fe9efaf35f6
+
+Independent verification after publication
+  shasum -a 256 -c: PASS
+  scripts/verify-dmg.sh <downloaded DMG> community: PASS
+  TidyDrop bundle self-check: PASS
+  Release verification: PASS
+  Architectures: arm64, x86_64
+  Distribution channel: community
+  Community agent: io.github.bugroo.tidydrop.agent.community.v9
+  Ad hoc signature verification: PASS
+  gh attestation verify: PASS
+
+Attestation identity
+  Repository: https://github.com/bugroo/tidydrop
+  Workflow: .github/workflows/community-preview.yml
+  Ref: refs/tags/v1.3.0-community.1
+  Source digest: c6de5d3f07b0ddcd4aea34a00b86568e23a71e5d
+  Subject DMG digest: e007e2ced311ce6490bff06e57afb94c89523bb4bd637d7a8249bb6b2c9e5e18
