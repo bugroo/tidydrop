@@ -1,18 +1,11 @@
 [0/1] Planning build
 Building for production...
-[0/14] Write sources
-[5/14] Write swift-version--1AB21518FC5DEDBE.txt
-[7/15] Compiling TidyDropCore ActiveFolder.swift
-[8/19] Compiling TidyDropAgent EventDrivenAgent.swift
-[8/19] Write Objects.LinkFileList
-[9/19] Linking tidydrop-agent
-[11/19] Compiling TidyDrop main.swift
-[11/19] Write Objects.LinkFileList
-[12/19] Linking tidydrop
-[14/19] Compiling TidyDropApp TidyDropApplication.swift
-[14/19] Write Objects.LinkFileList
-[15/19] Linking TidyDropApp
-[17/19] Compiling TidyDropSelfTests main.swift
-[17/19] Write Objects.LinkFileList
-[18/19] Linking tidydrop-self-test
-Build complete! (10.45s)
+[0/7] Write sources
+[2/7] Write swift-version--1AB21518FC5DEDBE.txt
+[4/7] Compiling TidyDrop main.swift
+[4/8] Write Objects.LinkFileList
+[5/8] Linking tidydrop
+[7/8] Compiling TidyDropApp TidyDropApplication.swift
+[7/9] Write Objects.LinkFileList
+[8/9] Linking TidyDropApp
+Build complete! (2.82s)

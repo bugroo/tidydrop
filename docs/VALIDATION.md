@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 86, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 92, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -49,6 +49,12 @@ Gates obligatorios:
     ambos extremos de XPC, round trip y acceso balanceado de bookmarks, SDK
     macOS 13 en arm64/x86_64 y entitlements mínimos ad hoc sin activarlos en el
     bundle distribuido.
+25. El Update Center solo se invoca manualmente, usa un endpoint oficial fijo y
+    una sesión efímera acotada, no descarga artefactos y mantiene Core, CLI y
+    LaunchAgent sin APIs de red.
+26. El bundle Community build 9 contiene el agente actual y los plists de
+    migración 8, 7, 6 y 5; el registro anterior se retira antes de registrar el
+    nuevo y apply permanece desactivado hasta una verificación fresca.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 
