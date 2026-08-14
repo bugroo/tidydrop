@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ConfigurationIO {
-    private static let maximumConfigurationBytes: UInt64 = 4_194_304
+    public static let maximumConfigurationBytes: UInt64 = 4_194_304
 
     public static func defaultConfigPath(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         homeDirectory

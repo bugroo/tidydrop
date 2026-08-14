@@ -68,6 +68,7 @@ if ! /usr/bin/grep -Fq 'URLSessionConfiguration.ephemeral' \
 fi
 "$SCRIPT_DIR/test-update-transport-foundation.sh"
 "$SCRIPT_DIR/test-update-inspection-foundation.sh"
+"$SCRIPT_DIR/test-update-recovery-foundation.sh"
 printf '%s\n' '[OK] Red runtime limitada; transporte e inspección autenticados, aislados y no distribuidos'
 
 if /usr/bin/grep -RInE '^[[:space:]]*(curl|wget|nc|ncat|ssh|scp|sftp)[[:space:]]' \

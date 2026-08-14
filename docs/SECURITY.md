@@ -117,6 +117,16 @@ real usa exclusivamente `/private/tmp` y desmonta el DMG. El módulo no copia,
 instala, registra, abre o reemplaza aplicaciones; U5, la clave pública de
 producción y Developer ID siguen siendo gates obligatorios.
 
+[ADR-0019](adr/0019-private-recovery-state-snapshot.md) inicia U5 sin conceder
+autoridad de reemplazo: crea un workspace privado, copia la configuración con
+`apply_enabled=false`, realiza un backup online consistente del SQLite y valida
+schema, integridad y hashes antes de escribir el manifiesto final. Las rutas
+SQLite se resuelven desde descriptores y vuelven a comprobar device/inode para
+que la canonicalización `/private/tmp` → `/tmp` de macOS no debilite
+`SQLITE_OPEN_NOFOLLOW`. Tres fallos inyectados limpian solo el workspace exacto.
+La app instalada, el agente y las carpetas personales no participan; retención
+del bundle anterior, recovery externo y reemplazo atómico continúan bloqueados.
+
 ## Fuera de alcance
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.

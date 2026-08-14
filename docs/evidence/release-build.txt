@@ -1,8 +1,9 @@
 [0/1] Planning build
 Building for production...
-[0/6] Write sources
-[1/6] Write swift-version--1AB21518FC5DEDBE.txt
-[3/4] Compiling TidyDropSelfTests main.swift
-[3/5] Write Objects.LinkFileList
-[4/5] Linking tidydrop-self-test
-Build complete! (5.36s)
+[0/7] Write sources
+[2/7] Write swift-version--1AB21518FC5DEDBE.txt
+[4/5] Compiling TidyDropUpdateRecovery PrivateRecoveryStateSnapshot.swift
+[5/7] Compiling TidyDropSelfTests main.swift
+[5/7] Write Objects.LinkFileList
+[6/7] Linking tidydrop-self-test
+Build complete! (6.26s)

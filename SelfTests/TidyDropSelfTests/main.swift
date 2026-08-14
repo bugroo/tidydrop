@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import TidyDropCore
 @_spi(Testing) import TidyDropUpdateInspection
+@_spi(Testing) import TidyDropUpdateRecovery
 import TidyDropUpdateSecurity
 @_spi(Testing) import TidyDropUpdateTransport
 #if os(macOS)
@@ -3607,6 +3608,256 @@ private final class TidyDropCoreTests {
         }
     }
 
+    func testPrivateRecoverySnapshotPreservesStateAndForcesDryRunBackup() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let configURL = fixture.workspace.root.appendingPathComponent("config.json")
+        var configuration = try fixture.workspace.makeConfig().config
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configURL)
+
+        let resolved = try ConfigurationIO.load(from: configURL)
+        try AgentActivityDatabase.record(
+            ScheduledRunRecord(
+                timestamp: Date(timeIntervalSince1970: 1_786_640_001),
+                outcome: .success,
+                runID: "recovery-state-run",
+                mode: "apply",
+                scanned: 1,
+                planned: 1,
+                moved: 1,
+                deferred: 0,
+                skipped: 0,
+                errors: 0,
+                detail: nil,
+                sourceDirectory: fixture.workspace.source.path
+            ),
+            at: resolved.paths.activityDatabaseFile
+        )
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(
+                at: resolved.paths.activityDatabaseFile,
+                limit: 10
+            ).map(\.runID),
+            ["recovery-state-run"]
+        )
+
+        let recoveryParent = try privateRecoveryParent(fixture: fixture, name: "recovery")
+        let snapshot = try PrivateUpdateRecoverySnapshotBuilder.prepare(
+            configurationURL: configURL,
+            recoveryParent: recoveryParent,
+            currentVersion: "1.3.0-community.1",
+            authenticatedTarget: try fixture.authenticated()
+        )
+
+        XCTAssertTrue(try ConfigurationIO.load(from: configURL).config.automation.applyEnabled)
+        XCTAssertFalse(
+            try ConfigurationIO.load(from: snapshot.configurationBackupURL)
+                .config.automation.applyEnabled
+        )
+        XCTAssertFalse(snapshot.manifest.applyEnabled)
+        XCTAssertEqual(snapshot.manifest.configurationSchemaVersion, 1)
+        XCTAssertEqual(snapshot.manifest.activitySchemaVersion, AgentActivityDatabase.schemaVersion)
+        XCTAssertEqual(snapshot.manifest.configurationSHA256.count, 64)
+        XCTAssertEqual(snapshot.manifest.activitySHA256?.count, 64)
+        XCTAssertTrue(try FileSystemSecurity.pathEntryExists(snapshot.manifestURL))
+        guard let activityBackupURL = snapshot.activityBackupURL else {
+            throw NSError(domain: "TidyDropTests.RecoverySnapshot", code: 1)
+        }
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(at: activityBackupURL, limit: 10).map(\.runID),
+            ["recovery-state-run"]
+        )
+        for file in [snapshot.configurationBackupURL, snapshot.manifestURL] +
+            (snapshot.activityBackupURL.map { [$0] } ?? []) {
+            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+            XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+        }
+    }
+
+    func testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace() throws {
+        for fault in [
+            UpdateRecoverySnapshotFault.afterConfigurationBackup,
+            .afterActivityBackup,
+            .beforeManifest
+        ] {
+            let fixture = try SignedReleaseManifestFixture()
+            let configURL = fixture.workspace.root.appendingPathComponent("config.json")
+            try ConfigurationIO.save(try fixture.workspace.makeConfig().config, to: configURL)
+            if fault != .afterConfigurationBackup {
+                let resolved = try ConfigurationIO.load(from: configURL)
+                try AgentActivityDatabase.record(
+                    ScheduledRunRecord(
+                        outcome: .success,
+                        runID: "fault-backup-run",
+                        mode: "dry-run"
+                    ),
+                    at: resolved.paths.activityDatabaseFile
+                )
+            }
+            let recoveryParent = try privateRecoveryParent(
+                fixture: fixture,
+                name: "recovery-\(UUID().uuidString)"
+            )
+            XCTAssertThrowsError(
+                try PrivateUpdateRecoverySnapshotBuilder.prepare(
+                    configurationURL: configURL,
+                    recoveryParent: recoveryParent,
+                    currentVersion: "1.3.0-community.1",
+                    authenticatedTarget: try fixture.authenticated(),
+                    fault: fault
+                )
+            )
+            XCTAssertEqual(
+                try FileManager.default.contentsOfDirectory(
+                    at: recoveryParent,
+                    includingPropertiesForKeys: nil
+                ).count,
+                0
+            )
+        }
+    }
+
+    func testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let configURL = fixture.workspace.root.appendingPathComponent("config.json")
+        try ConfigurationIO.save(try fixture.workspace.makeConfig().config, to: configURL)
+        let authenticated = try fixture.authenticated()
+
+        let realParent = try privateRecoveryParent(fixture: fixture, name: "real-recovery")
+        let linkedParent = fixture.workspace.root.appendingPathComponent("linked-recovery")
+        try FileManager.default.createSymbolicLink(at: linkedParent, withDestinationURL: realParent)
+        XCTAssertThrowsError(
+            try PrivateUpdateRecoverySnapshotBuilder.prepare(
+                configurationURL: configURL,
+                recoveryParent: linkedParent,
+                currentVersion: "1.3.0-community.1",
+                authenticatedTarget: authenticated
+            )
+        )
+
+        let broadParent = fixture.workspace.root.appendingPathComponent(
+            "broad-recovery",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: broadParent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: broadParent.path
+        )
+        XCTAssertThrowsError(
+            try PrivateUpdateRecoverySnapshotBuilder.prepare(
+                configurationURL: configURL,
+                recoveryParent: broadParent,
+                currentVersion: "1.3.0-community.1",
+                authenticatedTarget: authenticated
+            )
+        )
+        XCTAssertEqual(
+            (try FileManager.default.attributesOfItem(atPath: broadParent.path)[.posixPermissions]
+                as? NSNumber)?.intValue,
+            0o755
+        )
+
+        let missingParent = fixture.workspace.root.appendingPathComponent(
+            "missing-recovery",
+            isDirectory: true
+        )
+        XCTAssertThrowsError(
+            try PrivateUpdateRecoverySnapshotBuilder.prepare(
+                configurationURL: configURL,
+                recoveryParent: missingParent,
+                currentVersion: "1.3.0-community.1",
+                authenticatedTarget: authenticated
+            )
+        )
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(missingParent))
+
+        let resolved = try ConfigurationIO.load(from: configURL)
+        try FileManager.default.createDirectory(
+            at: resolved.paths.stateDirectory,
+            withIntermediateDirectories: true
+        )
+        let outsideDatabase = fixture.workspace.root.appendingPathComponent("outside.sqlite3")
+        try Data("not-a-database".utf8).write(to: outsideDatabase)
+        try FileManager.default.createSymbolicLink(
+            at: resolved.paths.activityDatabaseFile,
+            withDestinationURL: outsideDatabase
+        )
+        let safeParent = try privateRecoveryParent(fixture: fixture, name: "safe-recovery")
+        XCTAssertThrowsError(
+            try PrivateUpdateRecoverySnapshotBuilder.prepare(
+                configurationURL: configURL,
+                recoveryParent: safeParent,
+                currentVersion: "1.3.0-community.1",
+                authenticatedTarget: authenticated
+            )
+        )
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(
+                at: safeParent,
+                includingPropertiesForKeys: nil
+            ).count,
+            0
+        )
+    }
+
+    func testAgentActivityDatabaseBackupHandlesPhysicalTmpPath() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        guard fixture.workspace.root.path.hasPrefix("/private/tmp/") else {
+            throw XCTSkip("physical /private/tmp path is unavailable")
+        }
+        let physicalDatabase = fixture.workspace.root.appendingPathComponent(
+            "physical-state/activity.sqlite3"
+        )
+        try AgentActivityDatabase.record(
+            ScheduledRunRecord(outcome: .success, runID: "physical-path-run"),
+            at: physicalDatabase
+        )
+        let relativeRoot = String(
+            fixture.workspace.root.path.dropFirst("/private/tmp/".count)
+        )
+        let logicalDatabase = URL(
+            fileURLWithPath: "/tmp/\(relativeRoot)/physical-state/activity.sqlite3"
+        )
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(at: logicalDatabase, limit: 10).map(\.runID),
+            ["physical-path-run"]
+        )
+
+        let backupDirectory = fixture.workspace.root.appendingPathComponent(
+            "physical-backup",
+            isDirectory: true
+        )
+        try FileSystemSecurity.ensurePrivateDirectory(backupDirectory)
+        let logicalBackup = URL(
+            fileURLWithPath: "/tmp/\(relativeRoot)/physical-backup/activity.sqlite3"
+        )
+        XCTAssertEqual(
+            try AgentActivityDatabase.createVerifiedBackup(
+                from: logicalDatabase,
+                to: logicalBackup
+            ),
+            AgentActivityDatabase.schemaVersion
+        )
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(at: logicalBackup, limit: 10).map(\.runID),
+            ["physical-path-run"]
+        )
+    }
+
+    private func privateRecoveryParent(
+        fixture: SignedReleaseManifestFixture,
+        name: String
+    ) throws -> URL {
+        let parent = fixture.workspace.root.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        return parent
+    }
+
     private func privateTransportParent(
         fixture: SignedReleaseManifestFixture,
         name: String
@@ -3765,6 +4016,10 @@ private let tests: [(String, () throws -> Void)] = [
     ("testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp", suite.testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp),
     ("testMountedUpdateBundleInspectionRejectsUnexpectedRootAndBundleSymlink", suite.testMountedUpdateBundleInspectionRejectsUnexpectedRootAndBundleSymlink),
     ("testMountedUpdateBundleInspectionRejectsWrongIdentityThinBinaryAndTampering", suite.testMountedUpdateBundleInspectionRejectsWrongIdentityThinBinaryAndTampering),
+    ("testPrivateRecoverySnapshotPreservesStateAndForcesDryRunBackup", suite.testPrivateRecoverySnapshotPreservesStateAndForcesDryRunBackup),
+    ("testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace", suite.testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace),
+    ("testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase", suite.testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase),
+    ("testAgentActivityDatabaseBackupHandlesPhysicalTmpPath", suite.testAgentActivityDatabaseBackupHandlesPhysicalTmpPath),
 ]
 
 private let selectedTests: [(String, () throws -> Void)]

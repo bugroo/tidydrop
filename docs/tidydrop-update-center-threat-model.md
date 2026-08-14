@@ -202,7 +202,7 @@ the updater.
 | Immutable future releases | Release operation | Repository setting and release checklist |
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
 | Private no-follow staging, transport and inspection | 2 | Descriptor-bound writer, fixed-origin ephemeral streaming and authenticated read-only DMG/bundle inspection implemented outside shipping targets; production key/signing identity and installation remain gated |
-| Prior verified bundle and state backup | 2 | Fault-injection integration tests |
+| Prior verified bundle and state backup | 2 | Private dry-run configuration and schema-checked SQLite snapshot implemented; prior bundle retention still gated |
 | Out-of-process recovery | 2 | Kill/crash/power-loss tests |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
 
@@ -270,3 +270,11 @@ Universal 2 app/CLI/agent binaries and strict nested all-architecture code
 signature validation are mandatory. A real temporary DMG and negative identity,
 symlink, thin-binary and tamper cases pass. No install/replacement/recovery API
 exists, so R7 and R8 remain open.
+
+ADR-0019 starts the non-shipping U5 state boundary. It creates a private
+manifest-last snapshot containing a forced-dry-run configuration and an online
+SQLite backup validated for schema, integrity and digest. Three injected failure
+points clean the exact unpublished workspace, and symlink roots/databases are
+rejected. Descriptor-derived physical paths preserve `SQLITE_OPEN_NOFOLLOW`
+when macOS canonicalizes `/private/tmp` as `/tmp`. It does not retain or replace
+an app bundle and cannot execute rollback, so R7 and R8 remain open.

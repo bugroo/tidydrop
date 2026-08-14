@@ -97,3 +97,29 @@ a whole-battery-cycle measurement or a physical-Intel energy certification.
   before atomic rename.
 - Automatic update download, installation and rollback remain deliberately
   disabled.
+
+## Follow-up window and runtime check — 2026-08-15
+
+The owner reported a brief TidyDrop window appearing during ongoing validation.
+The installed runtime was inspected without relaunching, closing, reconfiguring
+or updating it:
+
+- Service Management still points the background job at
+  `Contents/Resources/tidydrop-agent`, not the AppKit executable;
+- the agent process had one executable launch, two recorded service starts,
+  `0.0%` CPU and about 7.3 MiB resident memory;
+- the graphical `TidyDropApp` had one launch, had remained open for roughly
+  three hours, and sampled at `0.0%` CPU with about 42 MiB resident memory;
+- the last scheduled record remained a successful apply-mode pass over
+  `~/Downloads`, with 12 scanned, zero planned, zero moved and zero errors;
+- no `agent-errors.log` existed, which is the expected no-error state;
+- the LaunchAgent did not show repeated GUI launches or any AppKit program path.
+
+The reproducible visual cause in the repository was the former automated folder
+chooser smoke test, which opened `NSOpenPanel` for 150 ms. ADR-0016 and merged PR
+#23 made all automatic gates nonvisual; the real panel now requires an explicit
+opt-in environment flag. Evidence does not support the LaunchAgent opening a
+window for each FSEvents event. The installed GUI simply remains open until its
+last window is closed, which explains why it is present but not the prior test
+flash. Future reports should be correlated with a timestamp before changing the
+runtime; no personal file or mode change was needed for this follow-up.

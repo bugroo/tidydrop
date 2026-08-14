@@ -140,14 +140,15 @@ Dependencies: Apple Developer Program identity, signing-key custody, U6.
 | U2 | Complete | Keep static/network gates green |
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
 | U4 | Technical foundation complete; activation blocked | Fixed-origin transport, private descriptor-bound staging, authenticated length/digest, cancellation/disk-full cleanup and read-only DMG/bundle inspection pass with ephemeral test keys. Product activation still depends on U3 key custody and U7's stable Developer ID requirement |
-| U5 | Not started | External recovery process, state compatibility, atomic replacement and interruption/reboot fault injection |
+| U5 | 2 complete, 2 partial, 2 pending | Private dry-run configuration backup and schema-checked SQLite online backup pass. App-bundle retention, external recovery execution, atomic replacement, full kill/reboot fault injection, and proven non-replay rollback remain |
 | U6 | 5 of 6 behaviors demonstrated manually; updater orchestration not built | Build 10 demonstrated old-agent removal, exact-agent registration, stale-agent absence, independent CLI/agent access, ready zero-move dry-run and owner-approved apply restoration. Integration with U5 recovery and in-product post-update confirmation remains unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
 
 ADR-0013 deliberately stops before production key creation and shipping-target
-activation. The next autonomous code task that does not require signing authority
-is U4's private staging design and fault-test harness. Production signing cannot
-be completed safely without an owner-approved custody procedure.
+activation. Production signing cannot be completed safely without an
+owner-approved custody procedure. The next autonomous task that does not require
+that authority is U5 retention of the verified current bundle plus an
+interruption-safe external recovery journal; replacement remains non-shipping.
 
 The build-10 installed audit is recorded in
 [`RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md`](RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md).
@@ -159,3 +160,11 @@ authenticated digest before finalization. ADR-0018 revalidates that digest,
 mounts a real test DMG read-only, bounds the filesystem tree, verifies exact
 bundle identity, all three Universal 2 executables and the complete code
 signature. None of these ADRs authorizes product activation or app replacement.
+
+ADR-0019 begins U5 with a private recovery state snapshot. It writes a validated
+configuration backup with apply disabled, creates a consistent SQLite online
+backup, records digests and schemas in a manifest written last, and cleans exact
+workspaces at three injected failure boundaries. It also resolves SQLite paths
+from file descriptors so macOS `/tmp` canonicalization cannot defeat the
+no-follow policy. Current-bundle retention, an external recovery executable,
+atomic replacement and kill/reboot recovery are still unimplemented.
