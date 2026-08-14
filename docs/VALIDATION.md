@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 85, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 86, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.

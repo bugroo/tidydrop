@@ -26,6 +26,11 @@ queue when idle.
 
 - File events are requested, but every signal is treated only as a reason to
   run the existing engine.
+- The stream uses the default deferred-delivery behavior with a two-second
+  latency. `kFSEventStreamCreateFlagNoDefer` is deliberately excluded because
+  Apple documents it for interactive clients; deferred delivery is more
+  appropriate for background, daemon, and batch processing and permits better
+  temporal coalescing.
 - Repeated events are debounced into one run.
 - Only source-root or direct-child changes are relevant because TidyDrop does
   not recurse into subdirectories.
@@ -104,3 +109,6 @@ candidate gate, and physical Intel measurement remains external.
 - [File System Events](https://developer.apple.com/documentation/coreservices/file_system_events)
 - [Using the File System Events API](https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/UsingtheFSEventsFramework/UsingtheFSEventsFramework.html)
 - [FSEventStreamSetDispatchQueue](https://developer.apple.com/documentation/coreservices/fseventstreamsetdispatchqueue)
+- [FSEventStreamCreate latency](https://developer.apple.com/documentation/coreservices/1443980-fseventstreamcreate)
+- [`kFSEventStreamCreateFlagNoDefer`](https://developer.apple.com/documentation/coreservices/kfseventstreamcreateflagnodefer)
+- [Energy Efficiency Guide: Minimize Timer Usage](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/Timers.html)

@@ -1,6 +1,9 @@
 import Foundation
 
 public enum AgentSchedulingPolicy {
+    /// TidyDrop is a background batch consumer, so FSEvents should coalesce
+    /// short bursts before delivery instead of waking immediately.
+    public static let eventStreamLatencySeconds: TimeInterval = 2
     public static let eventDebounceSeconds: TimeInterval = 2
     public static let lockRetrySeconds: TimeInterval = 10
     public static let transientErrorRetrySeconds: TimeInterval = 60

@@ -19,10 +19,10 @@ Release these completed features as TidyDrop 1.2.0 Community Preview while
 keeping App Sandbox and the prototype entitlements disabled in distributed
 bundles.
 
-The Community agent label advances to
-`io.github.bugroo.tidydrop.agent.community.v7`. The app includes migration
-metadata for build 6 and build 5, unregisters an enabled older Community agent
-before registering build 7, and returns automatic moving to dry-run whenever
+The current Community agent label is
+`io.github.bugroo.tidydrop.agent.community.v8`. The app includes migration
+metadata for builds 7, 6, and 5, unregisters an enabled older Community agent
+before registering build 8, and returns automatic moving to dry-run whenever
 the installed build identity changes.
 
 The Community release remains:
@@ -53,7 +53,7 @@ continue using the already verified non-Sandbox security boundary.
 ## Consequences
 
 - Users gain the native workbench and lower-wakeup FSEvents agent now.
-- Existing Community users may see macOS request approval for the new build-7
+- Existing Community users may see macOS request approval for the new build-8
   background item or Files & Folders access again.
 - Upgrading never restores apply automatically; the user must review the new
   preview and explicitly enable automatic organization.

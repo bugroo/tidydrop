@@ -18,6 +18,7 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist"
     plutil -lint "$PROJECT_ROOT/app/TidyDrop.entitlements"
     plutil -lint "$PROJECT_ROOT/app/TidyDropAgent.entitlements"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
@@ -29,8 +30,8 @@ if command -v plutil >/dev/null 2>&1; then
         printf '%s\n' '[FALLO] VERSION, plists, CLI y app no comparten la misma versión.' >&2
         exit 1
     }
-    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist")" = 'io.github.bugroo.tidydrop.agent.community.v7' ] || {
-        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 7.' >&2
+    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist")" = 'io.github.bugroo.tidydrop.agent.community.v8' ] || {
+        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 8.' >&2
         exit 1
     }
     printf '%s\n' '[OK] Plists válidos'
@@ -153,11 +154,21 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist" \
+    "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist" \
     "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1
 fi
 printf '%s\n' '[OK] LaunchAgent sin logs stdout/stderr ilimitados'
+
+if /usr/bin/grep -q 'kFSEventStreamCreateFlagNoDefer' \
+    "$PROJECT_ROOT/Sources/TidyDropAgent/FSEventsWatcher.swift" \
+   || ! /usr/bin/grep -q 'AgentSchedulingPolicy.eventStreamLatencySeconds' \
+    "$PROJECT_ROOT/Sources/TidyDropAgent/FSEventsWatcher.swift"; then
+    printf '%s\n' '[FALLO] FSEvents debe agrupar eventos como agente de fondo.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] FSEvents usa entrega agrupada sin wakeup inmediato NoDefer'
 
 if /usr/bin/grep -q -- '--entitlements' "$PROJECT_ROOT/scripts/sign-app.sh"; then
     printf '%s\n' '[FALLO] Sandbox no puede entrar en releases antes del gate integrado.' >&2
