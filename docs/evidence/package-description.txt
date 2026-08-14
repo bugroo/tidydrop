@@ -70,6 +70,7 @@ Targets:
         Stability.swift
         StewardEngine.swift
         Transactions.swift
+        WorkbenchData.swift
     Product memberships:
         TidyDropCore
         TidyDropApp
@@ -83,7 +84,8 @@ Targets:
     Module type: SwiftTarget
     Path: Sources/TidyDropApp
     Sources:
-        main.swift
+        TidyDropApplication.swift
+        WorkbenchViewController.swift
     Target dependencies:
         TidyDropCore
     Product memberships:

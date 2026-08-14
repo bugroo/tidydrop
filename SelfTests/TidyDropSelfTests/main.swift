@@ -1695,6 +1695,124 @@ private final class TidyDropCoreTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: unavailable.path))
     }
 
+    func testWorkbenchAuditHistoryIsBoundedAndNewestFirst() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.logs, withIntermediateDirectories: true)
+        let auditURL = workspace.logs.appendingPathComponent("audit.jsonl")
+        let logger = try AuditLogger(
+            humanLogURL: workspace.logs.appendingPathComponent("steward.log"),
+            auditLogURL: auditURL,
+            maxFileBytes: 1_048_576,
+            rotatedFileCount: 1
+        )
+        for index in 1...4 {
+            try logger.record(AuditEvent(
+                timestamp: Date(timeIntervalSince1970: TimeInterval(index)),
+                runID: "run-\(index)",
+                level: "info",
+                mode: "dry-run",
+                action: "would_move"
+            ))
+        }
+
+        let events = try WorkbenchData.auditEvents(
+            at: auditURL,
+            rotatedFileCount: 1,
+            maximumFileBytes: 1_048_576,
+            limit: 2
+        )
+        XCTAssertEqual(events.map(\.runID), ["run-4", "run-3"])
+    }
+
+    func testWorkbenchAuditHistoryRejectsCorruptRecord() throws {
+        let workspace = try TemporaryWorkspace()
+        try FileManager.default.createDirectory(at: workspace.logs, withIntermediateDirectories: true)
+        let auditURL = workspace.logs.appendingPathComponent("audit.jsonl")
+        try Data("{not-json}\n".utf8).write(to: auditURL)
+
+        XCTAssertThrowsError(try WorkbenchData.auditEvents(
+            at: auditURL,
+            rotatedFileCount: 0,
+            maximumFileBytes: 1_048_576,
+            limit: 10
+        ))
+    }
+
+    func testWorkbenchTransactionHistorySortsAndDerivesUndoableState() throws {
+        let workspace = try TemporaryWorkspace()
+        let resolved = try workspace.makeConfig()
+        let store = try TransactionStore(directory: resolved.paths.transactionsDirectory)
+        let old = TransactionManifest(
+            runID: "old",
+            mode: .apply,
+            status: .completed,
+            startedAt: Date(timeIntervalSince1970: 1),
+            moves: [MoveRecord(
+                source: workspace.source.appendingPathComponent("a.pdf").path,
+                destination: workspace.source.appendingPathComponent("Documentos/a.pdf").path,
+                category: "Documentos",
+                reason: "extension:.pdf",
+                executionStatus: .completed
+            )]
+        )
+        let current = TransactionManifest(
+            runID: "current",
+            mode: .apply,
+            status: .fullyUndone,
+            startedAt: Date(timeIntervalSince1970: 2),
+            moves: []
+        )
+        try store.save(old)
+        try store.save(current)
+
+        let history = try store.manifests(limit: 10)
+        XCTAssertEqual(history.map(\.runID), ["current", "old"])
+        XCTAssertFalse(history[0].containsUndoableMove)
+        XCTAssertTrue(history[1].containsUndoableMove)
+    }
+
+    func testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions() throws {
+        let workspace = try TemporaryWorkspace()
+        let configURL = workspace.root.appendingPathComponent("config.json")
+        var configuration = try workspace.makeConfig().config
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configURL)
+        let resolved = try ConfigurationIO.load(from: configURL)
+        try FileManager.default.createDirectory(
+            at: resolved.paths.transactionsDirectory,
+            withIntermediateDirectories: true
+        )
+        let marker = resolved.paths.transactionsDirectory.appendingPathComponent("preserve.marker")
+        try Data("keep".utf8).write(to: marker)
+
+        var edited = configuration.classification.categories[0]
+        edited.extensions.append("workbench-test")
+        let updated = try WorkbenchData.replaceCategory(
+            at: 0,
+            with: edited,
+            configurationURL: configURL,
+            homeDirectory: workspace.root
+        )
+
+        XCTAssertFalse(updated.config.automation.applyEnabled)
+        XCTAssertTrue(updated.config.classification.categories[0].extensions.contains("workbench-test"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    func testWorkbenchRuleEditRejectsInvalidIndex() throws {
+        let workspace = try TemporaryWorkspace()
+        let configURL = workspace.root.appendingPathComponent("config.json")
+        let configuration = try workspace.makeConfig().config
+        try ConfigurationIO.save(configuration, to: configURL)
+
+        XCTAssertThrowsError(try WorkbenchData.replaceCategory(
+            at: configuration.classification.categories.count,
+            with: configuration.classification.categories[0],
+            configurationURL: configURL,
+            homeDirectory: workspace.root
+        ))
+    }
+
 }
 
 
@@ -1768,6 +1886,11 @@ private let tests: [(String, () throws -> Void)] = [
     ("testBackgroundVerificationRequiresFreshMatchingSource", suite.testBackgroundVerificationRequiresFreshMatchingSource),
     ("testBackgroundVerificationHonorsModeFreshnessAndMoveSafety", suite.testBackgroundVerificationHonorsModeFreshnessAndMoveSafety),
     ("testScheduledExecutionUnavailableSourceFailsClosed", suite.testScheduledExecutionUnavailableSourceFailsClosed),
+    ("testWorkbenchAuditHistoryIsBoundedAndNewestFirst", suite.testWorkbenchAuditHistoryIsBoundedAndNewestFirst),
+    ("testWorkbenchAuditHistoryRejectsCorruptRecord", suite.testWorkbenchAuditHistoryRejectsCorruptRecord),
+    ("testWorkbenchTransactionHistorySortsAndDerivesUndoableState", suite.testWorkbenchTransactionHistorySortsAndDerivesUndoableState),
+    ("testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions", suite.testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions),
+    ("testWorkbenchRuleEditRejectsInvalidIndex", suite.testWorkbenchRuleEditRejectsInvalidIndex),
 ]
 
 var passed = 0

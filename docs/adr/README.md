@@ -18,3 +18,4 @@ Las decisiones que cambian arquitectura, seguridad, distribución, permisos o ci
 | [ADR-0003](0003-end-user-installation-experience.md) | Aceptado; implementación pendiente | DMG notarizado e incorporación nativa sin shell para usuarios finales |
 | [ADR-0004](0004-community-preview-without-developer-id.md) | Aceptado | Prerelease gratuita, ad hoc y verificable mientras no exista Developer ID |
 | [ADR-0005](0005-source-bound-relaunch-verification-and-setup-ui.md) | Aceptado e implementado en 1.1.2 | Verificación al reabrir vinculada a la carpeta y UI de configuración simplificada |
+| [ADR-0006](0006-appkit-workbench-information-architecture.md) | Accepted for 1.2 implementation | Native workbench for active folder, activity, rules, history, and conservative undo |

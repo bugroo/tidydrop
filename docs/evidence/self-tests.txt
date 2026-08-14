@@ -67,4 +67,9 @@ PASS  testScheduledExecutionWritesDryRunSuccessRecord
 PASS  testBackgroundVerificationRequiresFreshMatchingSource
 PASS  testBackgroundVerificationHonorsModeFreshnessAndMoveSafety
 PASS  testScheduledExecutionUnavailableSourceFailsClosed
-Resultado: 68 PASS, 0 SKIP, 0 FAIL; total=68
+PASS  testWorkbenchAuditHistoryIsBoundedAndNewestFirst
+PASS  testWorkbenchAuditHistoryRejectsCorruptRecord
+PASS  testWorkbenchTransactionHistorySortsAndDerivesUndoableState
+PASS  testWorkbenchRuleEditReturnsToDryRunAndPreservesTransactions
+PASS  testWorkbenchRuleEditRejectsInvalidIndex
+Resultado: 73 PASS, 0 SKIP, 0 FAIL; total=73

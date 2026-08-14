@@ -87,6 +87,11 @@ private struct TidyDropApplication {
             exit(agentControl(command: command))
         }
         let application = NSApplication.shared
+        switch ProcessInfo.processInfo.environment["TIDYDROP_TEST_APPEARANCE"] {
+        case "light": application.appearance = NSAppearance(named: .aqua)
+        case "dark": application.appearance = NSAppearance(named: .darkAqua)
+        default: break
+        }
         let delegate = ApplicationDelegate()
         application.delegate = delegate
         application.setActivationPolicy(.regular)
@@ -166,7 +171,12 @@ private struct TidyDropApplication {
 }
 
 @MainActor
-private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
+private final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
+    private enum ToolbarIdentifier {
+        static let chooseFolder = NSToolbarItem.Identifier("TidyDropChooseFolder")
+        static let preview = NSToolbarItem.Identifier("TidyDropPreview")
+        static let refresh = NSToolbarItem.Identifier("TidyDropRefresh")
+    }
     private let configurationURL = applicationConfigurationURL()
     private let service = SMAppService.agent(plistName: ProductIdentity.agentPlist)
     private var window: NSWindow?
@@ -188,10 +198,13 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     private var verificationKickstarted = false
     private var backgroundVerified = false
     private var previewRunning = false
+    private var undoRunning = false
+    private var workbenchController: WorkbenchViewController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
             try prepareConfigurationForCurrentVersion()
+            buildMainMenu()
             buildWindow()
             refreshStatus()
             window?.makeKeyAndOrderFront(nil)
@@ -236,14 +249,15 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
 
     private func buildWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 680, height: 540),
+            contentRect: NSRect(x: 0, y: 0, width: 1_080, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "TidyDrop"
-        window.minSize = NSSize(width: 620, height: 500)
+        window.minSize = NSSize(width: 900, height: 560)
         window.tabbingMode = .disallowed
+        window.toolbarStyle = .unified
         window.center()
         window.isReleasedWhenClosed = false
 
@@ -285,7 +299,7 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         chooseButton.toolTip = "Choose one folder to organize; changing it always returns to preview mode"
         previewButton = actionButton("Run Safe Preview", action: #selector(runPreview))
         previewButton.keyEquivalent = "r"
-        previewButton.keyEquivalentModifierMask = [.command]
+        previewButton.keyEquivalentModifierMask = [.command, .shift]
         previewButton.toolTip = "Show what TidyDrop would do without moving anything"
         backgroundButton = actionButton("Enable Background Organization", action: #selector(handleBackgroundAgent))
         automationButton = actionButton("Enable Automatic Organization", action: #selector(toggleAutomation))
@@ -332,14 +346,13 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         stack.spacing = 14
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        let content = NSView()
-        content.addSubview(stack)
-        window.contentView = content
+        let activeFolderContent = NSView()
+        activeFolderContent.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 28),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -28),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 26),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -24),
+            stack.leadingAnchor.constraint(equalTo: activeFolderContent.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: activeFolderContent.trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: activeFolderContent.topAnchor, constant: 8),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: activeFolderContent.bottomAnchor, constant: -12),
             introduction.widthAnchor.constraint(equalTo: stack.widthAnchor),
             folderRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             serviceRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
@@ -353,6 +366,145 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         ])
         communityWarning?.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         self.window = window
+        let workbench = WorkbenchViewController(
+            configurationURL: configurationURL,
+            activeFolderView: activeFolderContent,
+            actions: WorkbenchActions(
+                editRule: { [weak self] index in self?.editRule(at: index) },
+                previewUndo: { [weak self] in self?.runUndo(mode: .preview) },
+                applyUndo: { [weak self] in self?.confirmAndApplyUndo() },
+                refresh: { [weak self] in self?.refreshWorkbench() }
+            )
+        )
+        self.workbenchController = workbench
+        window.contentViewController = workbench
+        let toolbar = NSToolbar(identifier: "TidyDropWorkbenchToolbar")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconAndLabel
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+    }
+
+    private func buildMainMenu() {
+        let mainMenu = NSMenu()
+
+        let applicationItem = NSMenuItem()
+        let applicationMenu = NSMenu()
+        applicationMenu.addItem(withTitle: "About TidyDrop", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        applicationMenu.addItem(.separator())
+        applicationMenu.addItem(withTitle: "Quit TidyDrop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        applicationItem.submenu = applicationMenu
+        mainMenu.addItem(applicationItem)
+
+        let fileItem = NSMenuItem()
+        fileItem.title = "File"
+        let fileMenu = NSMenu(title: "File")
+        let chooseFolderItem = fileMenu.addItem(withTitle: "Choose Folder…", action: #selector(chooseFolder), keyEquivalent: "o")
+        chooseFolderItem.target = self
+        let refreshItem = fileMenu.addItem(withTitle: "Refresh", action: #selector(refreshWorkbenchAction), keyEquivalent: "r")
+        refreshItem.target = self
+        fileItem.submenu = fileMenu
+        mainMenu.addItem(fileItem)
+
+        let actionItem = NSMenuItem()
+        actionItem.title = "Actions"
+        let actionMenu = NSMenu(title: "Actions")
+        let previewItem = NSMenuItem(title: "Run Safe Preview", action: #selector(runPreview), keyEquivalent: "r")
+        previewItem.keyEquivalentModifierMask = [.command, .shift]
+        previewItem.target = self
+        actionMenu.addItem(previewItem)
+        actionItem.submenu = actionMenu
+        mainMenu.addItem(actionItem)
+
+        let viewItem = NSMenuItem()
+        viewItem.title = "View"
+        let viewMenu = NSMenu(title: "View")
+        let sections: [(String, Selector, String)] = [
+            ("Active Folder", #selector(showActiveFolder), "1"),
+            ("Activity", #selector(showActivity), "2"),
+            ("Rules", #selector(showRules), "3"),
+            ("History", #selector(showHistory), "4")
+        ]
+        for (title, action, key) in sections {
+            let sectionItem = viewMenu.addItem(withTitle: title, action: action, keyEquivalent: key)
+            sectionItem.target = self
+        }
+        viewItem.submenu = viewMenu
+        mainMenu.addItem(viewItem)
+
+        NSApp.mainMenu = mainMenu
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [
+            ToolbarIdentifier.chooseFolder,
+            ToolbarIdentifier.preview,
+            .flexibleSpace,
+            ToolbarIdentifier.refresh
+        ]
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [
+            ToolbarIdentifier.chooseFolder,
+            ToolbarIdentifier.preview,
+            .flexibleSpace,
+            ToolbarIdentifier.refresh
+        ]
+    }
+
+    func toolbar(
+        _ toolbar: NSToolbar,
+        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+        switch itemIdentifier {
+        case ToolbarIdentifier.chooseFolder:
+            item.label = "Choose Folder"
+            item.paletteLabel = item.label
+            item.toolTip = "Choose the single folder TidyDrop organizes"
+            item.image = NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: "Choose folder")
+            item.target = self
+            item.action = #selector(chooseFolder)
+        case ToolbarIdentifier.preview:
+            item.label = "Preview"
+            item.paletteLabel = item.label
+            item.toolTip = "Run a safe preview without moving files"
+            item.image = NSImage(systemSymbolName: "eye", accessibilityDescription: "Run safe preview")
+            item.target = self
+            item.action = #selector(runPreview)
+        case ToolbarIdentifier.refresh:
+            item.label = "Refresh"
+            item.paletteLabel = item.label
+            item.toolTip = "Reload activity, rules, history, and current status"
+            item.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh")
+            item.target = self
+            item.action = #selector(refreshWorkbenchAction)
+        default:
+            return nil
+        }
+        return item
+    }
+
+    @objc private func refreshWorkbenchAction() {
+        refreshWorkbench()
+    }
+
+    @objc private func showActiveFolder() {
+        workbenchController?.select(.activeFolder)
+    }
+
+    @objc private func showActivity() {
+        workbenchController?.select(.activity)
+    }
+
+    @objc private func showRules() {
+        workbenchController?.select(.rules)
+    }
+
+    @objc private func showHistory() {
+        workbenchController?.select(.history)
     }
 
     private func statusRow(title: String, value: NSView) -> NSStackView {
@@ -413,6 +565,7 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
                 progressIndicator.stopAnimation(nil)
             }
             if let message { resultLabel.stringValue = message }
+            workbenchController?.reloadData()
         } catch {
             resultLabel.stringValue = "Configuration error: \(error)"
             backgroundButton.isEnabled = false
@@ -817,6 +970,159 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         } catch {
             presentError("Moving could not be disabled", error: error)
         }
+    }
+
+    private func editRule(at index: Int) {
+        do {
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            guard resolved.config.classification.categories.indices.contains(index) else {
+                throw StewardError.invalidConfiguration("The selected rule no longer exists")
+            }
+            let rule = resolved.config.classification.categories[index]
+            let nameField = NSTextField(string: rule.name)
+            let extensionsField = NSTextField(string: rule.extensions.joined(separator: ", "))
+            let mimeTypesField = NSTextField(string: rule.mimeTypes.joined(separator: ", "))
+            let mimePrefixesField = NSTextField(string: rule.mimePrefixes.joined(separator: ", "))
+            let patternsView = NSTextView()
+            patternsView.string = rule.namePatterns.joined(separator: "\n")
+            patternsView.isRichText = false
+            patternsView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+            let patternsScroll = NSScrollView()
+            patternsScroll.documentView = patternsView
+            patternsScroll.hasVerticalScroller = true
+            patternsScroll.borderType = .bezelBorder
+            patternsScroll.translatesAutoresizingMaskIntoConstraints = false
+            patternsScroll.heightAnchor.constraint(equalToConstant: 92).isActive = true
+
+            let fields: [(String, NSView)] = [
+                ("Category", nameField),
+                ("Extensions (comma separated)", extensionsField),
+                ("MIME types (comma separated)", mimeTypesField),
+                ("MIME prefixes (comma separated)", mimePrefixesField),
+                ("Name patterns (one per line)", patternsScroll)
+            ]
+            let editor = NSStackView()
+            editor.orientation = .vertical
+            editor.alignment = .leading
+            editor.spacing = 6
+            editor.translatesAutoresizingMaskIntoConstraints = false
+            for (labelText, field) in fields {
+                let label = NSTextField(labelWithString: labelText)
+                label.font = .systemFont(ofSize: 12, weight: .medium)
+                field.translatesAutoresizingMaskIntoConstraints = false
+                editor.addArrangedSubview(label)
+                editor.addArrangedSubview(field)
+                field.widthAnchor.constraint(equalToConstant: 470).isActive = true
+            }
+
+            let alert = NSAlert()
+            alert.messageText = "Edit \(rule.name)"
+            alert.informativeText = "Saving validates the complete configuration and returns automatic organization to preview mode. Existing files and transaction history are not changed."
+            alert.addButton(withTitle: "Save Rule")
+            alert.addButton(withTitle: "Cancel")
+            alert.accessoryView = editor
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+            let updated = CategoryRule(
+                name: nameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines),
+                extensions: commaSeparatedValues(extensionsField.stringValue),
+                mimeTypes: commaSeparatedValues(mimeTypesField.stringValue),
+                mimePrefixes: commaSeparatedValues(mimePrefixesField.stringValue),
+                namePatterns: patternsView.string.split(separator: "\n")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+            _ = try WorkbenchData.replaceCategory(
+                at: index,
+                with: updated,
+                configurationURL: configurationURL
+            )
+            refreshStatus(message: "Rule saved. Automatic organization returned to preview mode.")
+        } catch {
+            presentError("The rule could not be saved", error: error)
+        }
+    }
+
+    private func commaSeparatedValues(_ value: String) -> [String] {
+        value.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func confirmAndApplyUndo() {
+        guard !undoRunning else { return }
+        do {
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            let manifest = try TransactionStore(directory: resolved.paths.transactionsDirectory)
+                .latestUndoable()
+            let undoableCount = manifest.moves.filter {
+                $0.executionStatus == .completed && $0.undoStatus != .undone
+            }.count
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Undo the latest transaction?"
+            alert.informativeText = "TidyDrop will first pause automatic organization, then conservatively attempt to restore \(undoableCount) item(s) from \(manifest.runID). Files that changed or would overwrite another item are skipped."
+            alert.addButton(withTitle: "Undo \(undoableCount) Item(s)")
+            alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+            var configuration = resolved.config
+            configuration.automation.applyEnabled = false
+            try ConfigurationIO.save(configuration, to: configurationURL)
+            runUndo(mode: .apply)
+        } catch {
+            presentError("Undo could not start", error: error)
+        }
+    }
+
+    private func runUndo(mode: UndoMode) {
+        guard !undoRunning else { return }
+        undoRunning = true
+        refreshStatus(message: mode == .preview ? "Previewing undo…" : "Applying conservative undo…")
+        let configurationURL = self.configurationURL
+        Task.detached(priority: .utility) {
+            do {
+                let resolved = try ConfigurationIO.load(from: configurationURL)
+                let summary = try StewardEngine(configuration: resolved).undoLatest(mode: mode)
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.undoRunning = false
+                    if mode == .preview {
+                        self.refreshStatus(message: "Undo preview: \(summary.planned) eligible, \(summary.skipped) skipped, \(summary.errors) errors.")
+                        self.presentUndoSummary(summary, title: "Undo Preview")
+                    } else {
+                        self.refreshStatus(message: "Undo complete: \(summary.restored) restored, \(summary.skipped) skipped, \(summary.errors) errors. Automatic organization remains paused.")
+                        self.presentUndoSummary(summary, title: "Undo Complete")
+                    }
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.undoRunning = false
+                    self?.presentError("Undo failed safely", error: error)
+                }
+            }
+        }
+    }
+
+    private func presentUndoSummary(_ summary: UndoSummary, title: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        if summary.mode == .preview {
+            alert.informativeText = "\(summary.planned) item(s) are currently eligible to restore. \(summary.skipped) would be skipped and \(summary.errors) produced errors. No files were moved by this preview."
+        } else {
+            alert.informativeText = "\(summary.restored) item(s) restored. \(summary.skipped) skipped and \(summary.errors) produced errors. Automatic organization remains paused."
+        }
+        alert.addButton(withTitle: "OK")
+        if let window {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
+    }
+
+    private func refreshWorkbench() {
+        refreshStatus()
+        workbenchController?.reloadData()
     }
 
     private func presentError(_ title: String, error: Error) {
