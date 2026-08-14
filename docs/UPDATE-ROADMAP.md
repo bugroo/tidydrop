@@ -139,7 +139,7 @@ Dependencies: Apple Developer Program identity, signing-key custody, U6.
 | U1 | Complete | None for manual discovery |
 | U2 | Complete | Keep static/network gates green |
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
-| U4 | Not started | Private bounded downloader, staging, extraction and cancellation/disk-full fault tests |
+| U4 | 2 complete, 1 partial, 2 pending | Private descriptor-bound staging and cancellation/disk-full cleanup pass. Signed verification is integrated only with ephemeral test keys; network transport and extraction/bundle inspection remain pending |
 | U5 | Not started | External recovery process, state compatibility, atomic replacement and interruption/reboot fault injection |
 | U6 | 5 of 6 behaviors demonstrated manually; updater orchestration not built | Build 10 demonstrated old-agent removal, exact-agent registration, stale-agent absence, independent CLI/agent access, ready zero-move dry-run and owner-approved apply restoration. Integration with U5 recovery and in-product post-update confirmation remains unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
@@ -152,3 +152,7 @@ be completed safely without an owner-approved custody procedure.
 The build-10 installed audit is recorded in
 [`RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md`](RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md).
 It improves U6 evidence but does not claim that a product updater exists.
+
+ADR-0015 starts U4 with an isolated descriptor-bound staging writer and fault
+harness. It does not authorize network download, mounting, extraction or app
+replacement.

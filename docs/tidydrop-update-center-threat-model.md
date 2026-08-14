@@ -201,7 +201,7 @@ the updater.
 | No artifact download/install APIs | 1 | Source audit |
 | Immutable future releases | Release operation | Repository setting and release checklist |
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
-| Private no-follow staging | 2 | POSIX implementation and race tests |
+| Private no-follow staging | 2 | Descriptor-bound non-shipping writer and failure tests implemented; transport/extraction integration pending |
 | Prior verified bundle and state backup | 2 | Fault-injection integration tests |
 | Out-of-process recovery | 2 | Kill/crash/power-loss tests |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
@@ -242,3 +242,12 @@ the updater.
 6. phase-2 fault injection at every transition: download, verify, backup,
    replace, register, launch, TCC check, commit, and rollback;
 7. real-Mac update tests after macOS upgrades and permission revocation.
+
+## Phase-2 staging progress
+
+ADR-0015 adds a non-shipping streaming writer that anchors a private workspace
+and partial artifact to open directory descriptors. It proves exclusive
+creation/finalization, bounds, cancellation, injected disk exhaustion, symlink
+rejection and late collision handling. It has no network, mount, extraction,
+installation or Service Management path. R7 therefore remains open: the
+current application still cannot install or roll back an update.

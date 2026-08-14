@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- Nothing yet.
+- Adds an isolated, non-shipping private update-staging writer with
+  descriptor-anchored `0700`/`0600` storage, exclusive finalization, bounded
+  streaming and cancellation/disk-full/collision regressions. Network download,
+  extraction and installation remain disabled.
 
 ## 1.3.0 — Community Preview 2
 

@@ -98,6 +98,8 @@ capture "$EVIDENCE_DIR/static-audit.txt" "$SCRIPT_DIR/audit-project.sh"
 capture "$EVIDENCE_DIR/update-center.txt" "$SCRIPT_DIR/test-update-center.sh"
 capture "$EVIDENCE_DIR/release-manifest-foundation.txt" \
     "$SCRIPT_DIR/test-release-manifest-foundation.sh"
+capture "$EVIDENCE_DIR/update-staging-foundation.txt" \
+    "$SCRIPT_DIR/test-update-staging-foundation.sh"
 capture "$EVIDENCE_DIR/release-pipeline.txt" "$SCRIPT_DIR/test-release-pipeline.sh"
 package_description=$(swift package describe)
 printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"

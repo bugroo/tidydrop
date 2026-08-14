@@ -53,6 +53,7 @@ Targets:
     Module type: SwiftTarget
     Path: Sources/TidyDropUpdateSecurity
     Sources:
+        PrivateUpdateStaging.swift
         ReleaseManifest.swift
     Target dependencies:
         TidyDropCore

@@ -392,6 +392,15 @@ private struct SignedReleaseManifestFixture {
             futureTolerance: futureTolerance
         )
     }
+
+    func authenticated() throws -> AuthenticatedReleaseManifest {
+        try ReleaseManifestVerifier.authenticateManifest(
+            manifestData: manifestData,
+            signature: signature,
+            publicKey: publicKey,
+            policy: policy()
+        )
+    }
 }
 
 private final class TidyDropCoreTests {
@@ -2748,6 +2757,188 @@ private final class TidyDropCoreTests {
         }
     }
 
+    func testPrivateUpdateStagingFinalizesDescriptorBoundArtifact() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = fixture.workspace.root.appendingPathComponent("private-staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: 1_024 * 1_024
+        )
+        let split = fixture.artifactData.count / 2
+        try writer.append(fixture.artifactData.prefix(split))
+        try writer.append(fixture.artifactData.suffix(from: split))
+        let staged = try writer.finish()
+
+        XCTAssertEqual(staged.byteCount, UInt64(fixture.artifactData.count))
+        XCTAssertEqual(try Data(contentsOf: staged.fileURL), fixture.artifactData)
+        var fileMetadata = stat()
+        XCTAssertEqual(lstat(staged.fileURL.path, &fileMetadata), 0)
+        XCTAssertEqual(fileMetadata.st_mode & S_IFMT, S_IFREG)
+        XCTAssertEqual(fileMetadata.st_mode & 0o777, 0o600)
+        XCTAssertEqual(fileMetadata.st_nlink, 1)
+        XCTAssertEqual(UInt64(fileMetadata.st_dev), staged.deviceID)
+        XCTAssertEqual(UInt64(fileMetadata.st_ino), staged.inode)
+
+        var workspaceMetadata = stat()
+        XCTAssertEqual(lstat(staged.workspaceURL.path, &workspaceMetadata), 0)
+        XCTAssertEqual(workspaceMetadata.st_mode & S_IFMT, S_IFDIR)
+        XCTAssertEqual(workspaceMetadata.st_mode & 0o777, 0o700)
+        XCTAssertEqual(
+            try ReleaseManifestVerifier.verify(
+                manifestData: fixture.manifestData,
+                signature: fixture.signature,
+                publicKey: fixture.publicKey,
+                artifactURL: staged.fileURL,
+                policy: fixture.policy()
+            ),
+            fixture.manifest
+        )
+    }
+
+    func testPrivateUpdateStagingRejectsSymlinkAndBroadParent() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let privateParent = fixture.workspace.root.appendingPathComponent("private-parent", isDirectory: true)
+        try FileManager.default.createDirectory(at: privateParent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: privateParent.path
+        )
+        let parentLink = fixture.workspace.root.appendingPathComponent("parent-link", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: parentLink, withDestinationURL: privateParent)
+        XCTAssertThrowsError(
+            try PrivateUpdateStagingWriter.create(
+                in: parentLink,
+                authenticatedManifest: try fixture.authenticated(),
+                maximumBytes: 1_024 * 1_024
+            )
+        ) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .unsafeParent)
+        }
+
+        let broadParent = fixture.workspace.root.appendingPathComponent("broad-parent", isDirectory: true)
+        try FileManager.default.createDirectory(at: broadParent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o777))],
+            ofItemAtPath: broadParent.path
+        )
+        XCTAssertThrowsError(
+            try PrivateUpdateStagingWriter.create(
+                in: broadParent,
+                authenticatedManifest: try fixture.authenticated(),
+                maximumBytes: 1_024 * 1_024
+            )
+        ) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .unsafeParent)
+        }
+    }
+
+    func testPrivateUpdateStagingBoundsAndCleansPartialWorkspace() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = fixture.workspace.root.appendingPathComponent("bounded-staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: UInt64(fixture.artifactData.count)
+        )
+        var oversized = fixture.artifactData
+        oversized.append(0)
+        XCTAssertThrowsError(try writer.append(oversized)) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .sizeLimitExceeded)
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+
+        let incomplete = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: UInt64(fixture.artifactData.count)
+        )
+        try incomplete.append(fixture.artifactData.prefix(1))
+        XCTAssertThrowsError(try incomplete.finish()) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .incompleteArtifact)
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+    }
+
+    func testPrivateUpdateStagingCancellationCleansPartialWorkspace() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = fixture.workspace.root.appendingPathComponent("cancel-staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: 1_024 * 1_024
+        )
+        try writer.append(fixture.artifactData.prefix(2))
+        writer.cancel()
+        XCTAssertThrowsError(try writer.append(fixture.artifactData)) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .cancelled)
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+    }
+
+    func testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = fixture.workspace.root.appendingPathComponent("disk-full-staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: 1_024 * 1_024,
+            faultInjection: .diskFull(afterBytes: 2)
+        )
+        XCTAssertThrowsError(try writer.append(fixture.artifactData)) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .insufficientSpace)
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+    }
+
+    func testPrivateUpdateStagingNeverOverwritesFinalCollision() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = fixture.workspace.root.appendingPathComponent("collision-staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: 1_024 * 1_024
+        )
+        try writer.append(fixture.artifactData)
+        let entries = try FileManager.default.contentsOfDirectory(atPath: parent.path)
+        XCTAssertEqual(entries.count, 1)
+        let collision = parent
+            .appendingPathComponent(entries[0], isDirectory: true)
+            .appendingPathComponent(fixture.manifest.artifactName)
+        let sentinel = Data("do-not-overwrite".utf8)
+        try sentinel.write(to: collision)
+        XCTAssertThrowsError(try writer.finish()) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .finalizeFailed)
+        }
+        XCTAssertEqual(try Data(contentsOf: collision), sentinel)
+    }
+
 }
 
 
@@ -2852,6 +3043,12 @@ private let tests: [(String, () throws -> Void)] = [
     ("testReleaseManifestRejectsReplayStaleAndFuturePublication", suite.testReleaseManifestRejectsReplayStaleAndFuturePublication),
     ("testReleaseManifestHashesArtifactAndEnforcesBounds", suite.testReleaseManifestHashesArtifactAndEnforcesBounds),
     ("testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames", suite.testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames),
+    ("testPrivateUpdateStagingFinalizesDescriptorBoundArtifact", suite.testPrivateUpdateStagingFinalizesDescriptorBoundArtifact),
+    ("testPrivateUpdateStagingRejectsSymlinkAndBroadParent", suite.testPrivateUpdateStagingRejectsSymlinkAndBroadParent),
+    ("testPrivateUpdateStagingBoundsAndCleansPartialWorkspace", suite.testPrivateUpdateStagingBoundsAndCleansPartialWorkspace),
+    ("testPrivateUpdateStagingCancellationCleansPartialWorkspace", suite.testPrivateUpdateStagingCancellationCleansPartialWorkspace),
+    ("testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace", suite.testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace),
+    ("testPrivateUpdateStagingNeverOverwritesFinalCollision", suite.testPrivateUpdateStagingNeverOverwritesFinalCollision),
 ]
 
 var passed = 0

@@ -98,4 +98,10 @@ PASS  testReleaseManifestRejectsChannelDowngradeAndIdentityMismatch
 PASS  testReleaseManifestRejectsReplayStaleAndFuturePublication
 PASS  testReleaseManifestHashesArtifactAndEnforcesBounds
 PASS  testReleaseManifestRejectsSymlinkAndUnsafeArtifactNames
-Resultado: 99 PASS, 0 SKIP, 0 FAIL; total=99
+PASS  testPrivateUpdateStagingFinalizesDescriptorBoundArtifact
+PASS  testPrivateUpdateStagingRejectsSymlinkAndBroadParent
+PASS  testPrivateUpdateStagingBoundsAndCleansPartialWorkspace
+PASS  testPrivateUpdateStagingCancellationCleansPartialWorkspace
+PASS  testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace
+PASS  testPrivateUpdateStagingNeverOverwritesFinalCollision
+Resultado: 105 PASS, 0 SKIP, 0 FAIL; total=105
