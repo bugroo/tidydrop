@@ -52,9 +52,12 @@ Gates obligatorios:
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 
-La auditoría instalada del 14 de agosto de 2026 está resumida en
-`docs/RUNTIME-AUDIT-2026-08-14.md`. Conserva únicamente métricas y conteos; no
-publica nombres de archivos personales.
+Las auditorías instaladas del 14 de agosto de 2026 están resumidas en
+`docs/RUNTIME-AUDIT-2026-08-14.md` y
+`docs/RUNTIME-AUDIT-2026-08-14-1.2.0-BUILD8.md`. La segunda verifica la
+actualización oficial a 1.2.0 build 8, el agente FSEvents agrupado, dry-run y el
+estado de reposo. Conservan únicamente métricas y conteos; no publican nombres
+de archivos personales.
 
 El DMG de desarrollo verifica estructura y portabilidad y no se publica. El DMG
 Community Preview añade procedencia y una instalación explícitamente no
