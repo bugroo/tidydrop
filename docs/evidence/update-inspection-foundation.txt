@@ -1,0 +1,1 @@
+Safe authenticated DMG and bundle inspection: PASS (read-only, bounded, non-shipping)

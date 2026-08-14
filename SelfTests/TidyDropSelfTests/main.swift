@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import TidyDropCore
+@_spi(Testing) import TidyDropUpdateInspection
 import TidyDropUpdateSecurity
 @_spi(Testing) import TidyDropUpdateTransport
 #if os(macOS)
@@ -322,7 +323,8 @@ private struct SignedReleaseManifestFixture {
 
     init(
         publishedAt: Date = Date(timeIntervalSince1970: 1_786_640_000),
-        artifactName: String = "TidyDrop-1.3.0-community-preview-macos-universal.dmg"
+        artifactName: String = "TidyDrop-1.3.0-community-preview-macos-universal.dmg",
+        artifactData suppliedArtifactData: Data? = nil
     ) throws {
         guard let currentVersion = ReleaseVersion.parse(
             tag: "v1.3.0-community.1",
@@ -334,7 +336,7 @@ private struct SignedReleaseManifestFixture {
             throw NSError(domain: "TidyDropTests.ReleaseManifest", code: 1)
         }
         let workspace = try TemporaryWorkspace()
-        let artifactData = Data("signed update artifact\n".utf8)
+        let artifactData = suppliedArtifactData ?? Data("signed update artifact\n".utf8)
         let artifactURL = workspace.root.appendingPathComponent(artifactName)
         try artifactData.write(to: artifactURL, options: .atomic)
         let manifest = ReleaseManifest(
@@ -3196,7 +3198,415 @@ private final class TidyDropCoreTests {
 #endif
     }
 
+    func testSafeUpdateBundleInspectorRejectsForgedStagedEvidenceBeforeMount() throws {
 #if os(macOS)
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = try privateUpdateInspectionParent(fixture: fixture, name: "inspection-forged")
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: fixture.authenticated(),
+            maximumBytes: 1_024 * 1_024
+        )
+        try writer.append(fixture.artifactData)
+        let staged = try writer.finish()
+        let forged = StagedUpdateArtifact(
+            fileURL: staged.fileURL,
+            workspaceURL: staged.workspaceURL,
+            byteCount: staged.byteCount,
+            deviceID: staged.deviceID,
+            inode: staged.inode + 1
+        )
+        let policy = UpdateBundleInspectionPolicy(
+            authenticatedManifest: try fixture.authenticated(),
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\"",
+            maximumEntries: 64,
+            maximumUncompressedBytes: 16 * 1_024 * 1_024
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspect(
+            stagedArtifact: forged,
+            authenticatedManifest: fixture.authenticated(),
+            policy: policy
+        )) { error in
+            XCTAssertEqual(
+                error as? UpdateBundleInspectionFailure,
+                .unauthenticatedArtifact
+            )
+        }
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: staged.workspaceURL.path),
+            [fixture.manifest.artifactName]
+        )
+#else
+        throw XCTSkip("DMG inspection requires macOS")
+#endif
+    }
+
+    func testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp() throws {
+#if os(macOS)
+        let buildWorkspace: TemporaryWorkspace?
+        let imageURL: URL
+        if let suppliedPath = ProcessInfo.processInfo.environment["TIDYDROP_INSPECTION_DMG"],
+           !suppliedPath.isEmpty {
+            buildWorkspace = nil
+            imageURL = URL(fileURLWithPath: suppliedPath).standardizedFileURL
+            var suppliedMetadata = stat()
+            let status = imageURL.withUnsafeFileSystemRepresentation { path -> Int32 in
+                guard let path else { return -1 }
+                return Darwin.lstat(path, &suppliedMetadata)
+            }
+            guard status == 0,
+                  (suppliedMetadata.st_mode & S_IFMT) == S_IFREG,
+                  suppliedMetadata.st_nlink == 1,
+                  suppliedMetadata.st_size > 0,
+                  suppliedMetadata.st_size <= 128 * 1_024 * 1_024 else {
+                throw NSError(domain: "TidyDropTests.SuppliedInspectionDMG", code: 1)
+            }
+        } else {
+            let workspace = try TemporaryWorkspace()
+            buildWorkspace = workspace
+            imageURL = try makeInspectionDiskImage(
+                workspace: workspace,
+                bundleIdentifier: "io.github.bugroo.tidydrop",
+                universal: true
+            )
+        }
+        let imageData = try withExtendedLifetime(buildWorkspace) {
+            try Data(contentsOf: imageURL)
+        }
+        let fixture = try SignedReleaseManifestFixture(artifactData: imageData)
+        let authenticated = try fixture.authenticated()
+        let parent = try privateUpdateInspectionParent(fixture: fixture, name: "inspection-success")
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: authenticated,
+            maximumBytes: 32 * 1_024 * 1_024
+        )
+        try writer.append(imageData)
+        let staged = try writer.finish()
+        let policy = UpdateBundleInspectionPolicy(
+            authenticatedManifest: authenticated,
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\"",
+            maximumEntries: 1_024,
+            maximumUncompressedBytes: 256 * 1_024 * 1_024
+        )
+        let inspected = try SafeUpdateBundleInspector.inspect(
+            stagedArtifact: staged,
+            authenticatedManifest: authenticated,
+            policy: policy
+        )
+        XCTAssertEqual(inspected.bundleIdentifier, "io.github.bugroo.tidydrop")
+        XCTAssertEqual(inspected.marketingVersion, "1.3.0")
+        XCTAssertEqual(inspected.executableName, "TidyDropApp")
+        XCTAssertEqual(Set(inspected.architectures), Set(["arm64", "x86_64"]))
+        XCTAssertTrue(inspected.entryCount >= 4)
+        XCTAssertTrue(inspected.uncompressedRegularBytes > 0)
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: staged.workspaceURL.path),
+            [fixture.manifest.artifactName]
+        )
+#else
+        throw XCTSkip("DMG inspection requires macOS")
+#endif
+    }
+
+    func testMountedUpdateBundleInspectionRejectsUnexpectedRootAndBundleSymlink() throws {
+#if os(macOS)
+        let fixture = try SignedReleaseManifestFixture()
+        let policy = UpdateBundleInspectionPolicy(
+            authenticatedManifest: try fixture.authenticated(),
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\"",
+            maximumEntries: 64,
+            maximumUncompressedBytes: 16 * 1_024 * 1_024
+        )
+
+        let unexpectedWorkspace = try TemporaryWorkspace()
+        let unexpectedRoot = try makeInspectionImageRoot(
+            workspace: unexpectedWorkspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true
+        )
+        try Data("unexpected".utf8).write(
+            to: unexpectedRoot.appendingPathComponent("README.txt")
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectMountedRootForTesting(
+            unexpectedRoot,
+            policy: policy
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .unsafeImageLayout)
+        }
+
+        let symlinkWorkspace = try TemporaryWorkspace()
+        let symlinkRoot = try makeInspectionImageRoot(
+            workspace: symlinkWorkspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true
+        )
+        let link = symlinkRoot
+            .appendingPathComponent("TidyDrop.app/Contents/Resources", isDirectory: true)
+            .appendingPathComponent("unsafe-link")
+        try FileManager.default.createSymbolicLink(
+            atPath: link.path,
+            withDestinationPath: "/private/tmp"
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectMountedRootForTesting(
+            symlinkRoot,
+            policy: policy
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .unsafeBundleEntry)
+        }
+#else
+        throw XCTSkip("bundle inspection requires macOS")
+#endif
+    }
+
+    func testMountedUpdateBundleInspectionRejectsWrongIdentityThinBinaryAndTampering() throws {
+#if os(macOS)
+        let fixture = try SignedReleaseManifestFixture()
+        let policy = UpdateBundleInspectionPolicy(
+            authenticatedManifest: try fixture.authenticated(),
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\"",
+            maximumEntries: 64,
+            maximumUncompressedBytes: 16 * 1_024 * 1_024
+        )
+
+        let wrongIdentityWorkspace = try TemporaryWorkspace()
+        let wrongIdentityRoot = try makeInspectionImageRoot(
+            workspace: wrongIdentityWorkspace,
+            bundleIdentifier: "com.example.not-tidydrop",
+            universal: true
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectMountedRootForTesting(
+            wrongIdentityRoot,
+            policy: policy
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .wrongBundleIdentifier)
+        }
+
+        let thinWorkspace = try TemporaryWorkspace()
+        let thinRoot = try makeInspectionImageRoot(
+            workspace: thinWorkspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: false
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectMountedRootForTesting(
+            thinRoot,
+            policy: policy
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .architectureMismatch)
+        }
+
+        let nestedThinWorkspace = try TemporaryWorkspace()
+        let nestedThinRoot = try makeInspectionImageRoot(
+            workspace: nestedThinWorkspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true
+        )
+        let thinBytes = try Data(contentsOf: nestedThinWorkspace.root.appendingPathComponent(
+            "inspection-arm64"
+        ))
+        let nestedAgent = nestedThinRoot.appendingPathComponent(
+            "TidyDrop.app/Contents/Resources/tidydrop-agent"
+        )
+        try thinBytes.write(to: nestedAgent)
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectMountedRootForTesting(
+            nestedThinRoot,
+            policy: policy
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .architectureMismatch)
+        }
+
+        let tamperedWorkspace = try TemporaryWorkspace()
+        let tamperedRoot = try makeInspectionImageRoot(
+            workspace: tamperedWorkspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true
+        )
+        try Data("tampered-after-signing".utf8).write(
+            to: tamperedRoot.appendingPathComponent(
+                "TidyDrop.app/Contents/Resources/signed-resource.txt"
+            )
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectMountedRootForTesting(
+            tamperedRoot,
+            policy: policy
+        )) { error in
+            guard case .invalidCodeSignature = error as? UpdateBundleInspectionFailure else {
+                XCTFail("Expected invalid code signature, got \(error)")
+                return
+            }
+        }
+#else
+        throw XCTSkip("bundle inspection requires macOS")
+#endif
+    }
+
+#if os(macOS)
+    private func privateUpdateInspectionParent(
+        fixture: SignedReleaseManifestFixture,
+        name: String
+    ) throws -> URL {
+        let parent = fixture.workspace.root.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        return parent
+    }
+
+    private func makeInspectionDiskImage(
+        workspace: TemporaryWorkspace,
+        bundleIdentifier: String,
+        universal: Bool
+    ) throws -> URL {
+        let root = try makeInspectionImageRoot(
+            workspace: workspace,
+            bundleIdentifier: bundleIdentifier,
+            universal: universal
+        )
+        let image = workspace.root.appendingPathComponent("inspection.dmg")
+        try runInspectionTool(
+            "/usr/bin/hdiutil",
+            arguments: [
+                "create", "-volname", "TidyDrop", "-srcfolder", root.path,
+                "-format", "UDZO", "-imagekey", "zlib-level=1", image.path
+            ],
+            timeout: 60
+        )
+        return image
+    }
+
+    private func makeInspectionImageRoot(
+        workspace: TemporaryWorkspace,
+        bundleIdentifier: String,
+        universal: Bool
+    ) throws -> URL {
+        let root = workspace.root.appendingPathComponent(
+            "inspection-root-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        let app = root.appendingPathComponent("TidyDrop.app", isDirectory: true)
+        let macOS = app.appendingPathComponent("Contents/MacOS", isDirectory: true)
+        let resources = app.appendingPathComponent("Contents/Resources", isDirectory: true)
+        try FileManager.default.createDirectory(at: macOS, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+
+        let source = workspace.root.appendingPathComponent("inspection-main.c")
+        try Data("int main(void) { return 0; }\n".utf8).write(to: source)
+        let arm = workspace.root.appendingPathComponent("inspection-arm64")
+        try runInspectionTool(
+            "/usr/bin/xcrun",
+            arguments: [
+                "--sdk", "macosx", "clang", "-arch", "arm64",
+                "-mmacosx-version-min=13.0", source.path, "-o", arm.path
+            ],
+            timeout: 30
+        )
+        let executable = macOS.appendingPathComponent("TidyDropApp")
+        if universal {
+            let intel = workspace.root.appendingPathComponent("inspection-x86_64")
+            try runInspectionTool(
+                "/usr/bin/xcrun",
+                arguments: [
+                    "--sdk", "macosx", "clang", "-arch", "x86_64",
+                    "-mmacosx-version-min=13.0", source.path, "-o", intel.path
+                ],
+                timeout: 30
+            )
+            try runInspectionTool(
+                "/usr/bin/lipo",
+                arguments: ["-create", arm.path, intel.path, "-output", executable.path],
+                timeout: 30
+            )
+        } else {
+            try FileManager.default.copyItem(at: arm, to: executable)
+        }
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: executable.path
+        )
+        let cli = resources.appendingPathComponent("tidydrop")
+        let agent = resources.appendingPathComponent("tidydrop-agent")
+        try FileManager.default.copyItem(at: executable, to: cli)
+        try FileManager.default.copyItem(at: executable, to: agent)
+        for nested in [cli, agent] {
+            try FileManager.default.setAttributes(
+                [.posixPermissions: NSNumber(value: Int16(0o755))],
+                ofItemAtPath: nested.path
+            )
+            try runInspectionTool(
+                "/usr/bin/codesign",
+                arguments: [
+                    "--force", "--sign", "-", "--options", "runtime",
+                    "--timestamp=none", nested.path
+                ],
+                timeout: 30
+            )
+        }
+
+        let info: [String: Any] = [
+            "CFBundleExecutable": "TidyDropApp",
+            "CFBundleIdentifier": bundleIdentifier,
+            "CFBundlePackageType": "APPL",
+            "CFBundleShortVersionString": "1.3.0",
+            "CFBundleVersion": "10"
+        ]
+        let plist = try PropertyListSerialization.data(
+            fromPropertyList: info,
+            format: .xml,
+            options: 0
+        )
+        try plist.write(to: app.appendingPathComponent("Contents/Info.plist"))
+        try Data("signed-resource".utf8).write(
+            to: resources.appendingPathComponent("signed-resource.txt")
+        )
+        try runInspectionTool(
+            "/usr/bin/codesign",
+            arguments: [
+                "--force", "--sign", "-", "--identifier", bundleIdentifier,
+                "--options", "runtime", "--timestamp=none", app.path
+            ],
+            timeout: 30
+        )
+        try FileManager.default.createSymbolicLink(
+            atPath: root.appendingPathComponent("Applications").path,
+            withDestinationPath: "/Applications"
+        )
+        return root
+    }
+
+    private func runInspectionTool(
+        _ executable: String,
+        arguments: [String],
+        timeout: TimeInterval
+    ) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.environment = [
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "LANG": "C",
+            "LC_ALL": "C"
+        ]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        let completed = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in completed.signal() }
+        try process.run()
+        guard completed.wait(timeout: .now() + timeout) == .success else {
+            process.terminate()
+            _ = completed.wait(timeout: .now() + 5)
+            throw NSError(domain: "TidyDropTests.UpdateInspectionTimeout", code: 1)
+        }
+        guard process.terminationReason == .exit, process.terminationStatus == 0 else {
+            throw NSError(
+                domain: "TidyDropTests.UpdateInspectionTool",
+                code: Int(process.terminationStatus)
+            )
+        }
+    }
+
     private func privateTransportParent(
         fixture: SignedReleaseManifestFixture,
         name: String
@@ -3351,14 +3761,45 @@ private let tests: [(String, () throws -> Void)] = [
     ("testFixedOriginUpdateTransportStreamsAuthenticatedArtifact", suite.testFixedOriginUpdateTransportStreamsAuthenticatedArtifact),
     ("testFixedOriginUpdateTransportRejectsStatusAndCleansStaging", suite.testFixedOriginUpdateTransportRejectsStatusAndCleansStaging),
     ("testFixedOriginUpdateTransportCancellationCleansStaging", suite.testFixedOriginUpdateTransportCancellationCleansStaging),
+    ("testSafeUpdateBundleInspectorRejectsForgedStagedEvidenceBeforeMount", suite.testSafeUpdateBundleInspectorRejectsForgedStagedEvidenceBeforeMount),
+    ("testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp", suite.testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp),
+    ("testMountedUpdateBundleInspectionRejectsUnexpectedRootAndBundleSymlink", suite.testMountedUpdateBundleInspectionRejectsUnexpectedRootAndBundleSymlink),
+    ("testMountedUpdateBundleInspectionRejectsWrongIdentityThinBinaryAndTampering", suite.testMountedUpdateBundleInspectionRejectsWrongIdentityThinBinaryAndTampering),
 ]
+
+private let selectedTests: [(String, () throws -> Void)]
+if let filter = ProcessInfo.processInfo.environment["TIDYDROP_SELF_TEST_FILTER"] {
+    let requested = filter.split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+    guard !filter.isEmpty,
+          filter.utf8.count <= 4_096,
+          requested.count <= 32,
+          requested.allSatisfy({ name in
+              !name.isEmpty && name.utf8.count <= 160 && name.utf8.allSatisfy {
+                  ($0 >= 48 && $0 <= 57) || ($0 >= 65 && $0 <= 90)
+                      || ($0 >= 97 && $0 <= 122) || $0 == 95
+              }
+          }) else {
+        print("FALLO: filtro de self-tests inválido")
+        exit(2)
+    }
+    let requestedNames = Set(requested)
+    let matches = tests.filter { requestedNames.contains($0.0) }
+    guard requestedNames.count == requested.count,
+          matches.count == requested.count else {
+        print("FALLO: filtro de self-tests duplicado o desconocido")
+        exit(2)
+    }
+    selectedTests = matches
+} else {
+    selectedTests = tests
+}
 
 var passed = 0
 var skipped = 0
 var failed = 0
 
 print("TidyDrop self-tests — sin XCTest")
-for (name, body) in tests {
+for (name, body) in selectedTests {
     TestRuntime.reset()
     do {
         try body()
@@ -3382,5 +3823,5 @@ for (name, body) in tests {
     }
 }
 
-print("Resultado: \(passed) PASS, \(skipped) SKIP, \(failed) FAIL; total=\(tests.count)")
+print("Resultado: \(passed) PASS, \(skipped) SKIP, \(failed) FAIL; total=\(selectedTests.count)")
 exit(failed == 0 ? 0 : 1)

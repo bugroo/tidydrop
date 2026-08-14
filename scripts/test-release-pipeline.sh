@@ -2,6 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 VERSION=$(/bin/cat "$SCRIPT_DIR/../VERSION")
 TEST_ROOT=$(/usr/bin/mktemp -d "/private/tmp/TidyDropIntegration.release.XXXXXX")
 RELEASE_AGENT_PID=''
@@ -145,8 +146,19 @@ fi
 /usr/bin/grep -q 'no puede ser un symlink' "$TEST_ROOT/output-symlink-rejection.txt"
 
 "$SCRIPT_DIR/package-release.sh" "$APP" "$ARTIFACTS" community
-[ -f "$ARTIFACTS/TidyDrop-$VERSION-community-preview-macos-universal.dmg" ]
+COMMUNITY_DMG="$ARTIFACTS/TidyDrop-$VERSION-community-preview-macos-universal.dmg"
+[ -f "$COMMUNITY_DMG" ]
 [ -f "$ARTIFACTS/TidyDrop-$VERSION-community-preview-macos-universal.sha256" ]
+
+SELF_TEST_BINARY=${TIDYDROP_SELF_TEST_BIN:-"$PROJECT_ROOT/.build/debug/tidydrop-self-test"}
+[ -x "$SELF_TEST_BINARY" ] || {
+    printf 'ERROR: falta el self-test para inspeccionar el DMG completo: %s\n' \
+        "$SELF_TEST_BINARY" >&2
+    exit 1
+}
+TIDYDROP_INSPECTION_DMG="$COMMUNITY_DMG" \
+TIDYDROP_SELF_TEST_FILTER='testSafeUpdateBundleInspectorMountsReadOnlyAndValidatesSignedUniversalApp' \
+    "$SELF_TEST_BINARY"
 
 /bin/mkdir -p "$TEST_ROOT/development-artifacts"
 "$SCRIPT_DIR/package-release.sh" \

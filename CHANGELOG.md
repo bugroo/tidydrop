@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Adds a non-shipping authenticated DMG inspector that revalidates staged
+  identity and digest, verifies and mounts images read-only in private staging,
+  rejects unsafe bundle trees, requires exact TidyDrop metadata and Universal 2
+  app/CLI/agent binaries, and checks the complete code signature against an
+  explicit requirement. Installation and replacement remain disabled.
+- Limits the 20-iteration stability-race gate to its three exact regressions,
+  avoiding redundant DMG creation and mounting while preserving the full test
+  suite in the normal self-test gate.
 - Adds a non-shipping fixed-origin update transport with an ephemeral,
   credential-free session, strict redirect/authentication policy, streaming
   into private staging, pre-finalization digest enforcement, cancellation and

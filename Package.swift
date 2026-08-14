@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "TidyDropCore", targets: ["TidyDropCore"]),
         .library(name: "TidyDropUpdateSecurity", targets: ["TidyDropUpdateSecurity"]),
         .library(name: "TidyDropUpdateTransport", targets: ["TidyDropUpdateTransport"]),
+        .library(name: "TidyDropUpdateInspection", targets: ["TidyDropUpdateInspection"]),
         .executable(name: "TidyDropApp", targets: ["TidyDropApp"]),
         .executable(name: "tidydrop", targets: ["TidyDrop"]),
         .executable(name: "tidydrop-agent", targets: ["TidyDropAgent"]),
@@ -34,6 +35,14 @@ let package = Package(
             dependencies: ["TidyDropUpdateSecurity"],
             path: "Sources/TidyDropUpdateTransport"
         ),
+        .target(
+            name: "TidyDropUpdateInspection",
+            dependencies: ["TidyDropUpdateSecurity"],
+            path: "Sources/TidyDropUpdateInspection",
+            linkerSettings: [
+                .linkedFramework("Security", .when(platforms: [.macOS]))
+            ]
+        ),
         .executableTarget(
             name: "TidyDrop",
             dependencies: ["TidyDropCore"],
@@ -54,7 +63,8 @@ let package = Package(
             dependencies: [
                 "TidyDropCore",
                 "TidyDropUpdateSecurity",
-                "TidyDropUpdateTransport"
+                "TidyDropUpdateTransport",
+                "TidyDropUpdateInspection"
             ],
             path: "SelfTests/TidyDropSelfTests"
         )

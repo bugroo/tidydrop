@@ -37,6 +37,7 @@ Sources/TidyDropCore/StewardEngine.swift: OK
 Sources/TidyDropCore/Transactions.swift: OK
 Sources/TidyDropCore/UpdatePolicy.swift: OK
 Sources/TidyDropCore/WorkbenchData.swift: OK
+Sources/TidyDropUpdateInspection/SafeUpdateBundleInspector.swift: OK
 Sources/TidyDropUpdateSecurity/PrivateUpdateStaging.swift: OK
 Sources/TidyDropUpdateSecurity/ReleaseManifest.swift: OK
 Sources/TidyDropUpdateTransport/FixedOriginUpdateTransport.swift: OK
@@ -84,6 +85,7 @@ docs/adr/0014-two-phase-agent-startup-readiness.md: OK
 docs/adr/0015-private-update-staging-foundation.md: OK
 docs/adr/0016-nonvisual-automated-folder-chooser-validation.md: OK
 docs/adr/0017-fixed-origin-authenticated-update-transport.md: OK
+docs/adr/0018-safe-authenticated-dmg-bundle-inspection.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -112,6 +114,7 @@ docs/evidence/static-audit.txt: OK
 docs/evidence/swift6-build.txt: OK
 docs/evidence/uninstall-safety.txt: OK
 docs/evidence/update-center.txt: OK
+docs/evidence/update-inspection-foundation.txt: OK
 docs/evidence/update-staging-foundation.txt: OK
 docs/evidence/update-transport-foundation.txt: OK
 docs/evidence/validation-result.txt: OK
@@ -140,6 +143,7 @@ scripts/test-security-prototypes.sh: OK
 scripts/test-stability-race.sh: OK
 scripts/test-uninstall.sh: OK
 scripts/test-update-center.sh: OK
+scripts/test-update-inspection-foundation.sh: OK
 scripts/test-update-staging-foundation.sh: OK
 scripts/test-update-transport-foundation.sh: OK
 scripts/uninstall.sh: OK
@@ -149,4 +153,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 151 archivos
+Manifest verificado: 155 archivos

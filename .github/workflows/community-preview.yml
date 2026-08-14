@@ -63,6 +63,7 @@ jobs:
           ./scripts/test-release-manifest-foundation.sh
           ./scripts/test-update-staging-foundation.sh
           ./scripts/test-update-transport-foundation.sh
+          ./scripts/test-update-inspection-foundation.sh
           ./scripts/demo.sh
           ./scripts/test-community-preview-workflow.sh
           git diff --check
