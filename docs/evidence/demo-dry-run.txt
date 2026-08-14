@@ -1,5 +1,5 @@
 === Dry-run de demostración ===
-run_id: 20260814T222244.065Z-c6d4f336
+run_id: 20260814T230548.613Z-ea3141f4
 modo: dry-run
 escaneados: 9
 planificados: 5
@@ -9,14 +9,14 @@ ignorados: 4
 errores: 0
 
 === Contenido de Downloads después del dry-run (sin movimientos) ===
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/.oculto.txt
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/Dockerfile
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/Example.app
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/Foto vacaciones ü.png
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/Informe final 2026.pdf
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/alias.pdf
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/copia.tar.gz
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/datos.csv
-/private/tmp/TidyDropIntegration.demo.6Fl042/Downloads/video.mp4.crdownload
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/.oculto.txt
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/Dockerfile
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/Example.app
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/Foto vacaciones ü.png
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/Informe final 2026.pdf
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/alias.pdf
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/copia.tar.gz
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/datos.csv
+/private/tmp/TidyDropIntegration.demo.m38bC3/Downloads/video.mp4.crdownload
 
-Logs: /private/tmp/TidyDropIntegration.demo.6Fl042/logs
+Logs: /private/tmp/TidyDropIntegration.demo.m38bC3/logs

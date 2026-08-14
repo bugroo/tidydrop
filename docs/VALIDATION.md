@@ -7,11 +7,13 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 110, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 114, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
-5. Veinte repeticiones de las carreras de estabilidad.
+5. Veinte repeticiones filtradas de las tres carreras de estabilidad; el suite
+   completo se ejecuta separadamente una vez para no reconstruir y montar DMGs
+   sin relación en cada iteración.
 6. Contrato del selector AppKit validado sin abrir UI durante gates automáticos;
    la cancelación conserva una regresión propia y el smoke test visual real
    requiere opt-in explícito para no mostrar ventanas durante instalación o CI.
@@ -71,6 +73,13 @@ Gates obligatorios:
     chunks al staging, rechaza digest incorrecto y limpia tras cancelación o
     HTTP no exitoso. Sus tests usan `URLProtocol` inyectado por SPI y no la red
     real.
+30. La inspección autenticada no distribuida vuelve a validar el DMG staged,
+    lo verifica y monta read-only en `/private/tmp`, exige layout exacto,
+    recorrido físico acotado y sin symlinks internos, identidad/versión
+    autenticadas, app/CLI/agente Universal 2 y firma estricta contra requisito.
+    La misma ruta vuelve a inspeccionar el DMG Community completo creado por el
+    pipeline. Regresiones negativas cubren evidencia falsificada, raíz extra,
+    symlink, identidad errónea, binarios thin y manipulación posterior a la firma.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

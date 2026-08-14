@@ -107,6 +107,16 @@ artefacto. Los tests inyectan el protocolo dentro de la sesión y no pueden caer
 accidentalmente a la red real. La app, CLI, Core y LaunchAgent no importan esta
 ruta; extracción, instalación y rollback continúan bloqueados.
 
+[ADR-0018](adr/0018-safe-authenticated-dmg-bundle-inspection.md) completa la
+base técnica U4 sin distribuirla: vuelve a comprobar identidad y SHA-256 del
+staging, verifica y monta el DMG read-only dentro del workspace privado, limita
+el árbol físico y rechaza symlinks dentro de la app. Exige identidad y versión
+autenticadas, binarios `arm64` + `x86_64` para app, CLI y agente, y valida firma
+estricta/nested/all-architectures contra un requisito explícito. La regresión
+real usa exclusivamente `/private/tmp` y desmonta el DMG. El módulo no copia,
+instala, registra, abre o reemplaza aplicaciones; U5, la clave pública de
+producción y Developer ID siguen siendo gates obligatorios.
+
 ## Fuera de alcance
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.

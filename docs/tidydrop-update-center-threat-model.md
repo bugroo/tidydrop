@@ -201,7 +201,7 @@ the updater.
 | No artifact download/install APIs | 1 | Source audit |
 | Immutable future releases | Release operation | Repository setting and release checklist |
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
-| Private no-follow staging and transport | 2 | Descriptor-bound writer plus fixed-origin ephemeral streaming, redirect/authentication bounds, cancellation and signed digest enforcement implemented outside shipping targets; extraction inspection pending |
+| Private no-follow staging, transport and inspection | 2 | Descriptor-bound writer, fixed-origin ephemeral streaming and authenticated read-only DMG/bundle inspection implemented outside shipping targets; production key/signing identity and installation remain gated |
 | Prior verified bundle and state backup | 2 | Fault-injection integration tests |
 | Out-of-process recovery | 2 | Kill/crash/power-loss tests |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
@@ -259,3 +259,14 @@ The writer now rejects the authenticated digest before finalizing a staged
 artifact. Mock transport is injected per test session so regressions cannot
 silently contact the real network. Extraction, bundle inspection and all
 installation/recovery authority remain absent, so R7 remains open.
+
+ADR-0018 completes the non-shipping U4 inspection boundary. It reopens and
+rehashes the staged image, invokes only fixed `/usr/bin/hdiutil` operations with
+bounded execution, mounts into private staging with read-only/no-browse/
+no-auto-open controls and independently checks `MNT_RDONLY`. Descriptor-relative
+walking permits only the exact image root, rejects unsafe bundle entry types and
+enforces count/size/depth limits. Authenticated bundle identity/version, exact
+Universal 2 app/CLI/agent binaries and strict nested all-architecture code
+signature validation are mandatory. A real temporary DMG and negative identity,
+symlink, thin-binary and tamper cases pass. No install/replacement/recovery API
+exists, so R7 and R8 remain open.

@@ -132,14 +132,14 @@ Acceptance criteria:
 
 Dependencies: Apple Developer Program identity, signing-key custody, U6.
 
-## Gate measurement — 2026-08-14
+## Gate measurement — 2026-08-15
 
 | Work item | Acceptance status | What remains |
 | --- | --- | --- |
 | U1 | Complete | None for manual discovery |
 | U2 | Complete | Keep static/network gates green |
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
-| U4 | 4 complete, 1 pending | Fixed-origin ephemeral transport, private descriptor-bound staging, signed length/digest enforcement and cancellation/disk-full cleanup pass with ephemeral test keys. Safe extraction and bundle/signing inspection remain pending; product activation still depends on U3 key custody |
+| U4 | Technical foundation complete; activation blocked | Fixed-origin transport, private descriptor-bound staging, authenticated length/digest, cancellation/disk-full cleanup and read-only DMG/bundle inspection pass with ephemeral test keys. Product activation still depends on U3 key custody and U7's stable Developer ID requirement |
 | U5 | Not started | External recovery process, state compatibility, atomic replacement and interruption/reboot fault injection |
 | U6 | 5 of 6 behaviors demonstrated manually; updater orchestration not built | Build 10 demonstrated old-agent removal, exact-agent registration, stale-agent absence, independent CLI/agent access, ready zero-move dry-run and owner-approved apply restoration. Integration with U5 recovery and in-product post-update confirmation remains unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
@@ -155,5 +155,7 @@ It improves U6 evidence but does not claim that a product updater exists.
 
 ADR-0015 starts U4 with an isolated descriptor-bound staging writer and fault
 harness. ADR-0017 adds a fixed-origin ephemeral transport and verifies the
-authenticated digest before finalization. Neither ADR authorizes product
-activation, mounting, extraction or app replacement.
+authenticated digest before finalization. ADR-0018 revalidates that digest,
+mounts a real test DMG read-only, bounds the filesystem tree, verifies exact
+bundle identity, all three Universal 2 executables and the complete code
+signature. None of these ADRs authorizes product activation or app replacement.
