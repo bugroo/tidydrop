@@ -17,6 +17,8 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
+    plutil -lint "$PROJECT_ROOT/app/TidyDrop.entitlements"
+    plutil -lint "$PROJECT_ROOT/app/TidyDropAgent.entitlements"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
     printf '%s\n' '[OK] Plists válidos'
 else
@@ -141,6 +143,18 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     exit 1
 fi
 printf '%s\n' '[OK] LaunchAgent sin logs stdout/stderr ilimitados'
+
+if /usr/bin/grep -q -- '--entitlements' "$PROJECT_ROOT/scripts/sign-app.sh"; then
+    printf '%s\n' '[FALLO] Sandbox no puede entrar en releases antes del gate integrado.' >&2
+    exit 1
+fi
+if /usr/bin/grep -E 'com.apple.security.network|com.apple.security.temporary-exception' \
+    "$PROJECT_ROOT/app/TidyDrop.entitlements" \
+    "$PROJECT_ROOT/app/TidyDropAgent.entitlements" >/dev/null 2>&1; then
+    printf '%s\n' '[FALLO] Los prototipos Sandbox contienen entitlements excesivos.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Prototipos Sandbox mínimos y bloqueados fuera de releases'
 
 if ! /usr/bin/grep -q 'notarytool submit' "$PROJECT_ROOT/scripts/notarize-app.sh" \
    || ! /usr/bin/grep -q -- '--wait' "$PROJECT_ROOT/scripts/notarize-app.sh" \

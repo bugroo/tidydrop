@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 82, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 85, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -45,6 +45,10 @@ Gates obligatorios:
 23. El agente es el único escritor del índice SQLite derivado; la integración
     comprueba que el archivo es regular y privado, mientras la app lo consume
     read-only y un fallo del índice no gobierna apply, recuperación o undo.
+24. Los prototipos de seguridad prueban requisitos de firma reales y falsos en
+    ambos extremos de XPC, round trip y acceso balanceado de bookmarks, SDK
+    macOS 13 en arm64/x86_64 y entitlements mínimos ad hoc sin activarlos en el
+    bundle distribuido.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

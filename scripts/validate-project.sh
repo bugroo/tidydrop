@@ -76,6 +76,9 @@ SELF_TEST_BINARY="$DEBUG_BIN_DIR/tidydrop-self-test"
 [ -x "$SELF_TEST_BINARY" ] || { printf 'FALLO: no existe %s\n' "$SELF_TEST_BINARY" >&2; exit 1; }
 
 capture "$EVIDENCE_DIR/self-tests.txt" "$SELF_TEST_BINARY"
+capture "$EVIDENCE_DIR/security-prototypes.txt" env \
+    TIDYDROP_SELF_TEST_BIN="$SELF_TEST_BINARY" \
+    "$SCRIPT_DIR/test-security-prototypes.sh"
 capture "$EVIDENCE_DIR/doctor.txt" "$SCRIPT_DIR/doctor.sh"
 capture "$EVIDENCE_DIR/doctor-tests.txt" "$SCRIPT_DIR/test-doctor.sh"
 capture "$EVIDENCE_DIR/folder-chooser.txt" env TIDYDROP_BIN="$DEBUG_BINARY" "$SCRIPT_DIR/test-folder-chooser.sh"

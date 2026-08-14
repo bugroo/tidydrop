@@ -81,4 +81,7 @@ PASS  testAgentSchedulingUsesOneBoundedFollowUpOnlyWhenNeeded
 PASS  testAgentRunRequestIsPrivateAndSourceBound
 PASS  testAgentRunRequestRejectsSymlinkDestination
 PASS  testAgentRunRequestValidationRejectsStaleOrDifferentSource
-Resultado: 82 PASS, 0 SKIP, 0 FAIL; total=82
+PASS  testCodeSigningRequirementMatchesOnlyCurrentSignedCode
+PASS  testSecurityScopedBookmarkRoundTripBalancesAccess
+PASS  testXPCMutualCodeSigningRequirementAcceptsAndRejects
+Resultado: 85 PASS, 0 SKIP, 0 FAIL; total=85

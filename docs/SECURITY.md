@@ -95,3 +95,11 @@ archivos aplazados. La integración temporal verifica dry-run, coalescing,
 señales privadas de un solo uso y reposo sin nuevas pasadas. Sandbox, bookmarks,
 Developer ID y notarización permanecen sujetos a gates separados y no se
 declaran resueltos por este prototipo.
+
+La rama 1.2 contiene además prototipos verificables de requisitos designados de
+firma, rechazo de un peer XPC con identidad imposible, bookmarks con scope y
+entitlements mínimos sin red. Estos controles todavía no están habilitados en
+el bundle Community: una firma ad hoc no ofrece continuidad de identidad y un
+round trip de bookmark no demuestra acceso persistente del LaunchAgent
+sandboxed. ADR-0009 mantiene ese rollout bloqueado hasta probar el servicio
+Mach real, relanzamiento, stale bookmark y volúmenes externos con Developer ID.

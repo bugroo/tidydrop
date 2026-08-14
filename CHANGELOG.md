@@ -12,6 +12,9 @@
 - Adds a bounded SQLite activity index owned by the scheduled agent, with a
   read-only AppKit consumer, explicit schema migration, private permissions,
   verified WAL mode, and fail-soft UI behavior.
+- Adds verified signed-XPC, designated-requirement, security-scoped bookmark,
+  and minimal Sandbox-entitlement prototypes without enabling Sandbox in the
+  Community release before persistent LaunchAgent access is proven.
 - Adds isolated event, burst, idle-resource, rule-edit, history, and undo
   regressions without running apply or undo against personal folders.
 

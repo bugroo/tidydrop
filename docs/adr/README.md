@@ -21,3 +21,4 @@ Las decisiones que cambian arquitectura, seguridad, distribución, permisos o ci
 | [ADR-0006](0006-appkit-workbench-information-architecture.md) | Accepted for 1.2 implementation | Native workbench for active folder, activity, rules, history, and conservative undo |
 | [ADR-0007](0007-event-driven-fsevents-agent.md) | Accepted for measured prototype | Event-driven FSEvents agent with reconciliation and one stability timer |
 | [ADR-0008](0008-agent-owned-sqlite-activity-index.md) | Accepted for 1.2 implementation | Agent-owned, bounded SQLite activity index with a read-only AppKit consumer |
+| [ADR-0009](0009-signed-xpc-and-security-scoped-bookmark-prototypes.md) | Prototype accepted; integrated gate pending | Signed XPC peer rejection, scoped bookmarks, and minimal Sandbox entitlements |

@@ -65,11 +65,13 @@ Targets:
         Audit.swift
         BackgroundVerificationPolicy.swift
         Classifier.swift
+        CodeSigningRequirement.swift
         Configuration.swift
         FileSystem.swift
         LaunchAgentStatus.swift
         Models.swift
         ScheduledExecution.swift
+        SecurityScopedBookmark.swift
         Stability.swift
         StewardEngine.swift
         Transactions.swift

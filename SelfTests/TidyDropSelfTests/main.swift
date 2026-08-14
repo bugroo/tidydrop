@@ -2,6 +2,36 @@ import Foundation
 import TidyDropCore
 #if os(macOS)
 import Darwin
+
+@objc private protocol SignedXPCProbeProtocol {
+    func ping(withReply reply: @escaping (String) -> Void)
+}
+
+private final class SignedXPCProbeService: NSObject, SignedXPCProbeProtocol {
+    func ping(withReply reply: @escaping (String) -> Void) {
+        reply("tidydrop-xpc-ok")
+    }
+}
+
+private final class SignedXPCProbeListenerDelegate: NSObject, NSXPCListenerDelegate {
+    private let clientRequirement: String
+    private let service = SignedXPCProbeService()
+
+    init(clientRequirement: String) {
+        self.clientRequirement = clientRequirement
+    }
+
+    func listener(
+        _ listener: NSXPCListener,
+        shouldAcceptNewConnection newConnection: NSXPCConnection
+    ) -> Bool {
+        newConnection.setCodeSigningRequirement(clientRequirement)
+        newConnection.exportedInterface = NSXPCInterface(with: SignedXPCProbeProtocol.self)
+        newConnection.exportedObject = service
+        newConnection.resume()
+        return true
+    }
+}
 #else
 import Glibc
 #endif
@@ -2064,6 +2094,99 @@ private final class TidyDropCoreTests {
         ), .valid)
     }
 
+    func testCodeSigningRequirementMatchesOnlyCurrentSignedCode() throws {
+#if os(macOS)
+        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
+        let requirement = try CodeSigningRequirement.designatedRequirement(for: executableURL)
+        XCTAssertTrue(requirement.contains("identifier") || requirement.contains("cdhash"))
+        XCTAssertTrue(try CodeSigningRequirement.currentProcessSatisfies(requirement))
+        XCTAssertFalse(try CodeSigningRequirement.currentProcessSatisfies(
+            "identifier \"io.github.bugroo.tidydrop.invalid-peer\""
+        ))
+#else
+        throw XCTSkip("code-signing requirements are macOS-only")
+#endif
+    }
+
+    func testSecurityScopedBookmarkRoundTripBalancesAccess() throws {
+#if os(macOS)
+        let workspace = try TemporaryWorkspace()
+        let data = try SecurityScopedBookmark.create(for: workspace.source)
+        XCTAssertTrue(data.count <= SecurityScopedBookmark.maximumBytes)
+        let resolved = try SecurityScopedBookmark.resolve(data)
+        XCTAssertEqual(resolved.url, ConfigurationIO.canonicalURL(workspace.source))
+        XCTAssertFalse(resolved.isStale)
+        let accessedPath = try SecurityScopedBookmark.withAccess(to: data) { accessible in
+            let metadata = try FileSystemSecurity.freshPOSIXMetadata(of: accessible.url)
+            XCTAssertEqual(metadata.kind, .directory)
+            return accessible.url.path
+        }
+        XCTAssertEqual(accessedPath, ConfigurationIO.canonicalURL(workspace.source).path)
+#else
+        throw XCTSkip("security-scoped bookmarks are macOS-only")
+#endif
+    }
+
+    func testXPCMutualCodeSigningRequirementAcceptsAndRejects() throws {
+#if os(macOS)
+        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
+        let currentRequirement = try CodeSigningRequirement.designatedRequirement(for: executableURL)
+
+        func invoke(serverRequirement: String, clientRequirement: String) -> String? {
+            let listener = NSXPCListener.anonymous()
+            let delegate = SignedXPCProbeListenerDelegate(clientRequirement: clientRequirement)
+            listener.delegate = delegate
+            listener.resume()
+
+            let connection = NSXPCConnection(listenerEndpoint: listener.endpoint)
+            connection.remoteObjectInterface = NSXPCInterface(with: SignedXPCProbeProtocol.self)
+            connection.setCodeSigningRequirement(serverRequirement)
+            let semaphore = DispatchSemaphore(value: 0)
+            let resultLock = NSLock()
+            var result: String?
+            connection.invalidationHandler = { semaphore.signal() }
+            connection.interruptionHandler = { semaphore.signal() }
+            connection.resume()
+            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+                semaphore.signal()
+            } as? SignedXPCProbeProtocol
+            proxy?.ping { value in
+                resultLock.lock()
+                result = value
+                resultLock.unlock()
+                semaphore.signal()
+            }
+            _ = semaphore.wait(timeout: .now() + 2)
+            connection.invalidate()
+            listener.invalidate()
+            resultLock.lock()
+            defer { resultLock.unlock() }
+            return result
+        }
+
+        XCTAssertEqual(
+            invoke(serverRequirement: currentRequirement, clientRequirement: currentRequirement),
+            "tidydrop-xpc-ok"
+        )
+        XCTAssertEqual(
+            invoke(
+                serverRequirement: "identifier \"io.github.bugroo.tidydrop.invalid-server\"",
+                clientRequirement: currentRequirement
+            ),
+            nil
+        )
+        XCTAssertEqual(
+            invoke(
+                serverRequirement: currentRequirement,
+                clientRequirement: "identifier \"io.github.bugroo.tidydrop.invalid-client\""
+            ),
+            nil
+        )
+#else
+        throw XCTSkip("XPC signing requirements are macOS-only")
+#endif
+    }
+
 }
 
 
@@ -2151,6 +2274,9 @@ private let tests: [(String, () throws -> Void)] = [
     ("testAgentRunRequestIsPrivateAndSourceBound", suite.testAgentRunRequestIsPrivateAndSourceBound),
     ("testAgentRunRequestRejectsSymlinkDestination", suite.testAgentRunRequestRejectsSymlinkDestination),
     ("testAgentRunRequestValidationRejectsStaleOrDifferentSource", suite.testAgentRunRequestValidationRejectsStaleOrDifferentSource),
+    ("testCodeSigningRequirementMatchesOnlyCurrentSignedCode", suite.testCodeSigningRequirementMatchesOnlyCurrentSignedCode),
+    ("testSecurityScopedBookmarkRoundTripBalancesAccess", suite.testSecurityScopedBookmarkRoundTripBalancesAccess),
+    ("testXPCMutualCodeSigningRequirementAcceptsAndRejects", suite.testXPCMutualCodeSigningRequirementAcceptsAndRejects),
 ]
 
 var passed = 0
