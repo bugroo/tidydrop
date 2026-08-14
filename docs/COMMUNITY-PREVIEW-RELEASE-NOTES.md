@@ -1,4 +1,4 @@
-# TidyDrop 1.3.0 Community Preview
+# TidyDrop 1.3.0 Community Preview 2
 
 TidyDrop keeps one folder organized locally. It does not upload file names,
 metadata, content, or usage information. Its optional manual Update Center sends
@@ -67,6 +67,9 @@ itself prove that software is safe.
   hoc launch constraints.
 - Two-phase agent startup: an early diagnostic scan cannot authorize moving;
   only a fresh second scan after FSEvents starts reports the watcher ready.
+- An isolated offline Ed25519 manifest-verification foundation with canonical
+  parsing, direct no-follow hashing, and replay/downgrade regressions. It is not
+  connected to the shipping updater until production key custody is approved.
 - Signed-XPC, security-scoped bookmark, and minimal Sandbox prototypes verified
   in tests but deliberately excluded from this ad hoc release until a stable
   Developer ID identity is available.
