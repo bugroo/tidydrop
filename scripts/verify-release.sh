@@ -11,13 +11,21 @@ MODE=$2
 EXECUTABLE="$APP/Contents/MacOS/TidyDropApp"
 CLI_EXECUTABLE="$APP/Contents/Resources/tidydrop"
 AGENT_EXECUTABLE="$APP/Contents/Resources/tidydrop-agent"
-AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
+STABLE_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
+COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
 INFO_PLIST="$APP/Contents/Info.plist"
 
 case "$MODE" in
     development|community|distribution) ;;
     *) printf 'ERROR: modo desconocido: %s\n' "$MODE" >&2; exit 2 ;;
 esac
+if [ "$MODE" = community ]; then
+    AGENT_PLIST=$COMMUNITY_AGENT_PLIST
+    EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent.community.v5'
+else
+    AGENT_PLIST=$STABLE_AGENT_PLIST
+    EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent'
+fi
 
 [ -d "$APP" ] && [ ! -L "$APP" ] || {
     printf 'ERROR: bundle ausente o symlink: %s\n' "$APP" >&2
@@ -25,9 +33,11 @@ esac
 }
 [ -x "$EXECUTABLE" ] && [ -x "$CLI_EXECUTABLE" ] && [ -x "$AGENT_EXECUTABLE" ] \
     && [ -f "$INFO_PLIST" ] && [ -f "$AGENT_PLIST" ] \
+    && [ -f "$STABLE_AGENT_PLIST" ] && [ -f "$COMMUNITY_AGENT_PLIST" ] \
     && [ ! -L "$EXECUTABLE" ] && [ ! -L "$CLI_EXECUTABLE" ] \
     && [ ! -L "$AGENT_EXECUTABLE" ] && [ ! -L "$INFO_PLIST" ] \
-    && [ ! -L "$AGENT_PLIST" ] || {
+    && [ ! -L "$AGENT_PLIST" ] && [ ! -L "$STABLE_AGENT_PLIST" ] \
+    && [ ! -L "$COMMUNITY_AGENT_PLIST" ] || {
     printf '%s\n' 'ERROR: bundle incompleto o con entradas inseguras.' >&2
     exit 1
 }
@@ -42,7 +52,8 @@ if /usr/bin/find "$APP" -name '.DS_Store' -print | /usr/bin/grep . >/dev/null 2>
 fi
 
 /usr/bin/plutil -lint "$INFO_PLIST"
-/usr/bin/plutil -lint "$AGENT_PLIST"
+/usr/bin/plutil -lint "$STABLE_AGENT_PLIST"
+/usr/bin/plutil -lint "$COMMUNITY_AGENT_PLIST"
 BUNDLE_ID=$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$INFO_PLIST")
 BUNDLE_VERSION=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")
 MINIMUM_SYSTEM=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$INFO_PLIST")
@@ -127,7 +138,7 @@ for release_binary in "$EXECUTABLE" "$CLI_EXECUTABLE" "$AGENT_EXECUTABLE"; do
     fi
 done
 
-[ "$(/usr/bin/plutil -extract Label raw -o - "$AGENT_PLIST")" = 'io.github.bugroo.tidydrop.agent' ] || {
+[ "$(/usr/bin/plutil -extract Label raw -o - "$AGENT_PLIST")" = "$EXPECTED_AGENT_LABEL" ] || {
     printf '%s\n' 'ERROR: label del agente inesperado.' >&2
     exit 1
 }

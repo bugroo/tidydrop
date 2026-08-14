@@ -50,6 +50,8 @@ PASS  testFolderSetAlwaysReturnsToDryRunAndPreservesTransactions
 PASS  testCancelledFolderSelectionDoesNotChangeConfiguration
 PASS  testFolderResetDownloadsUsesIsolatedHomeAndReturnsToDryRun
 PASS  testDangerousActiveFolderRootsAreRejected
+PASS  testSystemApplicationsScopeContainingInstalledBundleIsRejected
+PASS  testLaunchAgentStatusRecognizesBundledAgentExecution
 PASS  testActiveFolderRejectsRootSymlinkAndTraversal
 PASS  testUnavailableSourceFailsSafely
 PASS  testExclusiveMoveNeverOverwritesLateCollision
@@ -63,4 +65,4 @@ PASS  testConfigurationBoundsRuleCountsAndLengths
 PASS  testAtomicJSONSaveRejectsSymlinkAndUsesPrivatePermissions
 PASS  testScheduledExecutionWritesDryRunSuccessRecord
 PASS  testScheduledExecutionUnavailableSourceFailsClosed
-Resultado: 64 PASS, 0 SKIP, 0 FAIL; total=64
+Resultado: 66 PASS, 0 SKIP, 0 FAIL; total=66

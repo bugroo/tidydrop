@@ -9,7 +9,7 @@ import Darwin
 import Glibc
 #endif
 
-private let programVersion = "1.1.0"
+private let programVersion = "1.1.1"
 
 private struct Arguments {
     let command: String
@@ -257,19 +257,42 @@ private func setAutomation(enabled: Bool, configurationURL: URL) throws {
 
 private func launchAgentAccessStatus(for resolved: ResolvedConfiguration) -> String {
     let home = FileManager.default.homeDirectoryForCurrentUser
-    let agent = home
+    let legacyAgent = home
         .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
         .appendingPathComponent("com.local.tidydrop.plist")
-    guard FileManager.default.fileExists(atPath: agent.path) else { return "not_installed" }
-    guard FileManager.default.fileExists(atPath: resolved.paths.scheduledStatusFile.path),
-          let record = try? JSONFile.load(
+    let agentInstalled = launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent.community.v5")
+        || launchAgentIsLoaded(label: "io.github.bugroo.tidydrop.agent")
+        || launchAgentIsLoaded(label: "com.local.tidydrop")
+        || FileManager.default.fileExists(atPath: legacyAgent.path)
+    let record: ScheduledRunRecord?
+    if FileManager.default.fileExists(atPath: resolved.paths.scheduledStatusFile.path) {
+        record = try? JSONFile.load(
             ScheduledRunRecord.self,
             from: resolved.paths.scheduledStatusFile,
             default: ScheduledRunRecord(outcome: .error, runID: "missing")
-          ) else {
-        return "installed_not_verified"
+        )
+    } else {
+        record = nil
     }
-    return record.outcome.rawValue
+    return LaunchAgentStatusResolver.accessStatus(
+        agentInstalled: agentInstalled,
+        scheduledRecord: record
+    )
+}
+
+private func launchAgentIsLoaded(label: String) -> Bool {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+    process.arguments = ["print", "gui/\(getuid())/\(label)"]
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    do {
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    } catch {
+        return false
+    }
 }
 
 private func printFolderValidation(

@@ -63,6 +63,7 @@ Targets:
         Classifier.swift
         Configuration.swift
         FileSystem.swift
+        LaunchAgentStatus.swift
         Models.swift
         ScheduledExecution.swift
         Stability.swift

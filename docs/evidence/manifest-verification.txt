@@ -18,6 +18,7 @@ Sources/TidyDropCore/Audit.swift: OK
 Sources/TidyDropCore/Classifier.swift: OK
 Sources/TidyDropCore/Configuration.swift: OK
 Sources/TidyDropCore/FileSystem.swift: OK
+Sources/TidyDropCore/LaunchAgentStatus.swift: OK
 Sources/TidyDropCore/Models.swift: OK
 Sources/TidyDropCore/ScheduledExecution.swift: OK
 Sources/TidyDropCore/Stability.swift: OK
@@ -26,12 +27,14 @@ Sources/TidyDropCore/Transactions.swift: OK
 VERSION: OK
 app/Distribution-Info.plist: OK
 app/Info.plist: OK
+app/io.github.bugroo.tidydrop.agent.community.v5.plist: OK
 app/io.github.bugroo.tidydrop.agent.plist: OK
 config/config.example.json: OK
 docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md: OK
 docs/RELEASE-PHASE-1.md: OK
 docs/RELEASE-PHASE-2.md: OK
 docs/RUNTIME-AUDIT-2026-08-13.md: OK
+docs/RUNTIME-AUDIT-2026-08-14.md: OK
 docs/SECURITY-AUDIT-2026-08-12.md: OK
 docs/SECURITY.md: OK
 docs/VALIDATION.md: OK
@@ -89,4 +92,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 91 archivos
+Manifest verificado: 94 archivos

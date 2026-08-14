@@ -1,4 +1,4 @@
-# Validación de TidyDrop 1.1.0 (candidato)
+# Validación de TidyDrop 1.1.1 (candidato)
 
 La validación se ejecuta con Apple Command Line Tools, sin Xcode completo ni XCTest, y trata advertencias como errores.
 
@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 64, incluidas las fronteras balanceadas de auditoría
+4. Self-tests propios: 66, incluidas las fronteras balanceadas de auditoría
    programada y el runner del agente aislado, sin reducir las regresiones
    anteriores.
 5. Veinte repeticiones de las carreras de estabilidad.
@@ -29,8 +29,15 @@ Gates obligatorios:
 18. El workflow comunitario está fijado por SHA, no consume secretos Apple,
     genera checksum y atestación, crea un draft, vuelve a descargarlo y publica
     únicamente como prerelease con `latest=false`.
+19. El estado del CLI reconoce el agente incluido registrado con `SMAppService`
+    y la carpeta activa rechaza tanto el bundle de usuario como el instalado en
+    `/Applications` y cualquier raíz que los contenga.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
+
+La auditoría instalada del 14 de agosto de 2026 está resumida en
+`docs/RUNTIME-AUDIT-2026-08-14.md`. Conserva únicamente métricas y conteos; no
+publica nombres de archivos personales.
 
 El DMG de desarrollo verifica estructura y portabilidad y no se publica. El DMG
 Community Preview añade procedencia y una instalación explícitamente no

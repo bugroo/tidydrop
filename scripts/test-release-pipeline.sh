@@ -32,11 +32,11 @@ fi
 /usr/bin/ditto "$APP" "$DISTRIBUTION_APP"
 /usr/bin/plutil -replace TidyDropDistributionChannel -string development \
     "$DEVELOPMENT_APP/Contents/Info.plist"
-/usr/bin/plutil -replace TidyDropBuildIdentity -string '1.1.0-development' \
+/usr/bin/plutil -replace TidyDropBuildIdentity -string '1.1.1-development' \
     "$DEVELOPMENT_APP/Contents/Info.plist"
 /usr/bin/plutil -replace TidyDropDistributionChannel -string distribution \
     "$DISTRIBUTION_APP/Contents/Info.plist"
-/usr/bin/plutil -replace TidyDropBuildIdentity -string '1.1.0-distribution' \
+/usr/bin/plutil -replace TidyDropBuildIdentity -string '1.1.1-distribution' \
     "$DISTRIBUTION_APP/Contents/Info.plist"
 
 if "$SCRIPT_DIR/verify-release.sh" "$APP" community \
