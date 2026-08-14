@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 
@@ -13,6 +14,7 @@ public enum UpdateStagingFailure: Error, Equatable, Sendable {
     case writeFailed
     case synchronizeFailed
     case artifactChanged
+    case artifactDigestMismatch
     case finalizeFailed
 }
 
@@ -66,11 +68,13 @@ public final class PrivateUpdateStagingWriter {
     private let partialName: String
     private let artifactName: String
     private let expectedBytes: UInt64
+    private let expectedSHA256: String
     private let maximumBytes: UInt64
     private let faultInjection: UpdateStagingFaultInjection
     private let initialDevice: dev_t
     private let initialInode: ino_t
     private var writtenBytes: UInt64 = 0
+    private var artifactHasher = SHA256()
     private var state: State = .active
 
     private init(
@@ -82,6 +86,7 @@ public final class PrivateUpdateStagingWriter {
         partialName: String,
         artifactName: String,
         expectedBytes: UInt64,
+        expectedSHA256: String,
         maximumBytes: UInt64,
         faultInjection: UpdateStagingFaultInjection,
         initialDevice: dev_t,
@@ -95,6 +100,7 @@ public final class PrivateUpdateStagingWriter {
         self.partialName = partialName
         self.artifactName = artifactName
         self.expectedBytes = expectedBytes
+        self.expectedSHA256 = expectedSHA256
         self.maximumBytes = maximumBytes
         self.faultInjection = faultInjection
         self.initialDevice = initialDevice
@@ -220,6 +226,7 @@ public final class PrivateUpdateStagingWriter {
             partialName: partialName,
             artifactName: manifest.artifactName,
             expectedBytes: manifest.artifactLength,
+            expectedSHA256: manifest.artifactSHA256,
             maximumBytes: maximumBytes,
             faultInjection: faultInjection,
             initialDevice: initial.st_dev,
@@ -258,6 +265,12 @@ public final class PrivateUpdateStagingWriter {
                         throw UpdateStagingFailure.writeFailed
                     }
                     guard result > 0 else { throw UpdateStagingFailure.writeFailed }
+                    artifactHasher.update(
+                        bufferPointer: UnsafeRawBufferPointer(
+                            start: baseAddress.advanced(by: offset),
+                            count: result
+                        )
+                    )
                     offset += result
                     writtenBytes += UInt64(result)
                 }
@@ -296,6 +309,13 @@ public final class PrivateUpdateStagingWriter {
               UInt64(current.st_size) == writtenBytes else {
             failAndCleanup()
             throw UpdateStagingFailure.artifactChanged
+        }
+        let digest = artifactHasher.finalize()
+            .map { String(format: "%02x", $0) }
+            .joined()
+        guard digest == expectedSHA256 else {
+            failAndCleanup()
+            throw UpdateStagingFailure.artifactDigestMismatch
         }
 
         let renamed = partialName.withCString { partialPath in

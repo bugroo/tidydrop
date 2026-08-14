@@ -201,7 +201,7 @@ the updater.
 | No artifact download/install APIs | 1 | Source audit |
 | Immutable future releases | Release operation | Repository setting and release checklist |
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
-| Private no-follow staging | 2 | Descriptor-bound non-shipping writer and failure tests implemented; transport/extraction integration pending |
+| Private no-follow staging and transport | 2 | Descriptor-bound writer plus fixed-origin ephemeral streaming, redirect/authentication bounds, cancellation and signed digest enforcement implemented outside shipping targets; extraction inspection pending |
 | Prior verified bundle and state backup | 2 | Fault-injection integration tests |
 | Out-of-process recovery | 2 | Kill/crash/power-loss tests |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
@@ -251,3 +251,11 @@ creation/finalization, bounds, cancellation, injected disk exhaustion, symlink
 rejection and late collision handling. It has no network, mount, extraction,
 installation or Service Management path. R7 therefore remains open: the
 current application still cannot install or roll back an update.
+
+ADR-0017 adds the still non-shipping transport boundary. It constructs only the
+official authenticated asset URL, accepts only the GitHub release-asset redirect
+origin, uses an ephemeral credential-free session and streams into ADR-0015.
+The writer now rejects the authenticated digest before finalizing a staged
+artifact. Mock transport is injected per test session so regressions cannot
+silently contact the real network. Extraction, bundle inspection and all
+installation/recovery authority remain absent, so R7 remains open.

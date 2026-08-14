@@ -38,11 +38,12 @@ unexpected_network=$(
     /usr/bin/grep -RInE 'URLSession|NWConnection|Network\.framework|CFNetwork|socket\(' \
         "$PROJECT_ROOT/Sources" 2>/dev/null \
         | /usr/bin/grep -v '/Sources/TidyDropApp/UpdateCheckService.swift:' \
+        | /usr/bin/grep -v '/Sources/TidyDropUpdateTransport/FixedOriginUpdateTransport.swift:' \
         || true
 )
 [ -z "$unexpected_network" ] || {
     printf '%s\n' "$unexpected_network" >&2
-    fail 'network APIs exist outside the single Update Center client'
+    fail 'network APIs exist outside the Update Center and gated non-shipping transport'
 }
 
 startup_body=$(
@@ -66,4 +67,4 @@ printf '%s\n' '  manual check only'
 printf '%s\n' '  official fixed repository endpoint'
 printf '%s\n' '  ephemeral session without credentials or cookies'
 printf '%s\n' '  no runtime network in Core, CLI, or LaunchAgent'
-printf '%s\n' '  no artifact download or installation path'
+printf '%s\n' '  no artifact download or installation path in shipping targets'

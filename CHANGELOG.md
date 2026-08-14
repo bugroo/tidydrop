@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Adds a non-shipping fixed-origin update transport with an ephemeral,
+  credential-free session, strict redirect/authentication policy, streaming
+  into private staging, pre-finalization digest enforcement, cancellation and
+  injected no-network regressions. Extraction and installation remain disabled.
 - Makes the automated folder-chooser gate nonvisual by default, preventing a
   brief AppKit panel from flashing during validation and installation while
   retaining an explicit opt-in UI smoke test.

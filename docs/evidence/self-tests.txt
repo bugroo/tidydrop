@@ -104,4 +104,9 @@ PASS  testPrivateUpdateStagingBoundsAndCleansPartialWorkspace
 PASS  testPrivateUpdateStagingCancellationCleansPartialWorkspace
 PASS  testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace
 PASS  testPrivateUpdateStagingNeverOverwritesFinalCollision
-Resultado: 105 PASS, 0 SKIP, 0 FAIL; total=105
+PASS  testPrivateUpdateStagingRejectsDigestMismatchBeforeFinalization
+PASS  testFixedOriginUpdateTransportBuildsAndSanitizesOfficialURLs
+PASS  testFixedOriginUpdateTransportStreamsAuthenticatedArtifact
+PASS  testFixedOriginUpdateTransportRejectsStatusAndCleansStaging
+PASS  testFixedOriginUpdateTransportCancellationCleansStaging
+Resultado: 110 PASS, 0 SKIP, 0 FAIL; total=110

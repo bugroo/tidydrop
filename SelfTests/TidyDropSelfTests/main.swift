@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import TidyDropCore
 import TidyDropUpdateSecurity
+@_spi(Testing) import TidyDropUpdateTransport
 #if os(macOS)
 import Darwin
 
@@ -402,6 +403,112 @@ private struct SignedReleaseManifestFixture {
         )
     }
 }
+
+#if os(macOS)
+private final class LockedResultBox<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value?
+
+    func store(_ value: Value) {
+        lock.lock()
+        self.value = value
+        lock.unlock()
+    }
+
+    func load() -> Value? {
+        lock.lock()
+        let value = self.value
+        lock.unlock()
+        return value
+    }
+}
+
+private final class UpdateTransportURLProtocol: URLProtocol, @unchecked Sendable {
+    enum Plan: Sendable {
+        case response(data: Data, status: Int, declaredLength: Int64?)
+        case delayed(data: Data, nanoseconds: UInt64)
+    }
+
+    private static let planLock = NSLock()
+    nonisolated(unsafe) private static var configuredPlan: Plan?
+    nonisolated(unsafe) private static var observedRequest: URLRequest?
+    private let stateLock = NSLock()
+    private var stopped = false
+
+    static func configure(_ plan: Plan) {
+        planLock.lock()
+        configuredPlan = plan
+        observedRequest = nil
+        planLock.unlock()
+    }
+
+    static func request() -> URLRequest? {
+        planLock.lock()
+        let request = observedRequest
+        planLock.unlock()
+        return request
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        let host = request.url?.host?.lowercased()
+        return host == "github.com" || host == "release-assets.githubusercontent.com"
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        Self.planLock.lock()
+        Self.observedRequest = request
+        let plan = Self.configuredPlan
+        Self.planLock.unlock()
+        guard let plan else {
+            client?.urlProtocol(self, didFailWithError: URLError(.resourceUnavailable))
+            return
+        }
+        switch plan {
+        case let .response(data, status, declaredLength):
+            emit(data: data, status: status, declaredLength: declaredLength)
+        case let .delayed(data, nanoseconds):
+            DispatchQueue.global(qos: .utility).asyncAfter(
+                deadline: .now() + .nanoseconds(Int(nanoseconds))
+            ) { [weak self] in
+                self?.emit(data: data, status: 200, declaredLength: Int64(data.count))
+            }
+        }
+    }
+
+    override func stopLoading() {
+        stateLock.lock()
+        stopped = true
+        stateLock.unlock()
+    }
+
+    private func emit(data: Data, status: Int, declaredLength: Int64?) {
+        stateLock.lock()
+        let stopped = self.stopped
+        stateLock.unlock()
+        guard !stopped, let url = request.url else { return }
+        var headers: [String: String] = [:]
+        if let declaredLength { headers["Content-Length"] = String(declaredLength) }
+        guard let response = HTTPURLResponse(
+            url: url,
+            statusCode: status,
+            httpVersion: "HTTP/1.1",
+            headerFields: headers
+        ) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        let split = data.count / 2
+        if split > 0 { client?.urlProtocol(self, didLoad: data.prefix(split)) }
+        client?.urlProtocol(self, didLoad: data.suffix(from: split))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+}
+#endif
 
 private final class TidyDropCoreTests {
     func testExtensionClassificationUsesLongestCompoundExtension() throws {
@@ -2939,6 +3046,196 @@ private final class TidyDropCoreTests {
         XCTAssertEqual(try Data(contentsOf: collision), sentinel)
     }
 
+    func testPrivateUpdateStagingRejectsDigestMismatchBeforeFinalization() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = fixture.workspace.root.appendingPathComponent("digest-staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        let writer = try PrivateUpdateStagingWriter.create(
+            in: parent,
+            authenticatedManifest: try fixture.authenticated(),
+            maximumBytes: 1_024 * 1_024
+        )
+        try writer.append(Data(repeating: 0x78, count: fixture.artifactData.count))
+        XCTAssertThrowsError(try writer.finish()) { error in
+            XCTAssertEqual(error as? UpdateStagingFailure, .artifactDigestMismatch)
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+    }
+
+    func testFixedOriginUpdateTransportBuildsAndSanitizesOfficialURLs() throws {
+        let fixture = try SignedReleaseManifestFixture()
+        let authenticated = try fixture.authenticated()
+        let initial = try FixedOriginUpdateTransport.artifactURL(for: authenticated)
+        XCTAssertEqual(initial.scheme, "https")
+        XCTAssertEqual(initial.host, "github.com")
+        XCTAssertEqual(
+            initial.path,
+            "/bugroo/tidydrop/releases/download/v1.3.0-community.2/\(fixture.manifest.artifactName)"
+        )
+
+        var approved = URLRequest(
+            url: URL(string: "https://release-assets.githubusercontent.com/github-production-release-asset/example?token=opaque")!
+        )
+        approved.setValue("secret", forHTTPHeaderField: "Authorization")
+        approved.setValue("tracking=1", forHTTPHeaderField: "Cookie")
+        let sanitized = try FixedOriginUpdateTransport.sanitizedRedirect(
+            approved,
+            initialURL: initial,
+            redirectCount: 1
+        ).get()
+        XCTAssertTrue(sanitized.value(forHTTPHeaderField: "Authorization") == nil)
+        XCTAssertTrue(sanitized.value(forHTTPHeaderField: "Cookie") == nil)
+        XCTAssertEqual(sanitized.value(forHTTPHeaderField: "Accept-Encoding"), "identity")
+
+        let external = URLRequest(url: URL(string: "https://example.com/update.dmg")!)
+        XCTAssertEqual(
+            FixedOriginUpdateTransport.sanitizedRedirect(
+                external,
+                initialURL: initial,
+                redirectCount: 1
+            ),
+            .failure(.redirectRejected)
+        )
+        XCTAssertEqual(
+            FixedOriginUpdateTransport.sanitizedRedirect(
+                approved,
+                initialURL: initial,
+                redirectCount: 4
+            ),
+            .failure(.tooManyRedirects)
+        )
+        XCTAssertThrowsError(
+            try FixedOriginUpdateTransport.validateResponse(
+                statusCode: 200,
+                declaredContentLength: Int64(fixture.artifactData.count + 1),
+                authenticatedLength: UInt64(fixture.artifactData.count)
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? UpdateTransportFailure,
+                .contentLengthMismatch(
+                    declared: Int64(fixture.artifactData.count + 1),
+                    authenticated: UInt64(fixture.artifactData.count)
+                )
+            )
+        }
+    }
+
+    func testFixedOriginUpdateTransportStreamsAuthenticatedArtifact() throws {
+#if os(macOS)
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = try privateTransportParent(fixture: fixture, name: "transport-success")
+        UpdateTransportURLProtocol.configure(
+            .response(
+                data: fixture.artifactData,
+                status: 200,
+                declaredLength: Int64(fixture.artifactData.count)
+            )
+        )
+        let result = try awaitTransportResult(
+            authenticated: fixture.authenticated(),
+            parent: parent
+        )
+        guard case .success(let staged) = result else {
+            XCTFail("Authenticated transport should succeed: \(result)")
+            return
+        }
+        XCTAssertEqual(try Data(contentsOf: staged.fileURL), fixture.artifactData)
+        let request = UpdateTransportURLProtocol.request()
+        XCTAssertEqual(request?.httpMethod, "GET")
+        XCTAssertTrue(request?.value(forHTTPHeaderField: "Authorization") == nil)
+        XCTAssertTrue(request?.value(forHTTPHeaderField: "Cookie") == nil)
+        XCTAssertEqual(request?.value(forHTTPHeaderField: "Accept-Encoding"), "identity")
+#else
+        throw XCTSkip("URLProtocol transport regression requires macOS")
+#endif
+    }
+
+    func testFixedOriginUpdateTransportRejectsStatusAndCleansStaging() throws {
+#if os(macOS)
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = try privateTransportParent(fixture: fixture, name: "transport-length")
+        UpdateTransportURLProtocol.configure(
+            .response(
+                data: fixture.artifactData,
+                status: 503,
+                declaredLength: nil
+            )
+        )
+        let result = try awaitTransportResult(
+            authenticated: fixture.authenticated(),
+            parent: parent
+        )
+        XCTAssertEqual(result, .failure(.unexpectedStatus(503)))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+#else
+        throw XCTSkip("URLProtocol transport regression requires macOS")
+#endif
+    }
+
+    func testFixedOriginUpdateTransportCancellationCleansStaging() throws {
+#if os(macOS)
+        let fixture = try SignedReleaseManifestFixture()
+        let parent = try privateTransportParent(fixture: fixture, name: "transport-cancel")
+        UpdateTransportURLProtocol.configure(
+            .delayed(data: fixture.artifactData, nanoseconds: 500_000_000)
+        )
+        let result = try awaitTransportResult(
+            authenticated: fixture.authenticated(),
+            parent: parent,
+            cancelImmediately: true
+        )
+        XCTAssertEqual(result, .failure(.cancelled))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: parent.path), [])
+#else
+        throw XCTSkip("URLProtocol transport regression requires macOS")
+#endif
+    }
+
+#if os(macOS)
+    private func privateTransportParent(
+        fixture: SignedReleaseManifestFixture,
+        name: String
+    ) throws -> URL {
+        let parent = fixture.workspace.root.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: parent.path
+        )
+        return parent
+    }
+
+    private func awaitTransportResult(
+        authenticated: AuthenticatedReleaseManifest,
+        parent: URL,
+        cancelImmediately: Bool = false
+    ) throws -> Result<StagedUpdateArtifact, UpdateTransportFailure> {
+        let box = LockedResultBox<Result<StagedUpdateArtifact, UpdateTransportFailure>>()
+        let semaphore = DispatchSemaphore(value: 0)
+        let operation = try FixedOriginUpdateTransport.startForTesting(
+            authenticatedManifest: authenticated,
+            stagingParent: parent,
+            maximumBytes: 1_024 * 1_024,
+            protocolClasses: [UpdateTransportURLProtocol.self]
+        ) { result in
+            box.store(result)
+            semaphore.signal()
+        }
+        if cancelImmediately { operation.cancel() }
+        guard semaphore.wait(timeout: .now() + 5) == .success,
+              let result = box.load() else {
+            operation.cancel()
+            throw NSError(domain: "TidyDropTests.UpdateTransport", code: 1)
+        }
+        return result
+    }
+#endif
+
 }
 
 
@@ -3049,6 +3346,11 @@ private let tests: [(String, () throws -> Void)] = [
     ("testPrivateUpdateStagingCancellationCleansPartialWorkspace", suite.testPrivateUpdateStagingCancellationCleansPartialWorkspace),
     ("testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace", suite.testPrivateUpdateStagingDiskFullFaultCleansPartialWorkspace),
     ("testPrivateUpdateStagingNeverOverwritesFinalCollision", suite.testPrivateUpdateStagingNeverOverwritesFinalCollision),
+    ("testPrivateUpdateStagingRejectsDigestMismatchBeforeFinalization", suite.testPrivateUpdateStagingRejectsDigestMismatchBeforeFinalization),
+    ("testFixedOriginUpdateTransportBuildsAndSanitizesOfficialURLs", suite.testFixedOriginUpdateTransportBuildsAndSanitizesOfficialURLs),
+    ("testFixedOriginUpdateTransportStreamsAuthenticatedArtifact", suite.testFixedOriginUpdateTransportStreamsAuthenticatedArtifact),
+    ("testFixedOriginUpdateTransportRejectsStatusAndCleansStaging", suite.testFixedOriginUpdateTransportRejectsStatusAndCleansStaging),
+    ("testFixedOriginUpdateTransportCancellationCleansStaging", suite.testFixedOriginUpdateTransportCancellationCleansStaging),
 ]
 
 var passed = 0

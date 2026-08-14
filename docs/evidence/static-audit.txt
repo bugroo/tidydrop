@@ -14,7 +14,8 @@ TidyDrop — auditoría estática local
 <repository-root>/launchd/com.local.tidydrop.plist.example: OK
 [OK] Plists válidos
 [OK] Versión e identidad comunitaria coherentes
-[OK] Red runtime limitada al Update Center manual, efímero y sin credenciales
+Fixed-origin authenticated update transport: PASS (ephemeral, injected tests, non-shipping)
+[OK] Red runtime limitada al Update Center; transporte autenticado aislado y no distribuido
 [OK] Sin utilidades de red ejecutadas por scripts
 [OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta
 [OK] Apply/undo con rename exclusivo y archivos propios abiertos con O_NOFOLLOW

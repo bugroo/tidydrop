@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 105, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 110, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -66,6 +66,11 @@ Gates obligatorios:
     anclados a descriptores, no sigue symlinks, nunca sobrescribe colisiones y
     limpia de forma exacta los parciales en cancelación, exceso y `ENOSPC`
     inyectado. Continúa fuera de todos los targets distribuidos.
+29. El transporte autenticado no distribuido construye únicamente la URL
+    oficial, usa sesión efímera, limita redirects y autenticación, transmite por
+    chunks al staging, rechaza digest incorrecto y limpia tras cancelación o
+    HTTP no exitoso. Sus tests usan `URLProtocol` inyectado por SPI y no la red
+    real.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

@@ -3,4 +3,4 @@ Update Center policy: PASS
   official fixed repository endpoint
   ephemeral session without credentials or cookies
   no runtime network in Core, CLI, or LaunchAgent
-  no artifact download or installation path
+  no artifact download or installation path in shipping targets
