@@ -6,7 +6,7 @@ uploading, indexing, or profiling your files.**
 `🍎 macOS 13+` · `🔒 Local-only runtime` · `↩️ Conservative undo` ·
 `⚡ Low-overhead background work` · `🧩 Apple Silicon + Intel`
 
-[⬇️ **Download TidyDrop 1.1.1 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.1.1-community.1/TidyDrop-1.1.1-community-preview-macos-universal.dmg)
+[⬇️ **Download TidyDrop 1.1.2 Community Preview**](https://github.com/bugroo/tidydrop/releases/download/v1.1.2-community.1/TidyDrop-1.1.2-community-preview-macos-universal.dmg)
 · [Release notes](docs/COMMUNITY-PREVIEW-RELEASE-NOTES.md)
 · [Security](docs/SECURITY.md)
 
@@ -75,8 +75,8 @@ TidyDrop never reorganizes subfolders recursively.
 
 ## ⬇️ Download
 
-TidyDrop 1.1.1 Community Preview is available as a Universal 2 DMG from
-[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.1.1-community.1).
+TidyDrop 1.1.2 Community Preview is available as a Universal 2 DMG from
+[GitHub Releases](https://github.com/bugroo/tidydrop/releases/tag/v1.1.2-community.1).
 It contains a native setup app and a bundled background agent, so recipients do
 not need Terminal or development tools.
 
@@ -98,22 +98,22 @@ required.
 ## Install the Community Preview
 
 1. Download the DMG and checksum from the
-   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.1.1-community.1).
+   [official prerelease](https://github.com/bugroo/tidydrop/releases/tag/v1.1.2-community.1).
 2. Open the DMG and drag `TidyDrop.app` to Applications.
 3. Try to open TidyDrop once. macOS is expected to block the first launch.
 4. Open **System Settings → Privacy & Security** and select **Open Anyway**.
-5. Open TidyDrop, register its background agent, and run the safe preview.
+5. Open TidyDrop, enable background organization, and let it verify a safe preview run.
 6. Enable automatic organization only after the preview reports zero errors.
 
 Never disable Gatekeeper, remove quarantine attributes, grant Full Disk Access,
 or install TidyDrop through a remote `curl | sh` command.
 
 Download the matching
-[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.1.1-community.1/TidyDrop-1.1.1-community-preview-macos-universal.sha256)
+[SHA-256 checksum](https://github.com/bugroo/tidydrop/releases/download/v1.1.2-community.1/TidyDrop-1.1.2-community-preview-macos-universal.sha256)
 and verify the DMG with:
 
 ```sh
-shasum -a 256 -c TidyDrop-1.1.1-community-preview-macos-universal.sha256
+shasum -a 256 -c TidyDrop-1.1.2-community-preview-macos-universal.sha256
 ```
 
 ## 🛠️ Install from source

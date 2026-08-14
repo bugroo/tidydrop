@@ -2,6 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+VERSION=$(/bin/cat "$SCRIPT_DIR/../VERSION")
 TEST_ROOT=$(/usr/bin/mktemp -d "/private/tmp/TidyDropIntegration.release.XXXXXX")
 trap '/bin/rm -rf "$TEST_ROOT"' EXIT HUP INT TERM
 APP="$TEST_ROOT/TidyDrop.app"
@@ -32,11 +33,11 @@ fi
 /usr/bin/ditto "$APP" "$DISTRIBUTION_APP"
 /usr/bin/plutil -replace TidyDropDistributionChannel -string development \
     "$DEVELOPMENT_APP/Contents/Info.plist"
-/usr/bin/plutil -replace TidyDropBuildIdentity -string '1.1.1-development' \
+/usr/bin/plutil -replace TidyDropBuildIdentity -string "$VERSION-development" \
     "$DEVELOPMENT_APP/Contents/Info.plist"
 /usr/bin/plutil -replace TidyDropDistributionChannel -string distribution \
     "$DISTRIBUTION_APP/Contents/Info.plist"
-/usr/bin/plutil -replace TidyDropBuildIdentity -string '1.1.1-distribution' \
+/usr/bin/plutil -replace TidyDropBuildIdentity -string "$VERSION-distribution" \
     "$DISTRIBUTION_APP/Contents/Info.plist"
 
 if "$SCRIPT_DIR/verify-release.sh" "$APP" community \
@@ -72,6 +73,11 @@ AGENT_CONFIG="$TEST_ROOT/agent-config.json"
 [ "$(/usr/bin/plutil -extract mode raw -o - "$TEST_ROOT/AgentState/last-scheduled-run.json")" = 'dry-run' ]
 [ "$(/usr/bin/plutil -extract moved raw -o - "$TEST_ROOT/AgentState/last-scheduled-run.json")" = '0' ]
 [ "$(/usr/bin/plutil -extract errors raw -o - "$TEST_ROOT/AgentState/last-scheduled-run.json")" = '0' ]
+RECORDED_AGENT_SOURCE=$(/usr/bin/plutil -extract source_directory raw -o - \
+    "$TEST_ROOT/AgentState/last-scheduled-run.json")
+[ -d "$RECORDED_AGENT_SOURCE" ] && [ ! -L "$RECORDED_AGENT_SOURCE" ]
+[ "$(/usr/bin/stat -f '%d:%i' "$RECORDED_AGENT_SOURCE")" \
+    = "$(/usr/bin/stat -f '%d:%i' "$TEST_ROOT/AgentSource")" ]
 
 if TIDYDROP_RELEASE_BUNDLE_ID='bad bundle id' \
    TIDYDROP_RELEASE_TEAM_ID='ABCDE12345' \
@@ -114,7 +120,6 @@ fi
 /usr/bin/grep -q 'no puede ser un symlink' "$TEST_ROOT/output-symlink-rejection.txt"
 
 "$SCRIPT_DIR/package-release.sh" "$APP" "$ARTIFACTS" community
-VERSION=$(/bin/cat "$SCRIPT_DIR/../VERSION")
 [ -f "$ARTIFACTS/TidyDrop-$VERSION-community-preview-macos-universal.dmg" ]
 [ -f "$ARTIFACTS/TidyDrop-$VERSION-community-preview-macos-universal.sha256" ]
 

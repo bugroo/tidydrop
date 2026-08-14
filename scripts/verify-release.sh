@@ -12,7 +12,9 @@ EXECUTABLE="$APP/Contents/MacOS/TidyDropApp"
 CLI_EXECUTABLE="$APP/Contents/Resources/tidydrop"
 AGENT_EXECUTABLE="$APP/Contents/Resources/tidydrop-agent"
 STABLE_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.plist"
-COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
+PREVIOUS_COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v5.plist"
+COMMUNITY_AGENT_PLIST="$APP/Contents/Library/LaunchAgents/io.github.bugroo.tidydrop.agent.community.v6.plist"
+APP_ICON="$APP/Contents/Resources/TidyDrop.icns"
 INFO_PLIST="$APP/Contents/Info.plist"
 
 case "$MODE" in
@@ -21,7 +23,7 @@ case "$MODE" in
 esac
 if [ "$MODE" = community ]; then
     AGENT_PLIST=$COMMUNITY_AGENT_PLIST
-    EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent.community.v5'
+    EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent.community.v6'
 else
     AGENT_PLIST=$STABLE_AGENT_PLIST
     EXPECTED_AGENT_LABEL='io.github.bugroo.tidydrop.agent'
@@ -33,11 +35,13 @@ fi
 }
 [ -x "$EXECUTABLE" ] && [ -x "$CLI_EXECUTABLE" ] && [ -x "$AGENT_EXECUTABLE" ] \
     && [ -f "$INFO_PLIST" ] && [ -f "$AGENT_PLIST" ] \
-    && [ -f "$STABLE_AGENT_PLIST" ] && [ -f "$COMMUNITY_AGENT_PLIST" ] \
+    && [ -f "$STABLE_AGENT_PLIST" ] && [ -f "$PREVIOUS_COMMUNITY_AGENT_PLIST" ] \
+    && [ -f "$COMMUNITY_AGENT_PLIST" ] && [ -f "$APP_ICON" ] \
     && [ ! -L "$EXECUTABLE" ] && [ ! -L "$CLI_EXECUTABLE" ] \
     && [ ! -L "$AGENT_EXECUTABLE" ] && [ ! -L "$INFO_PLIST" ] \
     && [ ! -L "$AGENT_PLIST" ] && [ ! -L "$STABLE_AGENT_PLIST" ] \
-    && [ ! -L "$COMMUNITY_AGENT_PLIST" ] || {
+    && [ ! -L "$PREVIOUS_COMMUNITY_AGENT_PLIST" ] \
+    && [ ! -L "$COMMUNITY_AGENT_PLIST" ] && [ ! -L "$APP_ICON" ] || {
     printf '%s\n' 'ERROR: bundle incompleto o con entradas inseguras.' >&2
     exit 1
 }
@@ -53,12 +57,22 @@ fi
 
 /usr/bin/plutil -lint "$INFO_PLIST"
 /usr/bin/plutil -lint "$STABLE_AGENT_PLIST"
+/usr/bin/plutil -lint "$PREVIOUS_COMMUNITY_AGENT_PLIST"
 /usr/bin/plutil -lint "$COMMUNITY_AGENT_PLIST"
 BUNDLE_ID=$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$INFO_PLIST")
 BUNDLE_VERSION=$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")
 MINIMUM_SYSTEM=$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$INFO_PLIST")
 CHANNEL=$(/usr/bin/plutil -extract TidyDropDistributionChannel raw -o - "$INFO_PLIST")
 BUILD_IDENTITY=$(/usr/bin/plutil -extract TidyDropBuildIdentity raw -o - "$INFO_PLIST")
+ICON_FILE=$(/usr/bin/plutil -extract CFBundleIconFile raw -o - "$INFO_PLIST")
+[ "$ICON_FILE" = 'TidyDrop.icns' ] || {
+    printf 'ERROR: icono declarado inesperado: %s\n' "$ICON_FILE" >&2
+    exit 1
+}
+/usr/bin/file "$APP_ICON" | /usr/bin/grep -q 'Mac OS X icon' || {
+    printf '%s\n' 'ERROR: el recurso TidyDrop.icns no es un contenedor ICNS válido.' >&2
+    exit 1
+}
 [ "$BUNDLE_VERSION" = "$(/bin/cat "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/VERSION")" ] || {
     printf '%s\n' 'ERROR: la versión del bundle no coincide con VERSION.' >&2
     exit 1

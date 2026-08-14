@@ -1,4 +1,4 @@
-# Validación de TidyDrop 1.1.1 (candidato)
+# Validación de TidyDrop 1.1.2 (candidato)
 
 La validación se ejecuta con Apple Command Line Tools, sin Xcode completo ni XCTest, y trata advertencias como errores.
 
@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 66, incluidas las fronteras balanceadas de auditoría
+4. Self-tests propios: 68, incluidas las fronteras balanceadas de auditoría
    programada y el runner del agente aislado, sin reducir las regresiones
    anteriores.
 5. Veinte repeticiones de las carreras de estabilidad.
@@ -32,6 +32,12 @@ Gates obligatorios:
 19. El estado del CLI reconoce el agente incluido registrado con `SMAppService`
     y la carpeta activa rechaza tanto el bundle de usuario como el instalado en
     `/Applications` y cualquier raíz que los contenga.
+20. La verificación de background exige una pasada reciente de la carpeta activa
+    exacta, en el modo esperado; un registro antiguo sin `source_directory` no
+    puede autorizar movimientos.
+21. El bundle declara y contiene un icono `.icns` regular, y la aplicación puede
+    iniciarse con una configuración aislada para inspección visual sin tocar el
+    estado instalado.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

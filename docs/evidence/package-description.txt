@@ -60,6 +60,7 @@ Targets:
     Sources:
         ActiveFolder.swift
         Audit.swift
+        BackgroundVerificationPolicy.swift
         Classifier.swift
         Configuration.swift
         FileSystem.swift

@@ -5,9 +5,10 @@ import TidyDropCore
 
 private enum ProductIdentity {
     static let stableAgentPlist = "io.github.bugroo.tidydrop.agent.plist"
-    static let communityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v5.plist"
+    static let previousCommunityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v5.plist"
+    static let communityAgentPlist = "io.github.bugroo.tidydrop.agent.community.v6.plist"
     static let legacyAgentLabel = "com.local.tidydrop"
-    static let version = "1.1.1"
+    static let version = "1.1.2"
     static let distributionChannel = Bundle.main.object(
         forInfoDictionaryKey: "TidyDropDistributionChannel"
     ) as? String ?? "development"
@@ -19,7 +20,12 @@ private enum ProductIdentity {
         isCommunityPreview ? communityAgentPlist : stableAgentPlist
     }
     static var previousAgentPlists: [String] {
-        isCommunityPreview ? [stableAgentPlist] : []
+        isCommunityPreview ? [previousCommunityAgentPlist, stableAgentPlist] : []
+    }
+    static var agentLabel: String {
+        isCommunityPreview
+            ? "io.github.bugroo.tidydrop.agent.community.v6"
+            : "io.github.bugroo.tidydrop.agent"
     }
 }
 
@@ -58,6 +64,15 @@ private enum Launchctl {
     }
 }
 
+private func applicationConfigurationURL() -> URL {
+    guard let flagIndex = CommandLine.arguments.firstIndex(of: "--config"),
+          CommandLine.arguments.indices.contains(flagIndex + 1) else {
+        return ConfigurationIO.defaultConfigPath()
+    }
+    return URL(fileURLWithPath: CommandLine.arguments[flagIndex + 1])
+        .standardizedFileURL
+}
+
 @main
 private struct TidyDropApplication {
     @MainActor
@@ -90,7 +105,9 @@ private struct TidyDropApplication {
         let requiredPaths = [
             "Contents/Resources/tidydrop",
             "Contents/Resources/tidydrop-agent",
+            "Contents/Resources/TidyDrop.icns",
             "Contents/Library/LaunchAgents/\(ProductIdentity.stableAgentPlist)",
+            "Contents/Library/LaunchAgents/\(ProductIdentity.previousCommunityAgentPlist)",
             "Contents/Library/LaunchAgents/\(ProductIdentity.communityAgentPlist)"
         ]
         for relativePath in requiredPaths {
@@ -150,18 +167,27 @@ private struct TidyDropApplication {
 
 @MainActor
 private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
-    private let configurationURL = ConfigurationIO.defaultConfigPath()
+    private let configurationURL = applicationConfigurationURL()
     private let service = SMAppService.agent(plistName: ProductIdentity.agentPlist)
     private var window: NSWindow?
-    private var folderLabel = NSTextField(labelWithString: "")
+    private var folderPathControl = NSPathControl()
     private var serviceLabel = NSTextField(labelWithString: "")
     private var modeLabel = NSTextField(labelWithString: "")
+    private var lastRunLabel = NSTextField(labelWithString: "")
+    private var folderStepLabel = NSTextField(labelWithString: "")
+    private var backgroundStepLabel = NSTextField(labelWithString: "")
+    private var automationStepLabel = NSTextField(labelWithString: "")
     private var resultLabel = NSTextField(wrappingLabelWithString: "")
-    private var activateButton = NSButton()
+    private var backgroundButton = NSButton()
+    private var automationButton = NSButton()
+    private var previewButton = NSButton()
+    private var progressIndicator = NSProgressIndicator()
     private var verificationStartedAt: Date?
     private var verificationTimer: Timer?
     private var verificationAttempts = 0
+    private var verificationKickstarted = false
     private var backgroundVerified = false
+    private var previewRunning = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -170,9 +196,14 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             refreshStatus()
             window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            resumeBackgroundVerification()
         } catch {
             presentFatalError(error)
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        verificationTimer?.invalidate()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -205,12 +236,14 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
 
     private func buildWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 430),
-            styleMask: [.titled, .closable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 680, height: 540),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "TidyDrop"
+        window.minSize = NSSize(width: 620, height: 500)
+        window.tabbingMode = .disallowed
         window.center()
         window.isReleasedWhenClosed = false
 
@@ -236,32 +269,63 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             introductoryViews.append(previewWarning)
         }
 
-        let folderRow = statusRow(title: "Active folder", value: folderLabel)
+        folderPathControl.pathStyle = .standard
+        folderPathControl.isEditable = false
+        folderPathControl.toolTip = "The only folder TidyDrop currently watches"
+        folderPathControl.setAccessibilityLabel("Active folder")
+
+        let folderRow = statusRow(title: "Active folder", value: folderPathControl)
         let serviceRow = statusRow(title: "Background agent", value: serviceLabel)
         let modeRow = statusRow(title: "Automatic moving", value: modeLabel)
+        let lastRunRow = statusRow(title: "Last background run", value: lastRunLabel)
 
         let chooseButton = actionButton("Choose Folder…", action: #selector(chooseFolder))
-        let registerButton = actionButton("Register Background Agent", action: #selector(registerAgent))
-        let previewButton = actionButton("Run Safe Preview", action: #selector(runPreview))
-        activateButton = actionButton("Enable Automatic Organization", action: #selector(activate))
-        let deactivateButton = actionButton("Disable Moving", action: #selector(deactivate))
+        chooseButton.keyEquivalent = "o"
+        chooseButton.keyEquivalentModifierMask = [.command]
+        chooseButton.toolTip = "Choose one folder to organize; changing it always returns to preview mode"
+        previewButton = actionButton("Run Safe Preview", action: #selector(runPreview))
+        previewButton.keyEquivalent = "r"
+        previewButton.keyEquivalentModifierMask = [.command]
+        previewButton.toolTip = "Show what TidyDrop would do without moving anything"
+        backgroundButton = actionButton("Enable Background Organization", action: #selector(handleBackgroundAgent))
+        automationButton = actionButton("Enable Automatic Organization", action: #selector(toggleAutomation))
 
-        let primaryActions = NSStackView(views: [chooseButton, registerButton, previewButton])
+        let setupTitle = NSTextField(labelWithString: "Setup")
+        setupTitle.font = .systemFont(ofSize: 15, weight: .semibold)
+        for label in [folderStepLabel, backgroundStepLabel, automationStepLabel] {
+            label.font = .systemFont(ofSize: 13)
+            label.maximumNumberOfLines = 1
+        }
+        let setupSteps = NSStackView(views: [folderStepLabel, backgroundStepLabel, automationStepLabel])
+        setupSteps.orientation = .vertical
+        setupSteps.alignment = .leading
+        setupSteps.spacing = 7
+
+        let primaryActions = NSStackView(views: [chooseButton, previewButton])
         primaryActions.orientation = .horizontal
         primaryActions.spacing = 10
         primaryActions.distribution = .fillEqually
 
-        let modeActions = NSStackView(views: [activateButton, deactivateButton])
+        let modeActions = NSStackView(views: [backgroundButton, automationButton])
         modeActions.orientation = .horizontal
         modeActions.spacing = 10
         modeActions.distribution = .fillEqually
 
         resultLabel.textColor = .secondaryLabelColor
         resultLabel.maximumNumberOfLines = 3
+        resultLabel.setAccessibilityLabel("TidyDrop status message")
+
+        progressIndicator.style = .spinning
+        progressIndicator.controlSize = .small
+        progressIndicator.isDisplayedWhenStopped = false
+        let feedbackRow = NSStackView(views: [progressIndicator, resultLabel])
+        feedbackRow.orientation = .horizontal
+        feedbackRow.alignment = .centerY
+        feedbackRow.spacing = 8
 
         let stack = NSStackView(views: introductoryViews + [
-            separator(), folderRow, serviceRow, modeRow,
-            separator(), primaryActions, modeActions, resultLabel
+            separator(), folderRow, serviceRow, modeRow, lastRunRow,
+            separator(), setupTitle, setupSteps, primaryActions, modeActions, feedbackRow
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -280,20 +344,25 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             folderRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             serviceRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             modeRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            lastRunRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            setupSteps.widthAnchor.constraint(equalTo: stack.widthAnchor),
             primaryActions.widthAnchor.constraint(equalTo: stack.widthAnchor),
             modeActions.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            resultLabel.widthAnchor.constraint(equalTo: stack.widthAnchor)
+            feedbackRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            resultLabel.widthAnchor.constraint(lessThanOrEqualTo: feedbackRow.widthAnchor)
         ])
         communityWarning?.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         self.window = window
     }
 
-    private func statusRow(title: String, value: NSTextField) -> NSStackView {
+    private func statusRow(title: String, value: NSView) -> NSStackView {
         let label = NSTextField(labelWithString: title)
         label.font = .systemFont(ofSize: 13, weight: .medium)
         label.setContentHuggingPriority(.required, for: .horizontal)
-        value.alignment = .right
-        value.lineBreakMode = .byTruncatingMiddle
+        if let textValue = value as? NSTextField {
+            textValue.alignment = .right
+            textValue.lineBreakMode = .byTruncatingMiddle
+        }
         let row = NSStackView(views: [label, NSView(), value])
         row.orientation = .horizontal
         row.alignment = .centerY
@@ -311,21 +380,68 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         let button = NSButton(title: title, target: self, action: action)
         button.bezelStyle = .rounded
         button.controlSize = .large
+        button.setAccessibilityLabel(title)
         return button
     }
 
     private func refreshStatus(message: String? = nil) {
         do {
             let resolved = try ConfigurationIO.load(from: configurationURL)
-            folderLabel.stringValue = resolved.paths.sourceDirectory.path
-            modeLabel.stringValue = resolved.config.automation.applyEnabled ? "Enabled" : "Preview only"
+            folderPathControl.url = resolved.paths.sourceDirectory
+            let applyEnabled = resolved.config.automation.applyEnabled
+            modeLabel.stringValue = applyEnabled ? "Enabled" : "Preview only"
             serviceLabel.stringValue = serviceStatusDescription
-            activateButton.isEnabled = backgroundVerified && !resolved.config.automation.applyEnabled
+            lastRunLabel.stringValue = lastRunDescription(for: resolved)
+            folderStepLabel.stringValue = "✓  Folder selected"
+            backgroundStepLabel.stringValue = backgroundVerified
+                ? "✓  Background access verified"
+                : "○  Background access needs verification"
+            automationStepLabel.stringValue = applyEnabled
+                ? "✓  Automatic organization enabled"
+                : "○  Preview only — no files move"
+
+            updateBackgroundButton()
+            automationButton.title = applyEnabled
+                ? "Pause Automatic Organization"
+                : "Enable Automatic Organization"
+            automationButton.isEnabled = applyEnabled || backgroundVerified
+            automationButton.bezelStyle = applyEnabled ? .rounded : .texturedRounded
+            previewButton.isEnabled = !previewRunning
+            if verificationTimer != nil || previewRunning {
+                progressIndicator.startAnimation(nil)
+            } else {
+                progressIndicator.stopAnimation(nil)
+            }
             if let message { resultLabel.stringValue = message }
         } catch {
             resultLabel.stringValue = "Configuration error: \(error)"
-            activateButton.isEnabled = false
+            backgroundButton.isEnabled = false
+            automationButton.isEnabled = false
+            previewButton.isEnabled = false
         }
+    }
+
+    private func updateBackgroundButton() {
+        switch service.status {
+        case .enabled:
+            backgroundButton.title = backgroundVerified
+                ? "Background Access Verified"
+                : "Verify Background Access"
+            backgroundButton.isEnabled = !backgroundVerified && verificationTimer == nil
+        case .requiresApproval:
+            backgroundButton.title = "Open Login Item Settings"
+            backgroundButton.isEnabled = true
+        case .notRegistered:
+            backgroundButton.title = "Enable Background Organization"
+            backgroundButton.isEnabled = true
+        case .notFound:
+            backgroundButton.title = "Background Agent Missing"
+            backgroundButton.isEnabled = false
+        @unknown default:
+            backgroundButton.title = "Check Background Organization"
+            backgroundButton.isEnabled = true
+        }
+        backgroundButton.setAccessibilityLabel(backgroundButton.title)
     }
 
     private var serviceStatusDescription: String {
@@ -336,6 +452,36 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         case .notFound: return "Agent missing from app bundle"
         @unknown default: return "Unknown"
         }
+    }
+
+    private func lastRunDescription(for resolved: ResolvedConfiguration) -> String {
+        guard let record = scheduledRecord(for: resolved) else { return "Not yet recorded" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        let timestamp = formatter.string(from: record.timestamp)
+        switch record.outcome {
+        case .success:
+            return "Success · \(timestamp) · \(record.moved ?? 0) moved"
+        case .lockBusy:
+            return "Deferred · \(timestamp) · another run was active"
+        case .sourceUnavailable:
+            return "Folder unavailable · \(timestamp)"
+        case .error:
+            return "Failed · \(timestamp)"
+        }
+    }
+
+    private func scheduledRecord(for resolved: ResolvedConfiguration) -> ScheduledRunRecord? {
+        guard FileManager.default.fileExists(atPath: resolved.paths.scheduledStatusFile.path) else {
+            return nil
+        }
+        return try? JSONFile.load(
+            ScheduledRunRecord.self,
+            from: resolved.paths.scheduledStatusFile,
+            default: ScheduledRunRecord(outcome: .error, runID: "missing")
+        )
     }
 
     @objc private func chooseFolder() {
@@ -355,27 +501,60 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
                 _ = try ActiveFolderManager.applySelection(selected, configurationURL: self.configurationURL)
                 self.backgroundVerified = false
                 self.refreshStatus(message: "Folder changed. Automatic moving returned to preview mode.")
+                if self.service.status == .enabled {
+                    self.startFreshBackgroundVerification()
+                }
             } catch {
                 self.presentError("Folder not accepted", error: error)
             }
         }
     }
 
-    @objc private func registerAgent() {
+    @objc private func handleBackgroundAgent() {
+        switch service.status {
+        case .enabled:
+            do {
+                let resolved = try ConfigurationIO.load(from: configurationURL)
+                guard !resolved.config.automation.applyEnabled else {
+                    refreshStatus(message: "Pause automatic organization before forcing a safe verification run.")
+                    return
+                }
+                startFreshBackgroundVerification()
+            } catch {
+                presentError("Background access could not be verified", error: error)
+            }
+        case .requiresApproval:
+            SMAppService.openSystemSettingsLoginItems()
+            refreshStatus(message: "Allow TidyDrop under Login Items, then return here. Moving remains disabled.")
+            beginBackgroundVerification(kickstart: false)
+        case .notRegistered:
+            registerAgent()
+        case .notFound:
+            refreshStatus(message: "The background agent is missing from this app bundle.")
+        @unknown default:
+            refreshStatus(message: "macOS returned an unknown background-agent state.")
+        }
+    }
+
+    private func registerAgent() {
         var legacyMigration: LegacyAgentMigration?
         do {
             legacyMigration = try disableLegacyAgentIfNeeded()
-            verificationStartedAt = Date()
-            verificationAttempts = 0
-            backgroundVerified = false
+            for previousPlist in ProductIdentity.previousAgentPlists {
+                let previousService = SMAppService.agent(plistName: previousPlist)
+                if previousService.status == .enabled || previousService.status == .requiresApproval {
+                    try previousService.unregister()
+                }
+            }
             try service.register()
             if service.status == .requiresApproval {
                 SMAppService.openSystemSettingsLoginItems()
                 refreshStatus(message: "Allow TidyDrop under Login Items, then return here.")
+                beginBackgroundVerification(kickstart: false)
             } else {
                 refreshStatus(message: "Agent registered. Verifying background folder access…")
+                startFreshBackgroundVerification()
             }
-            beginBackgroundVerification()
         } catch {
             if let legacyMigration {
                 do {
@@ -466,8 +645,42 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func beginBackgroundVerification() {
+    private func resumeBackgroundVerification() {
+        guard service.status == .enabled else { return }
+        do {
+            let resolved = try ConfigurationIO.load(from: configurationURL)
+            if let record = scheduledRecord(for: resolved),
+               BackgroundVerificationPolicy.accepts(
+                   record,
+                   sourceDirectory: resolved.paths.sourceDirectory,
+                   applyEnabled: resolved.config.automation.applyEnabled,
+                   maximumAge: max(TimeInterval(resolved.config.automation.intervalSeconds * 2), 600)
+               ) {
+                backgroundVerified = true
+                refreshStatus(message: "Background access is verified for the active folder.")
+            } else if resolved.config.automation.applyEnabled {
+                refreshStatus(message: "Background access will be rechecked on the next automatic run.")
+            } else {
+                startFreshBackgroundVerification()
+            }
+        } catch {
+            presentError("Background verification could not start", error: error)
+        }
+    }
+
+    private func startFreshBackgroundVerification() {
+        beginBackgroundVerification(kickstart: true)
+    }
+
+    private func beginBackgroundVerification(kickstart: Bool) {
         verificationTimer?.invalidate()
+        verificationStartedAt = Date()
+        verificationAttempts = 0
+        verificationKickstarted = false
+        backgroundVerified = false
+        if kickstart {
+            verificationKickstarted = kickstartBackgroundAgent()
+        }
         verificationTimer = Timer.scheduledTimer(
             timeInterval: 1,
             target: self,
@@ -475,16 +688,27 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             userInfo: nil,
             repeats: true
         )
+        refreshStatus(message: verificationKickstarted
+            ? "Verifying background access with a safe preview run…"
+            : "Waiting for macOS to make the background agent available…")
     }
 
     @objc private func checkBackgroundVerificationTimer(_ timer: Timer) {
         verificationAttempts += 1
+        if service.status == .enabled && !verificationKickstarted {
+            if let resolved = try? ConfigurationIO.load(from: configurationURL),
+               !resolved.config.automation.applyEnabled {
+                verificationKickstarted = kickstartBackgroundAgent()
+            }
+        }
         if verifyLatestBackgroundRun() {
             timer.invalidate()
+            verificationTimer = nil
             backgroundVerified = true
             refreshStatus(message: "Background access verified in preview mode with zero moves.")
         } else if verificationAttempts >= 180 {
             timer.invalidate()
+            verificationTimer = nil
             refreshStatus(message: "Background access was not verified. Moving remains disabled.")
         } else {
             refreshStatus()
@@ -494,27 +718,37 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     private func verifyLatestBackgroundRun() -> Bool {
         guard let started = verificationStartedAt,
               let resolved = try? ConfigurationIO.load(from: configurationURL),
-              let record = try? JSONFile.load(
-                ScheduledRunRecord.self,
-                from: resolved.paths.scheduledStatusFile,
-                default: ScheduledRunRecord(outcome: .error, runID: "missing")
-              ) else { return false }
-        return record.timestamp >= started
-            && record.outcome == .success
-            && record.mode == ExecutionMode.dryRun.rawValue
-            && record.moved == 0
-            && record.errors == 0
+              let record = scheduledRecord(for: resolved) else { return false }
+        return BackgroundVerificationPolicy.accepts(
+            record,
+            sourceDirectory: resolved.paths.sourceDirectory,
+            applyEnabled: false,
+            notOlderThan: started,
+            maximumAge: 600
+        )
+    }
+
+    private func kickstartBackgroundAgent() -> Bool {
+        do {
+            return try Launchctl.run([
+                "kickstart", "gui/\(getuid())/\(ProductIdentity.agentLabel)"
+            ]) == 0
+        } catch {
+            return false
+        }
     }
 
     @objc private func runPreview() {
-        activateButton.isEnabled = false
-        resultLabel.stringValue = "Running preview…"
+        guard !previewRunning else { return }
+        previewRunning = true
+        refreshStatus(message: "Running preview…")
         let configurationURL = self.configurationURL
         Task.detached(priority: .utility) {
             do {
                 let resolved = try ConfigurationIO.load(from: configurationURL)
                 let summary = try StewardEngine(configuration: resolved).run(mode: .dryRun)
                 await MainActor.run { [weak self] in
+                    self?.previewRunning = false
                     self?.refreshStatus(message:
                         "Preview complete: \(summary.scanned) scanned, \(summary.planned) planned, " +
                         "0 moved, \(summary.errors) errors."
@@ -522,15 +756,28 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
                 }
             } catch {
                 await MainActor.run { [weak self] in
+                    self?.previewRunning = false
                     self?.presentError("Preview failed", error: error)
                 }
             }
         }
     }
 
-    @objc private func activate() {
+    @objc private func toggleAutomation() {
+        guard let resolved = try? ConfigurationIO.load(from: configurationURL) else {
+            refreshStatus(message: "The configuration could not be loaded safely.")
+            return
+        }
+        if resolved.config.automation.applyEnabled {
+            deactivate()
+        } else {
+            activate()
+        }
+    }
+
+    private func activate() {
         guard backgroundVerified else {
-            refreshStatus(message: "Verify the background agent before enabling moving.")
+            refreshStatus(message: "Verify background access before enabling automatic organization.")
             return
         }
         if ProductIdentity.isCommunityPreview {
@@ -557,13 +804,16 @@ private final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func deactivate() {
+    private func deactivate() {
         do {
             let resolved = try ConfigurationIO.load(from: configurationURL)
             var configuration = resolved.config
             configuration.automation.applyEnabled = false
             try ConfigurationIO.save(configuration, to: configurationURL)
             refreshStatus(message: "Automatic moving is disabled. Preview remains available.")
+            if service.status == .enabled {
+                startFreshBackgroundVerification()
+            }
         } catch {
             presentError("Moving could not be disabled", error: error)
         }

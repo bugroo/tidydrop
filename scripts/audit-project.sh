@@ -16,6 +16,7 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/Distribution-Info.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
     printf '%s\n' '[OK] Plists válidos'
 else
@@ -97,6 +98,7 @@ printf '%s\n' '[OK] Self-tests ejecutables sin XCTest ni Xcode completo'
 if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     "$PROJECT_ROOT/launchd" "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v5.plist" \
+    "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v6.plist" \
     "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1

@@ -14,12 +14,14 @@
   <string>6.0</string>
   <key>CFBundleName</key>
   <string>TidyDrop</string>
+  <key>CFBundleIconFile</key>
+  <string>TidyDrop.icns</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.1.1</string>
+  <string>1.1.2</string>
   <key>CFBundleVersion</key>
-  <string>5</string>
+  <string>6</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key>
@@ -27,7 +29,7 @@
   <key>TidyDropDistributionChannel</key>
   <string>development</string>
   <key>TidyDropBuildIdentity</key>
-  <string>1.1.1-development</string>
+  <string>1.1.2-development</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSDownloadsFolderUsageDescription</key>
