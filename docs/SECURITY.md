@@ -51,7 +51,10 @@ La aplicación nativa registra un agente incluido con `SMAppService`. La rama
 FSEvents cuando está inactivo; AppKit y ServiceManagement quedan en el proceso
 de interfaz. La activación permanece
 bloqueada hasta observar una pasada nueva del agente con `success`, `dry-run`,
-cero movimientos y cero errores. La verificación también exige que el registro
+cero movimientos, cero errores y `agent_ready=true`. Build 10 escribe primero
+un diagnóstico no autorizante con `agent_ready=false`, inicia FSEvents y repite
+la reconciliación; así una creación de watcher bloqueada nunca aparenta estar
+lista. La verificación también exige que el registro
 sea reciente y corresponda a la ruta canónica exacta de la carpeta activa. La
 app reanuda esta comprobación al abrirse sin intentar registrar de nuevo un
 servicio que macOS ya mantiene habilitado.

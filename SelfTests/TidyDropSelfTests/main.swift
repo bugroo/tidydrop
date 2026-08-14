@@ -1410,6 +1410,32 @@ private final class TidyDropCoreTests {
             ),
             "success"
         )
+        XCTAssertEqual(
+            LaunchAgentStatusResolver.accessStatus(
+                agentInstalled: true,
+                scheduledRecord: ScheduledRunRecord(
+                    outcome: .success,
+                    runID: "watcher-starting",
+                    mode: ExecutionMode.dryRun.rawValue,
+                    moved: 0,
+                    errors: 0,
+                    agentReady: false
+                )
+            ),
+            "watcher_starting"
+        )
+        XCTAssertEqual(
+            LaunchAgentStatusResolver.accessStatus(
+                agentInstalled: true,
+                scheduledRecord: ScheduledRunRecord(
+                    outcome: .error,
+                    runID: "watcher-error",
+                    errors: 1,
+                    agentReady: false
+                )
+            ),
+            "error"
+        )
     }
 
     func testActiveFolderRejectsRootSymlinkAndTraversal() throws {
@@ -1787,7 +1813,8 @@ private final class TidyDropCoreTests {
             mode: ExecutionMode.dryRun.rawValue,
             moved: 0,
             errors: 0,
-            sourceDirectory: workspace.source.path
+            sourceDirectory: workspace.source.path,
+            agentReady: true
         )
         XCTAssertTrue(BackgroundVerificationPolicy.accepts(
             matching,
@@ -1800,6 +1827,38 @@ private final class TidyDropCoreTests {
         XCTAssertFalse(BackgroundVerificationPolicy.accepts(
             matching,
             sourceDirectory: otherSource,
+            applyEnabled: false,
+            now: now
+        ))
+
+        let watcherStarting = ScheduledRunRecord(
+            timestamp: now,
+            outcome: .success,
+            runID: "watcher-starting",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            errors: 0,
+            sourceDirectory: workspace.source.path,
+            agentReady: false
+        )
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            watcherStarting,
+            sourceDirectory: workspace.source,
+            applyEnabled: false,
+            now: now
+        ))
+        let legacyReadyUnknown = ScheduledRunRecord(
+            timestamp: now,
+            outcome: .success,
+            runID: "legacy-readiness-unknown",
+            mode: ExecutionMode.dryRun.rawValue,
+            moved: 0,
+            errors: 0,
+            sourceDirectory: workspace.source.path
+        )
+        XCTAssertFalse(BackgroundVerificationPolicy.accepts(
+            legacyReadyUnknown,
+            sourceDirectory: workspace.source,
             applyEnabled: false,
             now: now
         ))
@@ -1830,7 +1889,8 @@ private final class TidyDropCoreTests {
             mode: ExecutionMode.dryRun.rawValue,
             moved: 0,
             errors: 0,
-            sourceDirectory: workspace.source.path
+            sourceDirectory: workspace.source.path,
+            agentReady: true
         )
         XCTAssertFalse(BackgroundVerificationPolicy.accepts(
             dryRun,
@@ -1846,7 +1906,8 @@ private final class TidyDropCoreTests {
             mode: ExecutionMode.dryRun.rawValue,
             moved: 1,
             errors: 0,
-            sourceDirectory: workspace.source.path
+            sourceDirectory: workspace.source.path,
+            agentReady: true
         )
         XCTAssertFalse(BackgroundVerificationPolicy.accepts(
             unsafeDryRun,
@@ -1862,7 +1923,8 @@ private final class TidyDropCoreTests {
             mode: ExecutionMode.dryRun.rawValue,
             moved: 0,
             errors: 0,
-            sourceDirectory: workspace.source.path
+            sourceDirectory: workspace.source.path,
+            agentReady: true
         )
         XCTAssertFalse(BackgroundVerificationPolicy.accepts(
             stale,

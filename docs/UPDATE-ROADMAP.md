@@ -141,7 +141,7 @@ Dependencies: Apple Developer Program identity, signing-key custody, U6.
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
 | U4 | Not started | Private bounded downloader, staging, extraction and cancellation/disk-full fault tests |
 | U5 | Not started | External recovery process, state compatibility, atomic replacement and interruption/reboot fault injection |
-| U6 | Not implemented as updater orchestration | Existing manual upgrade demonstrated unregister, register and zero-move verification; automatic recovery and explicit apply confirmation remain unbuilt |
+| U6 | Not implemented as updater orchestration | Existing migration handles unregister/register; build 10 adds explicit watcher readiness and zero-move verification. Automatic recovery and explicit post-update apply confirmation remain unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
 
 ADR-0013 deliberately stops before production key creation and shipping-target

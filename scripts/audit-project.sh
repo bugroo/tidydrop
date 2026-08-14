@@ -20,6 +20,7 @@ if command -v plutil >/dev/null 2>&1; then
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist"
     plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v9.plist"
+    plutil -lint "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v10.plist"
     plutil -lint "$PROJECT_ROOT/app/TidyDrop.entitlements"
     plutil -lint "$PROJECT_ROOT/app/TidyDropAgent.entitlements"
     plutil -lint "$PROJECT_ROOT/launchd/com.local.tidydrop.plist.example"
@@ -31,13 +32,13 @@ if command -v plutil >/dev/null 2>&1; then
         printf '%s\n' '[FALLO] VERSION, plists, CLI y app no comparten la misma versión.' >&2
         exit 1
     }
-    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v9.plist")" = 'io.github.bugroo.tidydrop.agent.community.v9' ] || {
-        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 9.' >&2
+    [ "$(plutil -extract Label raw -o - "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v10.plist")" = 'io.github.bugroo.tidydrop.agent.community.v10' ] || {
+        printf '%s\n' '[FALLO] El label comunitario actual no coincide con build 10.' >&2
         exit 1
     }
-    [ "$(plutil -extract CFBundleVersion raw -o - "$PROJECT_ROOT/app/Info.plist")" = '9' ] \
-        && [ "$(plutil -extract CFBundleVersion raw -o - "$PROJECT_ROOT/app/Distribution-Info.plist")" = '9' ] || {
-        printf '%s\n' '[FALLO] CFBundleVersion no coincide con el agente comunitario build 9.' >&2
+    [ "$(plutil -extract CFBundleVersion raw -o - "$PROJECT_ROOT/app/Info.plist")" = '10' ] \
+        && [ "$(plutil -extract CFBundleVersion raw -o - "$PROJECT_ROOT/app/Distribution-Info.plist")" = '10' ] || {
+        printf '%s\n' '[FALLO] CFBundleVersion no coincide con el agente comunitario build 10.' >&2
         exit 1
     }
     printf '%s\n' '[OK] Plists válidos'
@@ -173,6 +174,7 @@ if /usr/bin/grep -RInE 'StandardOutPath|StandardErrorPath' \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v7.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v8.plist" \
     "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v9.plist" \
+    "$PROJECT_ROOT/app/io.github.bugroo.tidydrop.agent.community.v10.plist" \
     "$PROJECT_ROOT/scripts/render-launchagent.sh" >/dev/null 2>&1; then
     printf '%s\n' '[FALLO] El LaunchAgent no debe crear stdout/stderr ilimitados.' >&2
     exit 1
@@ -187,6 +189,19 @@ if /usr/bin/grep -q 'kFSEventStreamCreateFlagNoDefer' \
     exit 1
 fi
 printf '%s\n' '[OK] FSEvents usa entrega agrupada sin wakeup inmediato NoDefer'
+
+if ! /usr/bin/grep -Fq 'performRun(reason: "startup_reconciliation", agentReady: false)' \
+        "$PROJECT_ROOT/Sources/TidyDropAgent/EventDrivenAgent.swift" \
+   || ! /usr/bin/grep -Fq 'performRun(reason: "watcher_ready", agentReady: true)' \
+        "$PROJECT_ROOT/Sources/TidyDropAgent/EventDrivenAgent.swift" \
+   || ! /usr/bin/grep -Fq 'record.agentReady == true' \
+        "$PROJECT_ROOT/Sources/TidyDropCore/BackgroundVerificationPolicy.swift" \
+   || ! /usr/bin/grep -Fq 'TIDYDROP_TEST_FSEVENTS_SETUP_DELAY_MILLISECONDS=3000' \
+        "$PROJECT_ROOT/scripts/test-event-agent.sh"; then
+    printf '%s\n' '[FALLO] El agente perdió la readiness en dos fases o su regresión de watcher bloqueado.' >&2
+    exit 1
+fi
+printf '%s\n' '[OK] Startup FSEvents en dos fases; solo agent_ready=true autoriza background'
 
 if /usr/bin/grep -q -- '--entitlements' "$PROJECT_ROOT/scripts/sign-app.sh"; then
     printf '%s\n' '[FALLO] Sandbox no puede entrar en releases antes del gate integrado.' >&2

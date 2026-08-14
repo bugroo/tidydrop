@@ -34,14 +34,15 @@ Gates obligatorios:
     y la carpeta activa rechaza tanto el bundle de usuario como el instalado en
     `/Applications` y cualquier raíz que los contenga.
 20. La verificación de background exige una pasada reciente de la carpeta activa
-    exacta, en el modo esperado; un registro antiguo sin `source_directory` no
-    puede autorizar movimientos.
+    exacta, en el modo esperado y con `agent_ready=true`; registros antiguos sin
+    `source_directory` o sin readiness explícito no autorizan movimientos.
 21. El bundle declara y contiene un icono `.icns` regular, y la aplicación puede
     iniciarse con una configuración aislada para inspección visual sin tocar el
     estado instalado.
-22. La integración FSEvents temporal verifica reconciliación inicial, evento de
-    fuente, ráfaga coalescida, señal privada de un solo uso, `apply_enabled=false`,
-    cero movimientos y ausencia de nuevas pasadas durante reposo.
+22. La integración FSEvents temporal retrasa artificialmente el watcher y exige
+    primero un registro no autorizante `agent_ready=false`, luego otro
+    `agent_ready=true` sin abrir la UI; también verifica evento de fuente, ráfaga
+    coalescida, señal privada, cero movimientos y reposo.
 23. El agente es el único escritor del índice SQLite derivado; la integración
     comprueba que el archivo es regular y privado, mientras la app lo consume
     read-only y un fallo del índice no gobierna apply, recuperación o undo.
@@ -52,8 +53,8 @@ Gates obligatorios:
 25. El Update Center solo se invoca manualmente, usa un endpoint oficial fijo y
     una sesión efímera acotada, no descarga artefactos y mantiene Core, CLI y
     LaunchAgent sin APIs de red.
-26. El bundle Community build 9 contiene el agente actual y los plists de
-    migración 8, 7, 6 y 5; el registro anterior se retira antes de registrar el
+26. El bundle Community build 10 contiene el agente actual y los plists de
+    migración 9, 8, 7, 6 y 5; el registro anterior se retira antes de registrar el
     nuevo y apply permanece desactivado hasta una verificación fresca.
 27. La base de manifiesto Ed25519 verifica formato canónico, firma, canal,
     versión, identidad, fechas, tamaño, hash y macOS mínimo directamente sobre

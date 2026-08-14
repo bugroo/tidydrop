@@ -10,6 +10,7 @@ public enum BackgroundVerificationPolicy {
         maximumAge: TimeInterval = 600
     ) -> Bool {
         guard record.outcome == .success,
+              record.agentReady == true,
               record.errors == 0,
               let recordedSource = record.sourceDirectory,
               URL(fileURLWithPath: recordedSource)

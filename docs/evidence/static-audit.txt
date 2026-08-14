@@ -8,6 +8,7 @@ TidyDrop — auditoría estática local
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v7.plist: OK
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v8.plist: OK
 <repository-root>/app/io.github.bugroo.tidydrop.agent.community.v9.plist: OK
+<repository-root>/app/io.github.bugroo.tidydrop.agent.community.v10.plist: OK
 <repository-root>/app/TidyDrop.entitlements: OK
 <repository-root>/app/TidyDropAgent.entitlements: OK
 <repository-root>/launchd/com.local.tidydrop.plist.example: OK
@@ -23,6 +24,7 @@ TidyDrop — auditoría estática local
 [OK] Self-tests ejecutables sin XCTest ni Xcode completo
 [OK] LaunchAgent sin logs stdout/stderr ilimitados
 [OK] FSEvents usa entrega agrupada sin wakeup inmediato NoDefer
+[OK] Startup FSEvents en dos fases; solo agent_ready=true autoriza background
 [OK] Prototipos Sandbox mínimos y bloqueados fuera de releases
 [OK] Red de release limitada a notarización Apple; agente y motor permanecen sin red
 Community Preview workflow: PASS (prerelease + checksum + provenance + revalidation)
