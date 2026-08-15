@@ -5,8 +5,12 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 EVIDENCE_DIR=${1:-"$PROJECT_ROOT/docs/evidence"}
 /bin/mkdir -p "$EVIDENCE_DIR"
-# Remove the obsolete XCTest-era evidence name when validating an updated tree.
-/bin/rm -f "$EVIDENCE_DIR/swift-test.txt" "$EVIDENCE_DIR/validation-result.txt"
+# Obsolete XCTest-era evidence must be removed deliberately rather than by a
+# broad validation run. The current result is replaced only after every gate.
+[ ! -e "$EVIDENCE_DIR/swift-test.txt" ] || {
+    printf '%s\n' 'FALLO: existe evidencia XCTest obsoleta: swift-test.txt' >&2
+    exit 1
+}
 
 capture() {
     output=$1
@@ -110,6 +114,8 @@ capture "$EVIDENCE_DIR/update-bundle-retention-foundation.txt" \
     "$SCRIPT_DIR/test-update-bundle-retention-foundation.sh"
 capture "$EVIDENCE_DIR/external-recovery-helper-foundation.txt" \
     "$SCRIPT_DIR/test-external-recovery-helper-foundation.sh"
+capture "$EVIDENCE_DIR/dry-run-state-restoration-foundation.txt" \
+    "$SCRIPT_DIR/test-dry-run-state-restoration-foundation.sh"
 capture "$EVIDENCE_DIR/recovery-helper-kill-relaunch.txt" env \
     TIDYDROP_DEBUG_BIN_DIR="$DEBUG_BIN_DIR" \
     TIDYDROP_SELF_TEST_BIN="$SELF_TEST_BINARY" \

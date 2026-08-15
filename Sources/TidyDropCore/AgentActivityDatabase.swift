@@ -44,6 +44,75 @@ public enum AgentActivityDatabase {
         return try connection.recentRuns(limit: limit)
     }
 
+    /// Verifies a closed recovery database without modifying it.
+    @discardableResult
+    public static func verifyRecoveryDatabase(at databaseURL: URL) throws -> Int32 {
+        let connection = try SQLiteConnection(databaseURL: databaseURL, mode: .reader)
+        return try connection.verifyRecoveryDatabase()
+    }
+
+    /// Checkpoints and closes a live activity database before an external
+    /// recovery process replaces that exact file. An active writer fails
+    /// closed; the caller must isolate any validated residual sidecars.
+    public static func quiesceForRecoveryReplacement(at databaseURL: URL) throws {
+        guard try pathEntryExists(databaseURL) else { return }
+        let physicalURL = try physicalRegularFileURL(databaseURL)
+        var database: OpaquePointer?
+        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
+            | SQLITE_OPEN_PRIVATECACHE | SQLITE_OPEN_NOFOLLOW
+        let result = physicalURL.path.withCString {
+            sqlite3_open_v2($0, &database, flags, nil)
+        }
+        guard result == SQLITE_OK, let database else {
+            if let database { sqlite3_close_v2(database) }
+            throw StewardError.commandFailed("SQLite recovery quiescence could not open live state")
+        }
+        var closeRequired = true
+        defer {
+            if closeRequired { sqlite3_close_v2(database) }
+        }
+        guard sqlite3_extended_result_codes(database, 1) == SQLITE_OK,
+              sqlite3_busy_timeout(database, 0) == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery quiescence setup failed")
+        }
+        var framesInLog: Int32 = 0
+        var framesCheckpointed: Int32 = 0
+        guard sqlite3_wal_checkpoint_v2(
+            database,
+            "main",
+            SQLITE_CHECKPOINT_TRUNCATE,
+            &framesInLog,
+            &framesCheckpointed
+        ) == SQLITE_OK,
+              framesInLog == framesCheckpointed else {
+            throw StewardError.commandFailed("SQLite recovery quiescence found an active writer")
+        }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "PRAGMA journal_mode=DELETE;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK,
+              let statement else {
+            throw StewardError.commandFailed("SQLite recovery journal-mode change failed")
+        }
+        let stepResult = sqlite3_step(statement)
+        let journalMode = sqlite3_column_text(statement, 0).map { String(cString: $0) }
+        let cacheResult = sqlite3_db_cacheflush(database)
+        sqlite3_finalize(statement)
+        guard stepResult == SQLITE_ROW,
+              journalMode?.caseInsensitiveCompare("delete") == .orderedSame,
+              cacheResult == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery database remained busy")
+        }
+        guard sqlite3_close_v2(database) == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery database could not close")
+        }
+        closeRequired = false
+    }
+
     /// Creates a consistent, read-only SQLite backup for update recovery.
     /// The destination must not exist and is created in a private directory.
     @discardableResult
@@ -56,7 +125,20 @@ public enum AgentActivityDatabase {
         let connection = try SQLiteConnection(databaseURL: physicalSourceURL, mode: .reader)
         let schemaVersion = try connection.backup(to: physicalDestinationURL)
         try FileSystemSecurity.setPrivateFilePermissions(physicalDestinationURL)
+        try validateClosedRecoverySidecars(for: physicalDestinationURL)
+        guard try verifyRecoveryDatabase(at: physicalDestinationURL) == schemaVersion else {
+            throw StewardError.commandFailed("SQLite recovery backup verification mismatch")
+        }
+        try validateClosedRecoverySidecars(for: physicalDestinationURL)
         return schemaVersion
+    }
+
+    private static func validateClosedRecoverySidecars(for databaseURL: URL) throws {
+        for suffix in ["-wal", "-shm", "-journal"] {
+            guard try pathEntryExists(URL(fileURLWithPath: databaseURL.path + suffix)) == false else {
+                throw StewardError.commandFailed("SQLite recovery backup retained sidecar \(suffix)")
+            }
+        }
     }
 
     private static func pathEntryExists(_ url: URL) throws -> Bool {
@@ -418,10 +500,20 @@ private final class SQLiteConnection {
             if let destinationDatabase { sqlite3_close_v2(destinationDatabase) }
             throw StewardError.commandFailed("SQLite recovery destination could not be opened")
         }
-        defer { sqlite3_close_v2(destinationDatabase) }
+        var closeRequired = true
+        defer {
+            if closeRequired { sqlite3_close_v2(destinationDatabase) }
+        }
         guard sqlite3_extended_result_codes(destinationDatabase, 1) == SQLITE_OK,
               sqlite3_busy_timeout(destinationDatabase, 1_500) == SQLITE_OK else {
             throw StewardError.commandFailed("SQLite recovery destination setup failed")
+        }
+        let lockingMode = try scalarText(
+            "PRAGMA locking_mode=EXCLUSIVE;",
+            database: destinationDatabase
+        )
+        guard lockingMode.caseInsensitiveCompare("exclusive") == .orderedSame else {
+            throw StewardError.commandFailed("SQLite recovery backup locking mode is unsafe")
         }
 
         guard let backup = sqlite3_backup_init(
@@ -437,6 +529,13 @@ private final class SQLiteConnection {
         guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
             throw StewardError.commandFailed("SQLite recovery backup did not complete")
         }
+        let journalMode = try scalarText(
+            "PRAGMA journal_mode=DELETE;",
+            database: destinationDatabase
+        )
+        guard journalMode.caseInsensitiveCompare("delete") == .orderedSame else {
+            throw StewardError.commandFailed("SQLite recovery backup journal mode is unsafe")
+        }
         guard sqlite3_db_cacheflush(destinationDatabase) == SQLITE_OK else {
             throw StewardError.commandFailed("SQLite recovery backup could not synchronize")
         }
@@ -448,7 +547,23 @@ private final class SQLiteConnection {
         guard schemaVersion == AgentActivityDatabase.schemaVersion else {
             throw StewardError.commandFailed("SQLite recovery backup schema mismatch")
         }
+        guard sqlite3_close_v2(destinationDatabase) == SQLITE_OK else {
+            throw StewardError.commandFailed("SQLite recovery backup could not close")
+        }
+        closeRequired = false
         return schemaVersion
+    }
+
+    func verifyRecoveryDatabase() throws -> Int32 {
+        guard case .reader = mode else {
+            throw StewardError.commandFailed("SQLite recovery verification requires read-only mode")
+        }
+        try validateSchemaVersion()
+        let integrity = try scalarText("PRAGMA integrity_check;")
+        guard integrity == "ok" else {
+            throw StewardError.commandFailed("SQLite recovery integrity check failed")
+        }
+        return try scalarInt("PRAGMA user_version;")
     }
 
     func checkpoint() throws {
@@ -489,9 +604,12 @@ private final class SQLiteConnection {
             throw StewardError.commandFailed("SQLite recovery statement could not be prepared")
         }
         defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW,
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_ROW,
               let value = sqlite3_column_text(statement, 0) else {
-            throw StewardError.commandFailed("SQLite recovery statement returned no value")
+            throw StewardError.commandFailed(
+                "SQLite recovery statement returned no value: \(String(cString: sqlite3_errmsg(database)))"
+            )
         }
         return String(cString: value)
     }
@@ -503,8 +621,11 @@ private final class SQLiteConnection {
             throw StewardError.commandFailed("SQLite recovery statement could not be prepared")
         }
         defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW else {
-            throw StewardError.commandFailed("SQLite recovery statement returned no value")
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_ROW else {
+            throw StewardError.commandFailed(
+                "SQLite recovery statement returned no value: \(String(cString: sqlite3_errmsg(database)))"
+            )
         }
         return sqlite3_column_int(statement, 0)
     }

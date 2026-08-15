@@ -173,7 +173,7 @@ public enum DestinationVolumeReplacementProtocol {
             return .newBundleInstalled
         case .rollbackStarted:
             return try continueRollback(context: context, fault: .none)
-        case .rolledBack:
+        case .rolledBack, .stateRestorationStarted, .configurationRestored, .stateRestored:
             _ = try context.verifyPair(expected: .currentThenTarget)
             return .rolledBack
         case .committed:

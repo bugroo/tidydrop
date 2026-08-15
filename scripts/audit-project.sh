@@ -71,6 +71,7 @@ fi
 "$SCRIPT_DIR/test-update-recovery-foundation.sh"
 "$SCRIPT_DIR/test-update-bundle-retention-foundation.sh"
 "$SCRIPT_DIR/test-external-recovery-helper-foundation.sh"
+"$SCRIPT_DIR/test-dry-run-state-restoration-foundation.sh"
 printf '%s\n' '[OK] Red runtime limitada; transporte e inspección autenticados, aislados y no distribuidos'
 
 if /usr/bin/grep -RInE '^[[:space:]]*(curl|wget|nc|ncat|ssh|scp|sftp)[[:space:]]' \

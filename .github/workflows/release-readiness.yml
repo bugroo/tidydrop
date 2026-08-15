@@ -58,6 +58,7 @@ jobs:
           ./scripts/test-update-recovery-foundation.sh
           ./scripts/test-update-bundle-retention-foundation.sh
           ./scripts/test-external-recovery-helper-foundation.sh
+          ./scripts/test-dry-run-state-restoration-foundation.sh
           ./scripts/test-recovery-helper-kill-relaunch.sh
           ./scripts/demo.sh
 
