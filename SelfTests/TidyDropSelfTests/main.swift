@@ -4238,6 +4238,231 @@ private final class TidyDropCoreTests {
         )
     }
 
+    func testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary() throws {
+        let helperURL = try recoveryHelperExecutableURL()
+        let cases: [(DestinationVolumeReplacementCheckpoint, String, ExternalRecoveryState)] = [
+            (.replacementStarted, "install", .newBundleInstalled),
+            (.installSwapSynchronized, "install", .newBundleInstalled),
+            (.rollbackStarted, "rollback", .rolledBack),
+            (.rollbackSwapSynchronized, "rollback", .rolledBack)
+        ]
+
+        for (checkpoint, command, expectedState) in cases {
+            let setup = try makeDestinationVolumeReplacementSetup(
+                name: "process-kill-\(checkpoint.rawValue)"
+            )
+            if command == "rollback" {
+                let installed = try runRecoveryHelper(
+                    helperURL: helperURL,
+                    command: "install",
+                    locator: setup.transaction.locator,
+                    destinationParent: setup.destinationParent
+                )
+                guard installed.status == 0,
+                      installed.output.contains("outcome=newBundleInstalled") else {
+                    throw processHarnessError("helper could not prepare rollback: \(installed.error)")
+                }
+            }
+
+            try killRecoveryHelper(
+                helperURL: helperURL,
+                command: command,
+                checkpoint: checkpoint,
+                locator: setup.transaction.locator,
+                destinationParent: setup.destinationParent
+            )
+            let recovered = try runRecoveryHelper(
+                helperURL: helperURL,
+                command: "recover",
+                locator: setup.transaction.locator,
+                destinationParent: setup.destinationParent
+            )
+            guard recovered.status == 0 else {
+                throw processHarnessError("helper recovery failed: \(recovered.error)")
+            }
+            XCTAssertEqual(
+                try CurrentBundleRetentionBuilder.loadRecovering(
+                    locator: setup.transaction.locator
+                ).state,
+                expectedState
+            )
+
+            switch expectedState {
+            case .newBundleInstalled:
+                XCTAssertTrue(recovered.output.contains("outcome=newBundleInstalled"))
+                _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+                    at: setup.installedBundle,
+                    policy: setup.targetPolicy
+                )
+                _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+                    at: setup.candidateBundle,
+                    policy: setup.currentPolicy
+                )
+            case .rolledBack:
+                XCTAssertTrue(recovered.output.contains("outcome=rolledBack"))
+                _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+                    at: setup.installedBundle,
+                    policy: setup.currentPolicy
+                )
+                _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+                    at: setup.candidateBundle,
+                    policy: setup.targetPolicy
+                )
+            default:
+                throw processHarnessError("unexpected terminal recovery state")
+            }
+        }
+    }
+
+    private struct RecoveryHelperResult {
+        let status: Int32
+        let output: String
+        let error: String
+    }
+
+    private func recoveryHelperExecutableURL() throws -> URL {
+        guard let path = ProcessInfo.processInfo.environment["TIDYDROP_RECOVERY_HELPER_BIN"],
+              path.hasPrefix("/"),
+              URL(fileURLWithPath: path).lastPathComponent == "tidydrop-recovery-helper" else {
+            throw processHarnessError("recovery helper path is missing or invalid")
+        }
+        var metadata = stat()
+        guard path.withCString({ Darwin.lstat($0, &metadata) }) == 0,
+              (metadata.st_mode & S_IFMT) == S_IFREG,
+              metadata.st_uid == Darwin.geteuid(),
+              metadata.st_mode & 0o111 != 0 else {
+            throw processHarnessError("recovery helper is not an owned executable regular file")
+        }
+        return URL(fileURLWithPath: path)
+    }
+
+    private func recoveryHelperArguments(
+        command: String,
+        locator: ExternalRecoveryTransactionLocator,
+        destinationParent: URL
+    ) -> [String] {
+        [
+            command,
+            locator.workspaceURL.path,
+            locator.transactionID,
+            destinationParent.path
+        ]
+    }
+
+    private func runRecoveryHelper(
+        helperURL: URL,
+        command: String,
+        locator: ExternalRecoveryTransactionLocator,
+        destinationParent: URL
+    ) throws -> RecoveryHelperResult {
+        let process = Process()
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.executableURL = helperURL
+        process.arguments = recoveryHelperArguments(
+            command: command,
+            locator: locator,
+            destinationParent: destinationParent
+        )
+        var environment = ProcessInfo.processInfo.environment
+        environment.removeValue(forKey: "TIDYDROP_RECOVERY_TEST_STOP_AFTER")
+        process.environment = environment
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        try process.run()
+        process.waitUntilExit()
+        let output = String(
+            decoding: outputPipe.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        )
+        let error = String(
+            decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        )
+        return RecoveryHelperResult(
+            status: process.terminationStatus,
+            output: output,
+            error: error
+        )
+    }
+
+    private func killRecoveryHelper(
+        helperURL: URL,
+        command: String,
+        checkpoint: DestinationVolumeReplacementCheckpoint,
+        locator: ExternalRecoveryTransactionLocator,
+        destinationParent: URL
+    ) throws {
+        let process = Process()
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.executableURL = helperURL
+        process.arguments = recoveryHelperArguments(
+            command: command,
+            locator: locator,
+            destinationParent: destinationParent
+        )
+        var environment = ProcessInfo.processInfo.environment
+        environment["TIDYDROP_RECOVERY_TEST_STOP_AFTER"] = checkpoint.rawValue
+        process.environment = environment
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        try process.run()
+
+        let markerURL = locator.workspaceURL.appendingPathComponent(checkpoint.markerFileName)
+        let deadline = Date().addingTimeInterval(15)
+        var markerMetadata = stat()
+        var markerReady = false
+        while Date() < deadline {
+            if markerURL.path.withCString({ Darwin.lstat($0, &markerMetadata) }) == 0 {
+                markerReady = true
+                break
+            }
+            if !process.isRunning { break }
+            usleep(10_000)
+        }
+        guard markerReady,
+              (markerMetadata.st_mode & S_IFMT) == S_IFREG,
+              markerMetadata.st_uid == Darwin.geteuid(),
+              markerMetadata.st_mode & 0o777 == 0o600,
+              try String(contentsOf: markerURL, encoding: .utf8)
+                == "\(checkpoint.rawValue)\n" else {
+            if process.isRunning {
+                _ = Darwin.kill(process.processIdentifier, SIGKILL)
+            }
+            process.waitUntilExit()
+            let helperError = String(
+                decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+                as: UTF8.self
+            )
+            throw processHarnessError("checkpoint marker was not durable: \(helperError)")
+        }
+
+        guard process.isRunning,
+              Darwin.kill(process.processIdentifier, SIGKILL) == 0 else {
+            if process.isRunning {
+                _ = Darwin.kill(process.processIdentifier, SIGKILL)
+            }
+            process.waitUntilExit()
+            throw processHarnessError("helper was not alive at the kill boundary")
+        }
+        process.waitUntilExit()
+        guard process.terminationReason == .uncaughtSignal,
+              process.terminationStatus == SIGKILL else {
+            throw processHarnessError("helper did not terminate from SIGKILL")
+        }
+        _ = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        _ = errorPipe.fileHandleForReading.readDataToEndOfFile()
+    }
+
+    private func processHarnessError(_ message: String) -> NSError {
+        NSError(
+            domain: "TidyDropTests.RecoveryHelperProcess",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: message]
+        )
+    }
+
     private func makeDestinationVolumeReplacementSetup(
         name: String
     ) throws -> (
@@ -4572,6 +4797,20 @@ private let tests: [(String, () throws -> Void)] = [
     ("testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate", suite.testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate),
 ]
 
+private let recoveryHelperProcessTests: [(String, () throws -> Void)] = {
+    guard ProcessInfo.processInfo.environment["TIDYDROP_RECOVERY_HELPER_BIN"] != nil else {
+        return []
+    }
+    return [
+        (
+            "testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary",
+            suite.testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+        )
+    ]
+}()
+
+private let availableTests = tests + recoveryHelperProcessTests
+
 private let selectedTests: [(String, () throws -> Void)]
 if let filter = ProcessInfo.processInfo.environment["TIDYDROP_SELF_TEST_FILTER"] {
     let requested = filter.split(separator: ",", omittingEmptySubsequences: false).map(String.init)
@@ -4588,7 +4827,7 @@ if let filter = ProcessInfo.processInfo.environment["TIDYDROP_SELF_TEST_FILTER"]
         exit(2)
     }
     let requestedNames = Set(requested)
-    let matches = tests.filter { requestedNames.contains($0.0) }
+    let matches = availableTests.filter { requestedNames.contains($0.0) }
     guard requestedNames.count == requested.count,
           matches.count == requested.count else {
         print("FALLO: filtro de self-tests duplicado o desconocido")

@@ -26,6 +26,9 @@ for token in \
     'Darwin.fsync' \
     'candidateContainerIdentity' \
     'EntryIdentity' \
+    'DestinationVolumeReplacementCheckpoint' \
+    'install_swap_synchronized' \
+    'rollback_swap_synchronized' \
     'apply_enabled=false' \
     '/private/tmp/TidyDropIntegration.'
 do
@@ -53,6 +56,23 @@ if /usr/bin/grep -Fq 'tidydrop-recovery-helper' "$UNIVERSAL_BUILD"; then
     fail "non-shipping recovery helper was added to the distributable app builder"
 fi
 
+for test_only_token in \
+    'TIDYDROP_RECOVERY_TEST_STOP_AFTER' \
+    'Darwin.raise(SIGSTOP)' \
+    'checkpoint.markerFileName'
+do
+    /usr/bin/grep -Fq "$test_only_token" "$HELPER_SOURCE" \
+        || fail "missing subprocess checkpoint control: $test_only_token"
+done
+if /usr/bin/grep -R -Fq 'TIDYDROP_RECOVERY_TEST_STOP_AFTER' \
+    "$PROJECT_ROOT/Sources/TidyDrop" \
+    "$PROJECT_ROOT/Sources/TidyDropApp" \
+    "$PROJECT_ROOT/Sources/TidyDropAgent" \
+    "$PROJECT_ROOT/Sources/TidyDropCore"
+then
+    fail "subprocess checkpoint environment escaped into a shipping target"
+fi
+
 for shipping_path in \
     "$PROJECT_ROOT/Sources/TidyDrop" \
     "$PROJECT_ROOT/Sources/TidyDropApp" \
@@ -68,11 +88,12 @@ for test_name in \
     testDestinationVolumeReplacementAtomicallyInstallsAndRollsBack \
     testDestinationVolumeReplacementRecoversBothInterruptedSwaps \
     testDestinationVolumeReplacementResumesBeforeEitherSwap \
-    testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate
+    testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate \
+    testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
 do
     /usr/bin/grep -q "$test_name" "$SELF_TESTS" \
         || fail "missing external-recovery regression: $test_name"
 done
 
 printf '%s\n' \
-    'External recovery helper and atomic swap: PASS (private tmp only, non-shipping)'
+    'External recovery helper and atomic swap: PASS (private tmp only, non-shipping, process-kill gate wired)'

@@ -25,6 +25,18 @@ public enum DestinationVolumeReplacementFault: Equatable, Sendable {
     case afterRollbackSwap
 }
 
+@_spi(Testing)
+public enum DestinationVolumeReplacementCheckpoint: String, CaseIterable, Sendable {
+    case replacementStarted = "replacement_started"
+    case installSwapSynchronized = "install_swap_synchronized"
+    case rollbackStarted = "rollback_started"
+    case rollbackSwapSynchronized = "rollback_swap_synchronized"
+
+    public var markerFileName: String {
+        ".tidydrop-recovery-checkpoint-\(rawValue)"
+    }
+}
+
 public enum DestinationVolumeReplacementOutcome: Equatable, Sendable {
     case prepared
     case newBundleInstalled
@@ -70,7 +82,8 @@ public enum DestinationVolumeReplacementProtocol {
     public static func install(
         locator: ExternalRecoveryTransactionLocator,
         destinationParentURL: URL,
-        fault: DestinationVolumeReplacementFault
+        fault: DestinationVolumeReplacementFault,
+        checkpointHandler: ((DestinationVolumeReplacementCheckpoint) throws -> Void)? = nil
     ) throws -> DestinationVolumeReplacementOutcome {
         let journal = try CurrentBundleRetentionBuilder.loadRecovering(locator: locator)
         guard journal.state == .prepared else {
@@ -86,10 +99,15 @@ public enum DestinationVolumeReplacementProtocol {
             locator: locator,
             to: .replacementStarted
         )
+        try checkpointHandler?(.replacementStarted)
         if fault == .afterReplacementStarted {
             throw DestinationVolumeReplacementFailure.injectedFailure
         }
-        return try continueInstall(context: context, fault: fault)
+        return try continueInstall(
+            context: context,
+            fault: fault,
+            checkpointHandler: checkpointHandler
+        )
     }
 
     public static func rollback(
@@ -107,7 +125,8 @@ public enum DestinationVolumeReplacementProtocol {
     public static func rollback(
         locator: ExternalRecoveryTransactionLocator,
         destinationParentURL: URL,
-        fault: DestinationVolumeReplacementFault
+        fault: DestinationVolumeReplacementFault,
+        checkpointHandler: ((DestinationVolumeReplacementCheckpoint) throws -> Void)? = nil
     ) throws -> DestinationVolumeReplacementOutcome {
         let journal = try CurrentBundleRetentionBuilder.loadRecovering(locator: locator)
         guard journal.state == .newBundleInstalled || journal.state == .validationSucceeded else {
@@ -120,10 +139,15 @@ public enum DestinationVolumeReplacementProtocol {
         )
         _ = try context.verifyPair(expected: .targetThenCurrent)
         _ = try CurrentBundleRetentionBuilder.advance(locator: locator, to: .rollbackStarted)
+        try checkpointHandler?(.rollbackStarted)
         if fault == .afterRollbackStarted {
             throw DestinationVolumeReplacementFailure.injectedFailure
         }
-        return try continueRollback(context: context, fault: fault)
+        return try continueRollback(
+            context: context,
+            fault: fault,
+            checkpointHandler: checkpointHandler
+        )
     }
 
     /// Reconciles an interrupted swap from the durable journal plus the two
@@ -165,10 +189,12 @@ public enum DestinationVolumeReplacementProtocol {
 
     private static func continueInstall(
         context: ReplacementContext,
-        fault: DestinationVolumeReplacementFault
+        fault: DestinationVolumeReplacementFault,
+        checkpointHandler: ((DestinationVolumeReplacementCheckpoint) throws -> Void)? = nil
     ) throws -> DestinationVolumeReplacementOutcome {
         if let identities = try? context.verifyPair(expected: .currentThenTarget) {
             try context.atomicSwap(expected: identities)
+            try checkpointHandler?(.installSwapSynchronized)
             if fault == .afterInstallSwap {
                 throw DestinationVolumeReplacementFailure.injectedFailure
             }
@@ -188,10 +214,12 @@ public enum DestinationVolumeReplacementProtocol {
 
     private static func continueRollback(
         context: ReplacementContext,
-        fault: DestinationVolumeReplacementFault
+        fault: DestinationVolumeReplacementFault,
+        checkpointHandler: ((DestinationVolumeReplacementCheckpoint) throws -> Void)? = nil
     ) throws -> DestinationVolumeReplacementOutcome {
         if let identities = try? context.verifyPair(expected: .targetThenCurrent) {
             try context.atomicSwap(expected: identities)
+            try checkpointHandler?(.rollbackSwapSynchronized)
             if fault == .afterRollbackSwap {
                 throw DestinationVolumeReplacementFailure.injectedFailure
             }

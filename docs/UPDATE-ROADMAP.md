@@ -140,16 +140,17 @@ Dependencies: Apple Developer Program identity, signing-key custody, U6.
 | U2 | Complete | Keep static/network gates green |
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
 | U4 | Technical foundation complete; activation blocked | Fixed-origin transport, private descriptor-bound staging, authenticated length/digest, cancellation/disk-full cleanup and read-only DMG/bundle inspection pass with ephemeral test keys. Product activation still depends on U3 key custody and U7's stable Developer ID requirement |
-| U5 | 3 complete, 2 partial, 1 pending | Private state backup and verified current-bundle retention pass. A separate helper now proves atomic install/rollback and both adjacent interruption windows under a hard `/private/tmp` boundary. Stable helper signing, real destination staging, live dry-run state restoration, full kill/reboot injection, and end-to-end non-replay rollback remain |
+| U5 | 4 complete, 2 partial | Private state backup, verified current-bundle retention, the separate helper and the no-privilege boundary pass. A real helper is now killed and relaunched at all four durable install/rollback boundaries, five times per gate, under a hard `/private/tmp` boundary. Stable helper signing, real destination staging, live dry-run state restoration, reboot injection and end-to-end non-replay rollback remain |
 | U6 | 5 of 6 behaviors demonstrated manually; updater orchestration not built | Build 10 demonstrated old-agent removal, exact-agent registration, stale-agent absence, independent CLI/agent access, ready zero-move dry-run and owner-approved apply restoration. Integration with U5 recovery and in-product post-update confirmation remains unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
 
 ADR-0013 deliberately stops before production key creation and shipping-target
 activation. Production signing cannot be completed safely without an
 owner-approved custody procedure. The next autonomous task that does not require
-that authority is U5's subprocess kill/relaunch harness around the external
-helper. Installed-app authority remains blocked until stable signing, state
-restoration, the complete fault matrix, U6 reconciliation and U7 pass.
+that authority is U5's schema-compatible dry-run state restoration and
+non-replay rollback foundation. Installed-app authority remains blocked until
+stable signing, state restoration, the complete reboot fault matrix, U6
+reconciliation and U7 pass.
 
 The build-10 installed audit is recorded in
 [`RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md`](RUNTIME-AUDIT-2026-08-14-1.3.0-BUILD10.md).
@@ -174,6 +175,9 @@ transitions. ADR-0021 adds an independent helper target and uses
 descriptor-relative `renameatx_np(RENAME_SWAP)` to install and roll back two
 strictly inspected bundle versions. It pins device/inode immediately before the
 swap and recovers interruptions on either side of the durable physical mutation.
+ADR-0022 launches that helper as a real subprocess, forces `SIGKILL` at each of
+the four durable boundaries and proves recovery from a fresh process over five
+complete repetitions.
 The protocol is hard-restricted to private
 `/private/tmp/TidyDropIntegration.*` fixtures and the helper is not packaged, so
-kill/reboot recovery and installed-app authority remain unimplemented.
+reboot recovery and installed-app authority remain unimplemented.
