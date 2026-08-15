@@ -105,9 +105,11 @@ Targets:
     Path: Sources/TidyDropUpdateRecovery
     Sources:
         PrivateRecoveryStateSnapshot.swift
+        RetainedCurrentBundle.swift
     Target dependencies:
         TidyDropCore
         TidyDropUpdateSecurity
+        TidyDropUpdateInspection
     Product memberships:
         TidyDropUpdateRecovery
         tidydrop-self-test
@@ -123,6 +125,7 @@ Targets:
         TidyDropUpdateSecurity
     Product memberships:
         TidyDropUpdateInspection
+        TidyDropUpdateRecovery
         tidydrop-self-test
 
     Name: TidyDropSelfTests

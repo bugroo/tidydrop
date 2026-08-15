@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 118, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 123, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -85,6 +85,11 @@ Gates obligatorios:
     verifica schema/integridad/digests y publica el manifiesto al final. Las
     regresiones inyectan tres interrupciones, rechazan symlinks y confirman que
     `/tmp` se resuelve desde descriptor sin debilitar `SQLITE_OPEN_NOFOLLOW`.
+32. La retención U5 no distribuida reinspecciona el bundle actual antes y después
+    de copiarlo por descriptores, conserva y vuelve a validar su firma Universal
+    2, publica hashes completos de bundle/estado y un journal `0600` con
+    transición fsync/rename recuperable. Rechaza symlinks, manipulación, replay,
+    saltos de estado y reintentos que sobrescribirían una recuperación previa.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

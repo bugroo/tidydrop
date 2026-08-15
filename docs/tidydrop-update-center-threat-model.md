@@ -202,8 +202,8 @@ the updater.
 | Immutable future releases | Release operation | Repository setting and release checklist |
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
 | Private no-follow staging, transport and inspection | 2 | Descriptor-bound writer, fixed-origin ephemeral streaming and authenticated read-only DMG/bundle inspection implemented outside shipping targets; production key/signing identity and installation remain gated |
-| Prior verified bundle and state backup | 2 | Private dry-run configuration and schema-checked SQLite snapshot implemented; prior bundle retention still gated |
-| Out-of-process recovery | 2 | Kill/crash/power-loss tests |
+| Prior verified bundle and state backup | 2 | Private dry-run state plus descriptor-copied, signed Universal 2 prior bundle are revalidated and tree-digested |
+| Out-of-process recovery | 2 | Durable strict-transition journal implemented; signed external executor and kill/crash/power-loss replacement tests remain |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
 
 ## Risk register
@@ -278,3 +278,11 @@ points clean the exact unpublished workspace, and symlink roots/databases are
 rejected. Descriptor-derived physical paths preserve `SQLITE_OPEN_NOFOLLOW`
 when macOS canonicalizes `/private/tmp` as `/tmp`. It does not retain or replace
 an app bundle and cannot execute rollback, so R7 and R8 remain open.
+
+ADR-0020 retains and reinspects the current complete app inside that private
+workspace using descriptor-relative, no-follow, exclusive copying. It hashes the
+complete retained tree and state manifest, then publishes an fsync-backed journal
+with exact forward transitions. An injected interruption after the durable
+`.next` write is recovered once; tampering, symlinks, replay and overwrite of a
+prior recovery are rejected. No external executor or app replacement exists, so
+R7 and R8 remain open.

@@ -65,6 +65,7 @@ jobs:
           ./scripts/test-update-transport-foundation.sh
           ./scripts/test-update-inspection-foundation.sh
           ./scripts/test-update-recovery-foundation.sh
+          ./scripts/test-update-bundle-retention-foundation.sh
           ./scripts/demo.sh
           ./scripts/test-community-preview-workflow.sh
           git diff --check

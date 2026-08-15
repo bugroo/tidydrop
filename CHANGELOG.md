@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Adds non-shipping descriptor-bound retention of the verified current
+  `TidyDrop.app`, including pre/post source inspection, retained-copy inspection,
+  complete tree digest, exact cleanup and refusal to overwrite prior recovery.
+- Adds an fsync-backed external recovery journal state machine that forces
+  dry-run, validates retained bundle/state digests, recovers one synchronized
+  `.next` transition after interruption and rejects replay or invalid state
+  transitions. App replacement and rollback execution remain disabled.
 - Adds a non-shipping private recovery-state snapshot with a forced-dry-run
   configuration backup, SQLite online backup, schema/integrity verification,
   digests, private permissions, manifest-last publication, and exact cleanup at
