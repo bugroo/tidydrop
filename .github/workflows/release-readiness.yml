@@ -60,6 +60,7 @@ jobs:
           ./scripts/test-external-recovery-helper-foundation.sh
           ./scripts/test-dry-run-state-restoration-foundation.sh
           ./scripts/test-recovery-helper-kill-relaunch.sh
+          ./scripts/test-state-restoration-kill-relaunch.sh
           ./scripts/demo.sh
 
       - name: Validate fail-closed release pipeline

@@ -117,4 +117,6 @@ five times. A real reboot matrix remains outstanding.
 [ADR-0022](0022-recovery-helper-process-kill-harness.md) adds real subprocess
 death at the four durable bundle boundaries. [ADR-0023](0023-schema-bound-dry-run-state-restoration.md)
 adds the compatible dry-run state restoration that follows a successful bundle
-rollback. Installed-app authority and real reboot testing remain gated.
+rollback, and [ADR-0024](0024-state-restoration-process-kill-harness.md) adds
+real subprocess death at its five durable boundaries. Installed-app authority
+and real reboot testing remain gated.

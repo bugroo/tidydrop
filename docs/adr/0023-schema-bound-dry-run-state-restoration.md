@@ -85,8 +85,6 @@ agent, active folder and personal files are outside the protocol's authority.
 
 ### Remaining gates
 
-- Kill-and-relaunch testing must be extended from bundle swaps to the state
-  restoration checkpoints.
 - A real reboot or abrupt-host-shutdown matrix is still required.
 - Production use still requires stable helper signing, destination-volume
   staging, installed-app authority and U6 agent/TCC reconciliation.
@@ -97,6 +95,12 @@ agent, active folder and personal files are outside the protocol's authority.
 - `fsync` and atomic rename cannot eliminate storage-device or kernel faults.
 - There is a residual race between quiescing SQLite and replacement; a
   production coordinator must stop and verify the exact agent first.
+
+## Subsequent decision
+
+[ADR-0024](0024-state-restoration-process-kill-harness.md) extends all five
+restoration checkpoints to real helper `SIGKILL` and fresh-process recovery.
+Only the real reboot/host-shutdown interruption gate remains.
 
 ## References
 

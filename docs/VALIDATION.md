@@ -102,6 +102,10 @@ Gates obligatorios:
     nombre de transacción y restaura por `renameatx_np`/`fsync`. Cinco regresiones
     prueban reanudación, writer activo, symlink, ausencia opcional del índice y
     que nunca se reproduce file-operation undo ni se restaura apply.
+35. El helper real se detiene y recibe `SIGKILL` en las cinco fronteras durables
+    de restauración. Un proceso nuevo reconcilia configuración/SQLite, conserva
+    sentinels personales y de transacción y termina en dry-run. El gate repite
+    la matriz cinco veces: 25 muertes forzadas sin skip ni fallo.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

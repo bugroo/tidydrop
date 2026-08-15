@@ -82,6 +82,6 @@ core, and continue to prohibit copying the helper into `TidyDrop.app` or a DMG.
 ## Subsequent decision
 
 [ADR-0023](0023-schema-bound-dry-run-state-restoration.md) implements the
-previously blocked dry-run state-restoration foundation. Its error-injection
-matrix is green, while extending those restoration checkpoints to real process
-death and reboot remains outstanding.
+previously blocked dry-run state-restoration foundation. [ADR-0024](0024-state-restoration-process-kill-harness.md)
+extends its five checkpoints to real process death and fresh-process recovery.
+Only the real reboot/host-shutdown matrix remains outstanding.

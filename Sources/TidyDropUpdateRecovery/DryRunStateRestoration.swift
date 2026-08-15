@@ -31,6 +31,19 @@ public enum DryRunStateRestorationFault: Equatable, Sendable {
     case afterActivitySwap
 }
 
+@_spi(Testing)
+public enum DryRunStateRestorationCheckpoint: String, CaseIterable, Sendable {
+    case candidatesSynchronized = "state_candidates_synchronized"
+    case restorationStarted = "state_restoration_started"
+    case configurationSwapSynchronized = "state_configuration_swap_synchronized"
+    case configurationRestored = "state_configuration_restored"
+    case activitySwapSynchronized = "state_activity_swap_synchronized"
+
+    public var markerFileName: String {
+        ".tidydrop-recovery-checkpoint-\(rawValue)"
+    }
+}
+
 public struct DryRunStateRestorationOutcome: Equatable, Sendable {
     public let state: ExternalRecoveryState
     public let configurationRestored: Bool
@@ -75,7 +88,8 @@ public enum DryRunStateRestorationProtocol {
         homeDirectory: URL,
         supportedConfigurationSchemaVersion: Int,
         supportedActivitySchemaVersion: Int32,
-        fault: DryRunStateRestorationFault
+        fault: DryRunStateRestorationFault,
+        checkpointHandler: ((DryRunStateRestorationCheckpoint) throws -> Void)? = nil
     ) throws -> DryRunStateRestorationOutcome {
         var journal = try CurrentBundleRetentionBuilder.loadRecovering(locator: locator)
         guard [
@@ -151,6 +165,7 @@ public enum DryRunStateRestorationProtocol {
                     expectedDigest: activityDigest
                 )
             }
+            try checkpointHandler?(.candidatesSynchronized)
             if fault == .afterStaging {
                 throw DryRunStateRestorationFailure.injectedFailure
             }
@@ -158,6 +173,7 @@ public enum DryRunStateRestorationProtocol {
                 locator: locator,
                 to: .stateRestorationStarted
             )
+            try checkpointHandler?(.restorationStarted)
             if fault == .afterRestorationStarted {
                 throw DryRunStateRestorationFailure.injectedFailure
             }
@@ -165,6 +181,7 @@ public enum DryRunStateRestorationProtocol {
 
         if journal.state == .stateRestorationStarted {
             try configurationSlot.reconcile(expectedDigest: inputs.manifest.configurationSHA256)
+            try checkpointHandler?(.configurationSwapSynchronized)
             if fault == .afterConfigurationSwap {
                 throw DryRunStateRestorationFailure.injectedFailure
             }
@@ -172,6 +189,7 @@ public enum DryRunStateRestorationProtocol {
                 locator: locator,
                 to: .configurationRestored
             )
+            try checkpointHandler?(.configurationRestored)
             if fault == .afterConfigurationJournal {
                 throw DryRunStateRestorationFailure.injectedFailure
             }
@@ -182,6 +200,7 @@ public enum DryRunStateRestorationProtocol {
                let activitySlot {
                 try activitySlot.reconcile(expectedDigest: activityDigest)
             }
+            try checkpointHandler?(.activitySwapSynchronized)
             if fault == .afterActivitySwap {
                 throw DryRunStateRestorationFailure.injectedFailure
             }

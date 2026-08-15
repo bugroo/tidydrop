@@ -72,6 +72,7 @@ jobs:
           ./scripts/audit-project.sh
           ./scripts/test-dry-run-state-restoration-foundation.sh
           ./scripts/test-recovery-helper-kill-relaunch.sh
+          ./scripts/test-state-restoration-kill-relaunch.sh
           ./scripts/test-release-pipeline.sh
           git diff --check
 
