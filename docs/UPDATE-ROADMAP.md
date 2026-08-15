@@ -4,6 +4,10 @@ This roadmap implements [ADR-0011](adr/0011-manual-update-center-and-recovery-bo
 Automatic installation and rollback remain blocked until their acceptance
 criteria are proven.
 
+> **Current restart point:** read [HANDOFF.md](HANDOFF.md) before starting new
+> work. It separates the public release, the installed runtime audit, and the
+> non-shipping update/recovery foundation on `main`.
+
 ## Phase 1 — Manual Update Center
 
 ### U1 — Discover newer official releases (5 points)
