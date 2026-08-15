@@ -22,7 +22,6 @@ for token in \
     'DestinationVolumeReplacementProtocol' \
     'RENAME_SWAP' \
     'RENAME_NOFOLLOW_ANY' \
-    'RENAME_RESOLVE_BENEATH' \
     'Darwin.renameatx_np' \
     'Darwin.fsync' \
     'candidateContainerIdentity' \
@@ -33,6 +32,15 @@ do
     /usr/bin/grep -Fq "$token" "$PROTOCOL_SOURCE" "$HELPER_SOURCE" "$PACKAGE" \
         || fail "missing external-recovery control: $token"
 done
+
+/usr/bin/grep -Fq 'private static let installedBundleName = "TidyDrop.app"' \
+    "$PROTOCOL_SOURCE" || fail "installed swap operand is not a fixed component"
+/usr/bin/grep -Fq 'return ".tidydrop-replacement-\(transactionID)"' \
+    "$PROTOCOL_SOURCE" || fail "candidate container is not transaction-bound"
+if /usr/bin/grep -Fq 'RENAME_RESOLVE_BENEATH' "$PROTOCOL_SOURCE"; then
+    /usr/bin/grep -Fq 'macOS 15 SDK does not expose it' "$PROTOCOL_SOURCE" \
+        || fail "RENAME_RESOLVE_BENEATH use is not SDK-portable"
+fi
 
 if /usr/bin/grep -Eq \
     'URLSession|https?://|SMAppService|launchctl|tccutil|sudo|/Applications|FileManager\.default\.(copyItem|moveItem|removeItem)' \

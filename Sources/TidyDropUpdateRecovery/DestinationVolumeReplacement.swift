@@ -42,9 +42,11 @@ public enum DestinationVolumeReplacementProtocol {
     private static let installedBundleName = "TidyDrop.app"
     private static let integrationRootPrefix = "/private/tmp/TidyDropIntegration."
     private static let exactSigningRequirement = "identifier \"io.github.bugroo.tidydrop\""
-    private static let renameFlags = UInt32(
-        RENAME_SWAP | RENAME_NOFOLLOW_ANY | RENAME_RESOLVE_BENEATH
-    )
+    // Both operands are fixed single-component names relative to already-open
+    // no-follow directory descriptors. RENAME_RESOLVE_BENEATH is intentionally
+    // not used because the macOS 15 SDK does not expose it; no operand can
+    // contain a path separator or traverse above either descriptor.
+    private static let renameFlags = UInt32(RENAME_SWAP | RENAME_NOFOLLOW_ANY)
 
     public static func candidateContainerName(transactionID: String) throws -> String {
         guard validTransactionID(transactionID) else {

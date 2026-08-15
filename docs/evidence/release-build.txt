@@ -3,7 +3,10 @@ Building for production...
 [0/7] Write sources
 [1/7] Write swift-version--1AB21518FC5DEDBE.txt
 [3/5] Compiling TidyDropUpdateRecovery DestinationVolumeReplacement.swift
-[3/7] Write Objects.LinkFileList
-[5/7] Linking tidydrop-recovery-helper
-[6/7] Linking tidydrop-self-test
-Build complete! (2.29s)
+[4/7] Compiling TidyDropRecoveryHelper main.swift
+[4/8] Write Objects.LinkFileList
+[5/8] Linking tidydrop-recovery-helper
+[7/8] Compiling TidyDropSelfTests main.swift
+[7/9] Write Objects.LinkFileList
+[8/9] Linking tidydrop-self-test
+Build complete! (6.31s)

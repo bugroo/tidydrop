@@ -38,8 +38,7 @@ The protocol:
   immediately before mutation;
 - writes `replacement_started` before the swap;
 - atomically exchanges `TidyDrop.app` and the candidate `TidyDrop.app` using
-  `renameatx_np` with `RENAME_SWAP`, `RENAME_NOFOLLOW_ANY`, and
-  `RENAME_RESOLVE_BENEATH`;
+  `renameatx_np` with `RENAME_SWAP` and `RENAME_NOFOLLOW_ANY`;
 - fsyncs both containing directories;
 - reinspects the post-swap pair before writing `new_bundle_installed`;
 - applies the same ordered protocol in reverse for rollback;
@@ -91,6 +90,10 @@ The complete independent suite contains 127 tests.
 
 - `fsync` reduces but cannot eliminate filesystem or hardware failure.
 - Filesystems without atomic swap support are rejected.
+- The macOS 15 SDK does not expose `RENAME_RESOLVE_BENEATH`. This protocol does
+  not need it because both rename operands are fixed single-component names
+  relative to already-open no-follow directory descriptors; accepting caller
+  paths as operands would invalidate this decision.
 - The temporary helper foundation is intentionally not a product updater and
   cannot update an installed TidyDrop app.
 - A same-account attacker remains outside TidyDrop's threat model, although
@@ -100,5 +103,5 @@ The complete independent suite contains 127 tests.
 
 - macOS `renameatx_np(2)` manual, verified from the active Command Line Tools.
 - macOS SDK `usr/include/sys/stdio.h`, which declares `RENAME_SWAP`,
-  `RENAME_NOFOLLOW_ANY`, `RENAME_RESOLVE_BENEATH`, and `renameatx_np`.
+  `RENAME_NOFOLLOW_ANY`, and `renameatx_np` in supported deployment SDKs.
 - [Apple Secure Coding Guide: Race Conditions and Secure File Operations](https://developer.apple.com/library/archive/documentation/Security/Conceptual/SecureCodingGuide/Articles/RaceConditions.html)
