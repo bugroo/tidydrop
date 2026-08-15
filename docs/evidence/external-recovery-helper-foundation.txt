@@ -1,1 +1,1 @@
-External recovery helper and atomic swap: PASS (private tmp only, non-shipping)
+External recovery helper and atomic swap: PASS (private tmp only, non-shipping, process-kill gate wired)

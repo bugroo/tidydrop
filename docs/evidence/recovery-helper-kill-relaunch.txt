@@ -1,0 +1,21 @@
+Recovery helper kill/relaunch iteration 1/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+Recovery helper kill/relaunch iteration 2/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+Recovery helper kill/relaunch iteration 3/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+Recovery helper kill/relaunch iteration 4/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+Recovery helper kill/relaunch iteration 5/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+Recovery helper subprocess kill/relaunch: PASS (20 forced kills across 4 durable boundaries)

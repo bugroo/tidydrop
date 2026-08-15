@@ -1,11 +1,124 @@
+import Darwin
 import Foundation
-import TidyDropUpdateRecovery
+@_spi(Testing) import TidyDropUpdateRecovery
 
 private enum HelperCommand: String {
     case status
     case install
     case recover
     case rollback
+}
+
+private enum HelperFailure: Error {
+    case invalidTestCheckpoint
+    case unsafeTestWorkspace
+    case checkpointMarkerFailed
+}
+
+private let testCheckpointEnvironment = "TIDYDROP_RECOVERY_TEST_STOP_AFTER"
+private let integrationRootPrefix = "/private/tmp/TidyDropIntegration."
+
+private func configuredTestCheckpoint(
+    command: HelperCommand
+) throws -> DestinationVolumeReplacementCheckpoint? {
+    guard let rawValue = ProcessInfo.processInfo.environment[testCheckpointEnvironment] else {
+        return nil
+    }
+    guard let checkpoint = DestinationVolumeReplacementCheckpoint(rawValue: rawValue) else {
+        throw HelperFailure.invalidTestCheckpoint
+    }
+    let allowed: Bool
+    switch (command, checkpoint) {
+    case (.install, .replacementStarted), (.install, .installSwapSynchronized),
+         (.rollback, .rollbackStarted), (.rollback, .rollbackSwapSynchronized):
+        allowed = true
+    default:
+        allowed = false
+    }
+    guard allowed else {
+        throw HelperFailure.invalidTestCheckpoint
+    }
+    return checkpoint
+}
+
+private func writeAll(_ data: Data, to descriptor: Int32) throws {
+    try data.withUnsafeBytes { bytes in
+        guard let baseAddress = bytes.baseAddress else {
+            throw HelperFailure.checkpointMarkerFailed
+        }
+        var written = 0
+        while written < bytes.count {
+            let result = Darwin.write(
+                descriptor,
+                baseAddress.advanced(by: written),
+                bytes.count - written
+            )
+            guard result > 0 else {
+                throw HelperFailure.checkpointMarkerFailed
+            }
+            written += result
+        }
+    }
+}
+
+private func stopAtCheckpoint(
+    _ checkpoint: DestinationVolumeReplacementCheckpoint,
+    locator: ExternalRecoveryTransactionLocator
+) throws -> Never {
+    var resolvedBuffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+    let resolved = resolvedBuffer.withUnsafeMutableBufferPointer { storage in
+        locator.workspaceURL.path.withCString { path in
+            Darwin.realpath(path, storage.baseAddress)
+        }
+    }
+    guard resolved != nil,
+          let canonicalPath = resolvedBuffer.withUnsafeBufferPointer({ storage -> String? in
+              guard let baseAddress = storage.baseAddress else { return nil }
+              return String(validatingCString: baseAddress)
+          }),
+          canonicalPath.hasPrefix(integrationRootPrefix) else {
+        throw HelperFailure.unsafeTestWorkspace
+    }
+
+    let workspaceDescriptor = canonicalPath.withCString {
+        Darwin.open($0, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
+    }
+    guard workspaceDescriptor >= 0 else {
+        throw HelperFailure.unsafeTestWorkspace
+    }
+    defer { _ = Darwin.close(workspaceDescriptor) }
+
+    var workspaceMetadata = stat()
+    guard Darwin.fstat(workspaceDescriptor, &workspaceMetadata) == 0,
+          (workspaceMetadata.st_mode & S_IFMT) == S_IFDIR,
+          workspaceMetadata.st_uid == Darwin.geteuid(),
+          workspaceMetadata.st_mode & 0o077 == 0,
+          workspaceMetadata.st_mode & (S_ISUID | S_ISGID | S_ISVTX) == 0 else {
+        throw HelperFailure.unsafeTestWorkspace
+    }
+
+    let markerName = checkpoint.markerFileName
+    let markerDescriptor = markerName.withCString {
+        Darwin.openat(
+            workspaceDescriptor,
+            $0,
+            O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW,
+            0o600
+        )
+    }
+    guard markerDescriptor >= 0 else {
+        throw HelperFailure.checkpointMarkerFailed
+    }
+    defer { _ = Darwin.close(markerDescriptor) }
+
+    try writeAll(Data("\(checkpoint.rawValue)\n".utf8), to: markerDescriptor)
+    guard Darwin.fsync(markerDescriptor) == 0,
+          Darwin.fsync(workspaceDescriptor) == 0 else {
+        throw HelperFailure.checkpointMarkerFailed
+    }
+
+    _ = Darwin.raise(SIGSTOP)
+    Darwin._exit(90)
 }
 
 private func usage() -> Never {
@@ -26,6 +139,7 @@ let locator = ExternalRecoveryTransactionLocator(
 )
 
 do {
+    let testCheckpoint = try configuredTestCheckpoint(command: command)
     if command == .status {
         guard arguments.count == 3 else { usage() }
         let journal = try CurrentBundleRetentionBuilder.loadRecovering(locator: locator)
@@ -39,7 +153,12 @@ do {
     case .install:
         outcome = try DestinationVolumeReplacementProtocol.install(
             locator: locator,
-            destinationParentURL: parent
+            destinationParentURL: parent,
+            fault: .none,
+            checkpointHandler: { checkpoint in
+                guard checkpoint == testCheckpoint else { return }
+                try stopAtCheckpoint(checkpoint, locator: locator)
+            }
         )
     case .recover:
         outcome = try DestinationVolumeReplacementProtocol.recover(
@@ -49,7 +168,12 @@ do {
     case .rollback:
         outcome = try DestinationVolumeReplacementProtocol.rollback(
             locator: locator,
-            destinationParentURL: parent
+            destinationParentURL: parent,
+            fault: .none,
+            checkpointHandler: { checkpoint in
+                guard checkpoint == testCheckpoint else { return }
+                try stopAtCheckpoint(checkpoint, locator: locator)
+            }
         )
     case .status:
         usage()

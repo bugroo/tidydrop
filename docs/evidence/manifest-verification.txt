@@ -93,6 +93,7 @@ docs/adr/0018-safe-authenticated-dmg-bundle-inspection.md: OK
 docs/adr/0019-private-recovery-state-snapshot.md: OK
 docs/adr/0020-retained-current-bundle-and-recovery-journal.md: OK
 docs/adr/0021-external-recovery-helper-and-atomic-swap.md: OK
+docs/adr/0022-recovery-helper-process-kill-harness.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -111,6 +112,7 @@ docs/evidence/manifest-verification.txt: OK
 docs/evidence/package-description.txt: OK
 docs/evidence/public-release-1.3.0-community.1.txt: OK
 docs/evidence/public-release-1.3.0-community.2.txt: OK
+docs/evidence/recovery-helper-kill-relaunch.txt: OK
 docs/evidence/release-build.txt: OK
 docs/evidence/release-manifest-foundation.txt: OK
 docs/evidence/release-pipeline.txt: OK
@@ -148,6 +150,7 @@ scripts/test-event-agent.sh: OK
 scripts/test-external-recovery-helper-foundation.sh: OK
 scripts/test-folder-chooser.sh: OK
 scripts/test-launchagent.sh: OK
+scripts/test-recovery-helper-kill-relaunch.sh: OK
 scripts/test-release-manifest-foundation.sh: OK
 scripts/test-release-pipeline.sh: OK
 scripts/test-security-prototypes.sh: OK
@@ -166,4 +169,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 168 archivos
+Manifest verificado: 171 archivos

@@ -50,7 +50,7 @@ fallback to a non-atomic two-rename sequence.
 
 ## Verification
 
-Four isolated regressions prove:
+Four isolated in-process regressions prove:
 
 - successful atomic install and rollback preserve the expected signed versions;
 - interruption immediately after each physical swap is reconciled without a
@@ -61,6 +61,11 @@ Four isolated regressions prove:
 
 All physical replacement and rollback operations occur below `/private/tmp`.
 The complete independent suite contains 127 tests.
+
+[ADR-0022](0022-recovery-helper-process-kill-harness.md) additionally kills the
+real helper subprocess at all four durable boundaries and reconciles each
+transaction from a fresh helper process. The dedicated gate repeats that matrix
+five times. A real reboot matrix remains outstanding.
 
 ## Consequences
 
@@ -82,7 +87,7 @@ The complete independent suite contains 127 tests.
   installed-app authority prematurely;
 - restore a schema-compatible state snapshot and force the live configuration
   to dry-run;
-- run real subprocess kill and reboot fault matrices at every journal boundary;
+- run a real reboot fault matrix at every journal boundary;
 - integrate exact agent removal/registration, separate TCC checks, zero-move
   dry-run validation, and explicit apply confirmation.
 
