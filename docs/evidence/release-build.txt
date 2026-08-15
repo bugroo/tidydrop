@@ -1,12 +1,14 @@
 [0/1] Planning build
 Building for production...
-[0/9] Write sources
-[3/9] Write swift-version--1AB21518FC5DEDBE.txt
-[5/7] Compiling TidyDropUpdateRecovery DestinationVolumeReplacement.swift
-[6/9] Compiling TidyDropRecoveryHelper main.swift
-[6/10] Write Objects.LinkFileList
-[7/10] Linking tidydrop-recovery-helper
-[9/10] Compiling TidyDropSelfTests main.swift
-[9/11] Write Objects.LinkFileList
-[10/11] Linking tidydrop-self-test
-Build complete! (8.86s)
+[0/8] Write sources
+[2/8] Write swift-version--1AB21518FC5DEDBE.txt
+[4/9] Compiling TidyDropCore ActiveFolder.swift
+[4/14] Write Objects.LinkFileList
+[8/15] Linking tidydrop-agent
+[9/15] Linking tidydrop-recovery-helper
+[10/15] Linking TidyDropApp
+[11/15] Linking tidydrop
+[13/15] Compiling TidyDropSelfTests main.swift
+[13/15] Write Objects.LinkFileList
+[14/15] Linking tidydrop-self-test
+Build complete! (13.57s)

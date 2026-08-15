@@ -60,7 +60,8 @@ Four isolated in-process regressions prove:
   journal.
 
 All physical replacement and rollback operations occur below `/private/tmp`.
-The complete independent suite contains 127 tests.
+At adoption, the complete independent suite contained 127 tests; the current
+project total is tracked in `docs/VALIDATION.md`.
 
 [ADR-0022](0022-recovery-helper-process-kill-harness.md) additionally kills the
 real helper subprocess at all four durable boundaries and reconciles each
@@ -110,3 +111,10 @@ five times. A real reboot matrix remains outstanding.
 - macOS SDK `usr/include/sys/stdio.h`, which declares `RENAME_SWAP`,
   `RENAME_NOFOLLOW_ANY`, and `renameatx_np` in supported deployment SDKs.
 - [Apple Secure Coding Guide: Race Conditions and Secure File Operations](https://developer.apple.com/library/archive/documentation/Security/Conceptual/SecureCodingGuide/Articles/RaceConditions.html)
+
+## Subsequent decisions
+
+[ADR-0022](0022-recovery-helper-process-kill-harness.md) adds real subprocess
+death at the four durable bundle boundaries. [ADR-0023](0023-schema-bound-dry-run-state-restoration.md)
+adds the compatible dry-run state restoration that follows a successful bundle
+rollback. Installed-app authority and real reboot testing remain gated.

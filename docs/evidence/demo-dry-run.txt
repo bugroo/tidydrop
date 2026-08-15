@@ -1,5 +1,5 @@
 === Dry-run de demostración ===
-run_id: 20260815T161326.323Z-e6dadbe2
+run_id: 20260815T165752.081Z-42628d4c
 modo: dry-run
 escaneados: 9
 planificados: 5
@@ -9,14 +9,14 @@ ignorados: 4
 errores: 0
 
 === Contenido de Downloads después del dry-run (sin movimientos) ===
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/.oculto.txt
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/Dockerfile
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/Example.app
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/Foto vacaciones ü.png
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/Informe final 2026.pdf
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/alias.pdf
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/copia.tar.gz
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/datos.csv
-/private/tmp/TidyDropIntegration.demo.sRHNQw/Downloads/video.mp4.crdownload
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/.oculto.txt
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/Dockerfile
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/Example.app
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/Foto vacaciones ü.png
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/Informe final 2026.pdf
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/alias.pdf
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/copia.tar.gz
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/datos.csv
+/private/tmp/TidyDropIntegration.demo.DjoZEC/Downloads/video.mp4.crdownload
 
-Logs: /private/tmp/TidyDropIntegration.demo.sRHNQw/logs
+Logs: /private/tmp/TidyDropIntegration.demo.DjoZEC/logs

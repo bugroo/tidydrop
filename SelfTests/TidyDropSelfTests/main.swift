@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import SQLite3
 import TidyDropCore
 @_spi(Testing) import TidyDropUpdateInspection
 @_spi(Testing) import TidyDropUpdateRecovery
@@ -3842,9 +3843,309 @@ private final class TidyDropCoreTests {
             ),
             AgentActivityDatabase.schemaVersion
         )
+        let backupHeader = try Data(contentsOf: logicalBackup).prefix(20)
+        XCTAssertEqual(backupHeader.count, 20)
+        XCTAssertEqual(backupHeader[backupHeader.index(backupHeader.startIndex, offsetBy: 18)], 1)
+        XCTAssertEqual(backupHeader[backupHeader.index(backupHeader.startIndex, offsetBy: 19)], 1)
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(
+            URL(fileURLWithPath: logicalBackup.path + "-wal")
+        ))
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(
+            URL(fileURLWithPath: logicalBackup.path + "-shm")
+        ))
+        XCTAssertFalse(try FileSystemSecurity.pathEntryExists(
+            URL(fileURLWithPath: logicalBackup.path + "-journal")
+        ))
         XCTAssertEqual(
             try AgentActivityDatabase.recentRuns(at: logicalBackup, limit: 10).map(\.runID),
             ["physical-path-run"]
+        )
+    }
+
+    func testDryRunStateRestorationRestoresStateWithoutUndoReplay() throws {
+        let setup = try makeDryRunStateRestorationSetup(
+            name: "state-restore-success",
+            includeActivityBackup: true
+        )
+        let transactionBefore = try Data(contentsOf: setup.transactionSentinel)
+        let personalBefore = try Data(contentsOf: setup.personalFile)
+        let recoveryJournal = try CurrentBundleRetentionBuilder.loadRecovering(
+            locator: setup.transaction.locator
+        )
+        let snapshotManifest = try JSONDecoder().decode(
+            UpdateRecoverySnapshotManifest.self,
+            from: Data(
+                contentsOf: setup.transaction.workspaceURL.appendingPathComponent(
+                    "recovery-manifest.json"
+                )
+            )
+        )
+        XCTAssertEqual(snapshotManifest.transactionID, recoveryJournal.transactionID)
+        XCTAssertEqual(snapshotManifest.currentVersion, recoveryJournal.currentVersion)
+        XCTAssertEqual(snapshotManifest.targetVersion, recoveryJournal.targetVersion)
+        XCTAssertEqual(snapshotManifest.bundleIdentifier, recoveryJournal.bundleIdentifier)
+        XCTAssertTrue(setup.transaction.workspaceURL.isFileURL)
+        XCTAssertFalse(recoveryJournal.applyEnabled)
+        XCTAssertEqual(recoveryJournal.stateSnapshotManifestName, "recovery-manifest.json")
+
+        let outcome = try DryRunStateRestorationProtocol.restore(
+            locator: setup.transaction.locator,
+            configurationURL: setup.configurationURL,
+            homeDirectory: setup.fixture.workspace.root
+        )
+        XCTAssertEqual(outcome.state, .stateRestored)
+        XCTAssertTrue(outcome.configurationRestored)
+        XCTAssertTrue(outcome.activityDatabaseRestored)
+        XCTAssertFalse(outcome.applyEnabled)
+        XCTAssertFalse(
+            try ConfigurationIO.load(
+                from: setup.configurationURL,
+                homeDirectory: setup.fixture.workspace.root
+            ).config.automation.applyEnabled
+        )
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(
+                at: setup.activityDatabaseURL,
+                limit: 10
+            ).map(\.runID),
+            ["before-update-run"]
+        )
+        XCTAssertEqual(try Data(contentsOf: setup.transactionSentinel), transactionBefore)
+        XCTAssertEqual(try Data(contentsOf: setup.personalFile), personalBefore)
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: setup.transaction.locator
+            ).state,
+            .stateRestored
+        )
+
+        let oldConfiguration = setup.configurationURL.deletingLastPathComponent()
+            .appendingPathComponent(
+                ".tidydrop-config-restore-\(setup.transaction.journal.transactionID).next"
+            )
+        XCTAssertTrue(
+            try ConfigurationIO.load(
+                from: oldConfiguration,
+                homeDirectory: setup.fixture.workspace.root
+            ).config.automation.applyEnabled
+        )
+        let oldActivity = setup.activityDatabaseURL.deletingLastPathComponent()
+            .appendingPathComponent(
+                ".tidydrop-activity-restore-\(setup.transaction.journal.transactionID).next"
+            )
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(at: oldActivity, limit: 10).map(\.runID),
+            ["after-update-run", "before-update-run"]
+        )
+
+        XCTAssertEqual(
+            try DryRunStateRestorationProtocol.restore(
+                locator: setup.transaction.locator,
+                configurationURL: setup.configurationURL,
+                homeDirectory: setup.fixture.workspace.root
+            ),
+            outcome
+        )
+    }
+
+    func testDryRunStateRestorationRecoversEveryInjectedBoundary() throws {
+        for fault in [
+            DryRunStateRestorationFault.afterStaging,
+            .afterRestorationStarted,
+            .afterConfigurationSwap,
+            .afterConfigurationJournal,
+            .afterActivitySwap
+        ] {
+            let setup = try makeDryRunStateRestorationSetup(
+                name: "state-restore-fault-\(String(describing: fault))",
+                includeActivityBackup: true
+            )
+            XCTAssertThrowsError(try DryRunStateRestorationProtocol.restore(
+                locator: setup.transaction.locator,
+                configurationURL: setup.configurationURL,
+                homeDirectory: setup.fixture.workspace.root,
+                supportedConfigurationSchemaVersion: 1,
+                supportedActivitySchemaVersion: AgentActivityDatabase.schemaVersion,
+                fault: fault
+            )) { error in
+                XCTAssertEqual(
+                    error as? DryRunStateRestorationFailure,
+                    .injectedFailure
+                )
+            }
+            let recovered = try DryRunStateRestorationProtocol.restore(
+                locator: setup.transaction.locator,
+                configurationURL: setup.configurationURL,
+                homeDirectory: setup.fixture.workspace.root
+            )
+            XCTAssertEqual(recovered.state, .stateRestored)
+            XCTAssertFalse(
+                try ConfigurationIO.load(
+                    from: setup.configurationURL,
+                    homeDirectory: setup.fixture.workspace.root
+                ).config.automation.applyEnabled
+            )
+            XCTAssertEqual(
+                try AgentActivityDatabase.recentRuns(
+                    at: setup.activityDatabaseURL,
+                    limit: 10
+                ).map(\.runID),
+                ["before-update-run"]
+            )
+        }
+    }
+
+    func testDryRunStateRestorationRejectsIncompatibleSchemaBeforeMutation() throws {
+        let configurationSetup = try makeDryRunStateRestorationSetup(
+            name: "state-restore-config-schema",
+            includeActivityBackup: true
+        )
+        let configurationBefore = try Data(contentsOf: configurationSetup.configurationURL)
+        XCTAssertThrowsError(try DryRunStateRestorationProtocol.restore(
+            locator: configurationSetup.transaction.locator,
+            configurationURL: configurationSetup.configurationURL,
+            homeDirectory: configurationSetup.fixture.workspace.root,
+            supportedConfigurationSchemaVersion: 0,
+            supportedActivitySchemaVersion: AgentActivityDatabase.schemaVersion,
+            fault: .none
+        )) { error in
+            XCTAssertEqual(
+                error as? DryRunStateRestorationFailure,
+                .incompatibleConfigurationSchema
+            )
+        }
+        XCTAssertEqual(
+            try Data(contentsOf: configurationSetup.configurationURL),
+            configurationBefore
+        )
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: configurationSetup.transaction.locator
+            ).state,
+            .rolledBack
+        )
+
+        let activitySetup = try makeDryRunStateRestorationSetup(
+            name: "state-restore-activity-schema",
+            includeActivityBackup: true
+        )
+        let activityBefore = try Data(contentsOf: activitySetup.activityDatabaseURL)
+        XCTAssertThrowsError(try DryRunStateRestorationProtocol.restore(
+            locator: activitySetup.transaction.locator,
+            configurationURL: activitySetup.configurationURL,
+            homeDirectory: activitySetup.fixture.workspace.root,
+            supportedConfigurationSchemaVersion: 1,
+            supportedActivitySchemaVersion: 0,
+            fault: .none
+        )) { error in
+            XCTAssertEqual(
+                error as? DryRunStateRestorationFailure,
+                .incompatibleActivitySchema
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: activitySetup.activityDatabaseURL), activityBefore)
+        XCTAssertTrue(
+            try ConfigurationIO.load(
+                from: activitySetup.configurationURL,
+                homeDirectory: activitySetup.fixture.workspace.root
+            ).config.automation.applyEnabled
+        )
+    }
+
+    func testDryRunStateRestorationRejectsUnsafeDestinationAndBusyDatabase() throws {
+        let linkedSetup = try makeDryRunStateRestorationSetup(
+            name: "state-restore-linked-parent",
+            includeActivityBackup: true
+        )
+        let linkedParent = linkedSetup.fixture.workspace.root.appendingPathComponent(
+            "linked-config-parent",
+            isDirectory: true
+        )
+        try FileManager.default.createSymbolicLink(
+            at: linkedParent,
+            withDestinationURL: linkedSetup.configurationURL.deletingLastPathComponent()
+        )
+        XCTAssertThrowsError(try DryRunStateRestorationProtocol.restore(
+            locator: linkedSetup.transaction.locator,
+            configurationURL: linkedParent.appendingPathComponent("config.json"),
+            homeDirectory: linkedSetup.fixture.workspace.root
+        )) { error in
+            XCTAssertEqual(error as? DryRunStateRestorationFailure, .unsafeDestination)
+        }
+
+        let busySetup = try makeDryRunStateRestorationSetup(
+            name: "state-restore-busy-database",
+            includeActivityBackup: true
+        )
+        var busyDatabase: OpaquePointer?
+        XCTAssertEqual(
+            busySetup.activityDatabaseURL.path.withCString {
+                sqlite3_open_v2(
+                    $0,
+                    &busyDatabase,
+                    SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW,
+                    nil
+                )
+            },
+            SQLITE_OK
+        )
+        guard let busyDatabase else {
+            throw StewardError.commandFailed("busy SQLite test could not open database")
+        }
+        defer {
+            _ = sqlite3_exec(busyDatabase, "ROLLBACK;", nil, nil, nil)
+            sqlite3_close_v2(busyDatabase)
+        }
+        XCTAssertEqual(
+            sqlite3_exec(
+                busyDatabase,
+                "BEGIN IMMEDIATE; UPDATE agent_runs SET detail='busy' WHERE run_id='after-update-run';",
+                nil,
+                nil,
+                nil
+            ),
+            SQLITE_OK
+        )
+        XCTAssertThrowsError(try DryRunStateRestorationProtocol.restore(
+            locator: busySetup.transaction.locator,
+            configurationURL: busySetup.configurationURL,
+            homeDirectory: busySetup.fixture.workspace.root
+        )) { error in
+            XCTAssertEqual(error as? DryRunStateRestorationFailure, .liveStateBusy)
+        }
+        XCTAssertTrue(
+            try ConfigurationIO.load(
+                from: busySetup.configurationURL,
+                homeDirectory: busySetup.fixture.workspace.root
+            ).config.automation.applyEnabled
+        )
+    }
+
+    func testDryRunStateRestorationWithoutActivityBackupPreservesDerivedState() throws {
+        let setup = try makeDryRunStateRestorationSetup(
+            name: "state-restore-no-activity-backup",
+            includeActivityBackup: false
+        )
+        let activityBefore = try Data(contentsOf: setup.activityDatabaseURL)
+        let outcome = try DryRunStateRestorationProtocol.restore(
+            locator: setup.transaction.locator,
+            configurationURL: setup.configurationURL,
+            homeDirectory: setup.fixture.workspace.root
+        )
+        XCTAssertFalse(outcome.activityDatabaseRestored)
+        XCTAssertFalse(
+            try ConfigurationIO.load(
+                from: setup.configurationURL,
+                homeDirectory: setup.fixture.workspace.root
+            ).config.automation.applyEnabled
+        )
+        XCTAssertEqual(try Data(contentsOf: setup.activityDatabaseURL), activityBefore)
+        XCTAssertEqual(
+            try AgentActivityDatabase.recentRuns(
+                at: setup.activityDatabaseURL,
+                limit: 10
+            ).map(\.runID),
+            ["after-update-run"]
         )
     }
 
@@ -4568,6 +4869,118 @@ private final class TidyDropCoreTests {
         )
     }
 
+    private struct DryRunRestorationSetup {
+        let fixture: SignedReleaseManifestFixture
+        let transaction: PreparedExternalRecoveryTransaction
+        let configurationURL: URL
+        let activityDatabaseURL: URL
+        let transactionSentinel: URL
+        let personalFile: URL
+    }
+
+    private func makeDryRunStateRestorationSetup(
+        name: String,
+        includeActivityBackup: Bool
+    ) throws -> DryRunRestorationSetup {
+        let fixture = try SignedReleaseManifestFixture()
+        let authenticated = try fixture.authenticated()
+        let configurationURL = fixture.workspace.root.appendingPathComponent("config.json")
+        var configuration = try fixture.workspace.makeConfig().config
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configurationURL)
+        let resolved = try ConfigurationIO.load(
+            from: configurationURL,
+            homeDirectory: fixture.workspace.root
+        )
+        try FileSystemSecurity.ensurePrivateDirectory(resolved.paths.transactionsDirectory)
+        let transactionSentinel = resolved.paths.transactionsDirectory.appendingPathComponent(
+            "pre-update-transaction.json"
+        )
+        try Data("transaction-journal-must-not-be-replayed".utf8).write(
+            to: transactionSentinel
+        )
+        let personalFile = try fixture.workspace.createFile(
+            "personal-restore-sentinel.txt",
+            contents: "personal-content-must-not-move"
+        )
+
+        if includeActivityBackup {
+            try AgentActivityDatabase.record(
+                ScheduledRunRecord(
+                    timestamp: Date(timeIntervalSince1970: 1_786_640_001),
+                    outcome: .success,
+                    runID: "before-update-run",
+                    mode: "apply",
+                    moved: 1,
+                    sourceDirectory: fixture.workspace.source.path
+                ),
+                at: resolved.paths.activityDatabaseFile
+            )
+        }
+        let recoveryParent = try privateRecoveryParent(
+            fixture: fixture,
+            name: "\(name)-recovery"
+        )
+        let snapshot = try PrivateUpdateRecoverySnapshotBuilder.prepare(
+            configurationURL: configurationURL,
+            recoveryParent: recoveryParent,
+            currentVersion: "1.3.0",
+            authenticatedTarget: authenticated
+        )
+        let imageRoot = try makeInspectionImageRoot(
+            workspace: fixture.workspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true,
+            marketingVersion: "1.3.0"
+        )
+        let currentBundle = imageRoot.appendingPathComponent("TidyDrop.app", isDirectory: true)
+        let currentPolicy = ExistingBundleInspectionPolicy(
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            marketingVersion: "1.3.0",
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\""
+        )
+        let transaction = try CurrentBundleRetentionBuilder.prepare(
+            snapshot: snapshot,
+            currentBundleURL: currentBundle,
+            currentBundlePolicy: currentPolicy,
+            authenticatedTarget: authenticated
+        )
+        _ = try CurrentBundleRetentionBuilder.advance(
+            locator: transaction.locator,
+            to: .replacementStarted
+        )
+        _ = try CurrentBundleRetentionBuilder.advance(
+            locator: transaction.locator,
+            to: .rollbackStarted
+        )
+        _ = try CurrentBundleRetentionBuilder.advance(
+            locator: transaction.locator,
+            to: .rolledBack
+        )
+
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configurationURL)
+        try AgentActivityDatabase.record(
+            ScheduledRunRecord(
+                timestamp: Date(timeIntervalSince1970: 1_786_640_002),
+                outcome: .success,
+                runID: "after-update-run",
+                mode: "apply",
+                moved: 1,
+                sourceDirectory: fixture.workspace.source.path
+            ),
+            at: resolved.paths.activityDatabaseFile
+        )
+        return DryRunRestorationSetup(
+            fixture: fixture,
+            transaction: transaction,
+            configurationURL: configurationURL,
+            activityDatabaseURL: resolved.paths.activityDatabaseFile,
+            transactionSentinel: transactionSentinel,
+            personalFile: personalFile
+        )
+    }
+
     private func makeCurrentBundleRetentionSetup(
         name: String
     ) throws -> (
@@ -4786,6 +5199,11 @@ private let tests: [(String, () throws -> Void)] = [
     ("testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace", suite.testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace),
     ("testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase", suite.testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase),
     ("testAgentActivityDatabaseBackupHandlesPhysicalTmpPath", suite.testAgentActivityDatabaseBackupHandlesPhysicalTmpPath),
+    ("testDryRunStateRestorationRestoresStateWithoutUndoReplay", suite.testDryRunStateRestorationRestoresStateWithoutUndoReplay),
+    ("testDryRunStateRestorationRecoversEveryInjectedBoundary", suite.testDryRunStateRestorationRecoversEveryInjectedBoundary),
+    ("testDryRunStateRestorationRejectsIncompatibleSchemaBeforeMutation", suite.testDryRunStateRestorationRejectsIncompatibleSchemaBeforeMutation),
+    ("testDryRunStateRestorationRejectsUnsafeDestinationAndBusyDatabase", suite.testDryRunStateRestorationRejectsUnsafeDestinationAndBusyDatabase),
+    ("testDryRunStateRestorationWithoutActivityBackupPreservesDerivedState", suite.testDryRunStateRestorationWithoutActivityBackupPreservesDerivedState),
     ("testCurrentBundleRetentionPreservesVerifiedUniversalAppAndPublishesDryRunJournal", suite.testCurrentBundleRetentionPreservesVerifiedUniversalAppAndPublishesDryRunJournal),
     ("testCurrentBundleRetentionFaultsCleanOnlyRetainedArtifacts", suite.testCurrentBundleRetentionFaultsCleanOnlyRetainedArtifacts),
     ("testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree", suite.testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree),

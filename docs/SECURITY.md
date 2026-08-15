@@ -145,8 +145,19 @@ intercambian con `renameatx_np(RENAME_SWAP)` relativo a dos descriptores; las
 transiciones anterior y posterior permiten reanudar sin adivinar. Esta base
 solo acepta jerarquías privadas `TidyDropIntegration.*` en `/private/tmp`, falla
 si el filesystem no soporta el intercambio y no se incluye en la app ni el DMG.
-Firma estable del helper, restauración del estado live, kill/reboot, agente y
+Firma estable del helper, process-kill/reboot del estado restaurado, agente y
 TCC continúan bloqueados.
+
+[ADR-0023](adr/0023-schema-bound-dry-run-state-restoration.md) añade la
+restauración no distribuida de configuración y estado compatible después del
+rollback del bundle. Verifica el enlace criptográfico con el snapshot, rechaza
+schemas incompatibles antes de mutar, fuerza `apply_enabled=false` y nunca llama
+al undo de archivos personales. El backup SQLite queda normalizado fuera de WAL;
+los sidecars live residuales se validan y apartan atómicamente bajo el ID de la
+transacción antes del swap. Cinco puntos de fallo se reanudan sin adivinar y un
+writer activo falla cerrado. El alcance continúa limitado a
+`/private/tmp/TidyDropIntegration.*`; falta ampliar el harness a muerte real del
+proceso, reboot, app instalada, agente y TCC.
 
 ## Fuera de alcance
 

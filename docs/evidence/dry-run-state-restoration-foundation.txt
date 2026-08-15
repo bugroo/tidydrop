@@ -1,0 +1,1 @@
+Dry-run state restoration: PASS (private tmp only, no undo replay, SQLite schema/integrity bound)

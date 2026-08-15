@@ -40,6 +40,7 @@ Sources/TidyDropCore/WorkbenchData.swift: OK
 Sources/TidyDropRecoveryHelper/main.swift: OK
 Sources/TidyDropUpdateInspection/SafeUpdateBundleInspector.swift: OK
 Sources/TidyDropUpdateRecovery/DestinationVolumeReplacement.swift: OK
+Sources/TidyDropUpdateRecovery/DryRunStateRestoration.swift: OK
 Sources/TidyDropUpdateRecovery/PrivateRecoveryStateSnapshot.swift: OK
 Sources/TidyDropUpdateRecovery/RetainedCurrentBundle.swift: OK
 Sources/TidyDropUpdateSecurity/PrivateUpdateStaging.swift: OK
@@ -94,6 +95,7 @@ docs/adr/0019-private-recovery-state-snapshot.md: OK
 docs/adr/0020-retained-current-bundle-and-recovery-journal.md: OK
 docs/adr/0021-external-recovery-helper-and-atomic-swap.md: OK
 docs/adr/0022-recovery-helper-process-kill-harness.md: OK
+docs/adr/0023-schema-bound-dry-run-state-restoration.md: OK
 docs/adr/README.md: OK
 docs/assets/tidydrop-hero.png: OK
 docs/evidence/cli-integration.txt: OK
@@ -102,6 +104,7 @@ docs/evidence/debug-build.txt: OK
 docs/evidence/demo-dry-run.txt: OK
 docs/evidence/doctor-tests.txt: OK
 docs/evidence/doctor.txt: OK
+docs/evidence/dry-run-state-restoration-foundation.txt: OK
 docs/evidence/environment.txt: OK
 docs/evidence/event-agent.txt: OK
 docs/evidence/external-recovery-helper-foundation.txt: OK
@@ -146,6 +149,7 @@ scripts/sign-app.sh: OK
 scripts/test-cli.sh: OK
 scripts/test-community-preview-workflow.sh: OK
 scripts/test-doctor.sh: OK
+scripts/test-dry-run-state-restoration-foundation.sh: OK
 scripts/test-event-agent.sh: OK
 scripts/test-external-recovery-helper-foundation.sh: OK
 scripts/test-folder-chooser.sh: OK
@@ -169,4 +173,4 @@ scripts/verify-dmg.sh: OK
 scripts/verify-install.sh: OK
 scripts/verify-manifest.sh: OK
 scripts/verify-release.sh: OK
-Manifest verificado: 171 archivos
+Manifest verificado: 175 archivos

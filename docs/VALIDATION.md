@@ -7,7 +7,7 @@ Gates obligatorios:
 1. `scripts/doctor.sh` y regresiones de SDK.
 2. Build debug y release.
 3. Build Universal 2 y pipeline de distribución fail-closed en `/private/tmp`.
-4. Self-tests propios: 127, incluidas las fronteras balanceadas de auditoría,
+4. Self-tests propios: 132, incluidas las fronteras balanceadas de auditoría,
    workbench AppKit, canonicalización FSEvents, señal app-agente privada e
    índice SQLite con migración, lectura read-only y rechazo de symlinks,
    sin reducir las regresiones anteriores.
@@ -96,6 +96,12 @@ Gates obligatorios:
     `renameatx_np(RENAME_SWAP)` relativo a descriptores, sincronizan ambos
     directorios y recuperan interrupciones antes y después de install/rollback.
     El gate confirma además que el helper no entra en `TidyDrop.app` ni el DMG.
+34. La restauración de estado U5 no distribuida enlaza journal, manifiesto,
+    versiones y hashes; rechaza schemas incompatibles antes de mutar, normaliza
+    el backup SQLite a journal `DELETE`, preserva sidecars residuales bajo un
+    nombre de transacción y restaura por `renameatx_np`/`fsync`. Cinco regresiones
+    prueban reanudación, writer activo, symlink, ausencia opcional del índice y
+    que nunca se reproduce file-operation undo ni se restaura apply.
 
 Ninguna prueba apply o undo usa una carpeta personal. Los artefactos de evidencia se guardan en `docs/evidence` y el informe externo de distribución resume comandos, códigos de salida y resultados observados.
 

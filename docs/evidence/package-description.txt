@@ -112,6 +112,7 @@ Targets:
     Path: Sources/TidyDropUpdateRecovery
     Sources:
         DestinationVolumeReplacement.swift
+        DryRunStateRestoration.swift
         PrivateRecoveryStateSnapshot.swift
         RetainedCurrentBundle.swift
     Target dependencies:

@@ -70,6 +70,7 @@ jobs:
           swift build -c release -Xswiftc -warnings-as-errors
           swift run tidydrop-self-test
           ./scripts/audit-project.sh
+          ./scripts/test-dry-run-state-restoration-foundation.sh
           ./scripts/test-recovery-helper-kill-relaunch.sh
           ./scripts/test-release-pipeline.sh
           git diff --check

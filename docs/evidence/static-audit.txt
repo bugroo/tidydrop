@@ -19,6 +19,7 @@ Safe authenticated DMG and bundle inspection: PASS (read-only, bounded, non-ship
 Private update recovery state snapshot: PASS (dry-run backup, SQLite-consistent, non-shipping)
 Retained current bundle and external recovery journal: PASS (descriptor-bound, non-shipping)
 External recovery helper and atomic swap: PASS (private tmp only, non-shipping, process-kill gate wired)
+Dry-run state restoration: PASS (private tmp only, no undo replay, SQLite schema/integrity bound)
 [OK] Red runtime limitada; transporte e inspección autenticados, aislados y no distribuidos
 [OK] Sin utilidades de red ejecutadas por scripts
 [OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta

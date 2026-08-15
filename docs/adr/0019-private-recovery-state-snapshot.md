@@ -120,3 +120,10 @@ LaunchAgent, personal folder, or real configuration participates.
 - [Apple: FileManager replacement](https://developer.apple.com/documentation/foundation/filemanager/replaceitemat%28_%3Awithitemat%3Abackupitemname%3Aoptions%3A%29)
 - [Apple: Race Conditions and Secure File Operations](https://developer.apple.com/library/archive/documentation/Security/Conceptual/SecureCodingGuide/Articles/RaceConditions.html)
 - [SQLite: Online Backup API](https://www.sqlite.org/backup.html)
+
+## Subsequent decision
+
+[ADR-0023](0023-schema-bound-dry-run-state-restoration.md) consumes this
+snapshot after bundle rollback, normalizes SQLite backups out of WAL mode and
+proves schema-bound restoration without personal-file undo. The original
+snapshot boundary and its lack of installed-app authority remain unchanged.

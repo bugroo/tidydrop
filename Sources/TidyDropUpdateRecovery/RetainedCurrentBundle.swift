@@ -36,6 +36,9 @@ public enum ExternalRecoveryState: String, Codable, Equatable, Sendable {
     case validationSucceeded = "validation_succeeded"
     case rollbackStarted = "rollback_started"
     case rolledBack = "rolled_back"
+    case stateRestorationStarted = "state_restoration_started"
+    case configurationRestored = "configuration_restored"
+    case stateRestored = "state_restored"
     case committed
 }
 
@@ -904,6 +907,10 @@ public enum CurrentBundleRetentionBuilder {
              (.newBundleInstalled, .rollbackStarted),
              (.validationSucceeded, .committed),
              (.rollbackStarted, .rolledBack),
+             (.rolledBack, .stateRestorationStarted),
+             (.stateRestorationStarted, .configurationRestored),
+             (.configurationRestored, .stateRestored),
+             (.stateRestored, .committed),
              (.rolledBack, .committed):
             return true
         default:
