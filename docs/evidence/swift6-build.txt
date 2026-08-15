@@ -1,3 +1,65 @@
+[0/1] Planning build
 Building for debugging...
-[0/9] Write swift-version--1AB21518FC5DEDBE.txt
-Build complete! (0.08s)
+[0/16] Write swift-version--1AB21518FC5DEDBE.txt
+[2/35] Compiling TidyDropCore ScheduledExecution.swift
+[3/35] Compiling TidyDropCore SecurityScopedBookmark.swift
+[4/35] Compiling TidyDropCore Classifier.swift
+[5/35] Compiling TidyDropCore CodeSigningRequirement.swift
+[6/35] Compiling TidyDropCore Transactions.swift
+[7/35] Compiling TidyDropCore UpdatePolicy.swift
+[8/36] Compiling TidyDropCore WorkbenchData.swift
+[9/36] Compiling TidyDropCore LaunchAgentStatus.swift
+[10/36] Compiling TidyDropCore Models.swift
+[11/36] Compiling TidyDropCore Configuration.swift
+[12/36] Compiling TidyDropCore FileSystem.swift
+[13/36] Compiling TidyDropCore AgentRunRequest.swift
+[14/36] Compiling TidyDropCore AgentSchedulingPolicy.swift
+[15/36] Compiling TidyDropCore Audit.swift
+[16/36] Compiling TidyDropCore BackgroundVerificationPolicy.swift
+[17/36] Compiling TidyDropCore ActiveFolder.swift
+[18/36] Compiling TidyDropCore AgentActivityDatabase.swift
+[19/36] Compiling TidyDropCore Stability.swift
+[20/36] Compiling TidyDropCore StewardEngine.swift
+[21/36] Emitting module TidyDropCore
+[22/50] Compiling TidyDropAgent main.swift
+[23/50] Emitting module TidyDropAgent
+[24/50] Compiling TidyDropAgent EventDrivenAgent.swift
+[25/50] Compiling TidyDropAgent FSEventsWatcher.swift
+[25/50] Write Objects.LinkFileList
+[27/50] Compiling TidyDropUpdateSecurity ReleaseManifest.swift
+[28/50] Emitting module TidyDropUpdateSecurity
+[29/50] Compiling TidyDropUpdateSecurity PrivateUpdateStaging.swift
+[30/50] Compiling TidyDrop main.swift
+[31/50] Emitting module TidyDrop
+[31/50] Write Objects.LinkFileList
+[32/50] Linking tidydrop-agent
+[33/50] Applying tidydrop-agent
+[35/54] Compiling TidyDropApp WorkbenchViewController.swift
+[36/54] Compiling TidyDropApp UpdateCheckService.swift
+[37/54] Compiling TidyDropApp UpdateCenterWindowController.swift
+[37/54] Linking tidydrop
+[38/54] Applying tidydrop
+[40/54] Compiling TidyDropUpdateTransport FixedOriginUpdateTransport.swift
+[41/54] Emitting module TidyDropUpdateTransport
+[42/54] Emitting module TidyDropApp
+[43/54] Compiling TidyDropApp TidyDropApplication.swift
+[43/54] Write Objects.LinkFileList
+[44/54] Linking TidyDropApp
+[45/54] Applying TidyDropApp
+[47/54] Emitting module TidyDropUpdateInspection
+[48/54] Compiling TidyDropUpdateInspection SafeUpdateBundleInspector.swift
+[49/58] Compiling TidyDropUpdateRecovery RetainedCurrentBundle.swift
+[50/58] Compiling TidyDropUpdateRecovery PrivateRecoveryStateSnapshot.swift
+[51/58] Compiling TidyDropUpdateRecovery DestinationVolumeReplacement.swift
+[52/58] Emitting module TidyDropUpdateRecovery
+[53/62] Compiling TidyDropRecoveryHelper main.swift
+[54/62] Emitting module TidyDropRecoveryHelper
+[54/62] Write Objects.LinkFileList
+[55/62] Linking tidydrop-recovery-helper
+[56/62] Applying tidydrop-recovery-helper
+[58/62] Compiling TidyDropSelfTests main.swift
+[59/62] Emitting module TidyDropSelfTests
+[59/62] Write Objects.LinkFileList
+[60/62] Linking tidydrop-self-test
+[61/62] Applying tidydrop-self-test
+Build complete! (6.07s)

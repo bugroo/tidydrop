@@ -325,13 +325,15 @@ private struct SignedReleaseManifestFixture {
     init(
         publishedAt: Date = Date(timeIntervalSince1970: 1_786_640_000),
         artifactName: String = "TidyDrop-1.3.0-community-preview-macos-universal.dmg",
-        artifactData suppliedArtifactData: Data? = nil
+        artifactData suppliedArtifactData: Data? = nil,
+        currentTag: String = "v1.3.0-community.1",
+        nextTag: String = "v1.3.0-community.2"
     ) throws {
         guard let currentVersion = ReleaseVersion.parse(
-            tag: "v1.3.0-community.1",
+            tag: currentTag,
             channel: .community
         ), let nextVersion = ReleaseVersion.parse(
-            tag: "v1.3.0-community.2",
+            tag: nextTag,
             channel: .community
         ) else {
             throw NSError(domain: "TidyDropTests.ReleaseManifest", code: 1)
@@ -3480,7 +3482,8 @@ private final class TidyDropCoreTests {
     private func makeInspectionImageRoot(
         workspace: TemporaryWorkspace,
         bundleIdentifier: String,
-        universal: Bool
+        universal: Bool,
+        marketingVersion: String = "1.3.0"
     ) throws -> URL {
         let root = workspace.root.appendingPathComponent(
             "inspection-root-\(UUID().uuidString)",
@@ -3549,7 +3552,7 @@ private final class TidyDropCoreTests {
             "CFBundleExecutable": "TidyDropApp",
             "CFBundleIdentifier": bundleIdentifier,
             "CFBundlePackageType": "APPL",
-            "CFBundleShortVersionString": "1.3.0",
+            "CFBundleShortVersionString": marketingVersion,
             "CFBundleVersion": "10"
         ]
         let plist = try PropertyListSerialization.data(
@@ -4060,6 +4063,286 @@ private final class TidyDropCoreTests {
         }
     }
 
+    func testDestinationVolumeReplacementAtomicallyInstallsAndRollsBack() throws {
+        let setup = try makeDestinationVolumeReplacementSetup(name: "replacement-success")
+        XCTAssertEqual(
+            try DestinationVolumeReplacementProtocol.install(
+                locator: setup.transaction.locator,
+                destinationParentURL: setup.destinationParent
+            ),
+            .newBundleInstalled
+        )
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: setup.transaction.locator
+            ).state,
+            .newBundleInstalled
+        )
+        _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: setup.installedBundle,
+            policy: setup.targetPolicy
+        )
+        _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: setup.candidateBundle,
+            policy: setup.currentPolicy
+        )
+
+        XCTAssertEqual(
+            try DestinationVolumeReplacementProtocol.rollback(
+                locator: setup.transaction.locator,
+                destinationParentURL: setup.destinationParent
+            ),
+            .rolledBack
+        )
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: setup.transaction.locator
+            ).state,
+            .rolledBack
+        )
+        _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: setup.installedBundle,
+            policy: setup.currentPolicy
+        )
+        _ = try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: setup.candidateBundle,
+            policy: setup.targetPolicy
+        )
+    }
+
+    func testDestinationVolumeReplacementRecoversBothInterruptedSwaps() throws {
+        let installSetup = try makeDestinationVolumeReplacementSetup(
+            name: "replacement-interrupted-install"
+        )
+        XCTAssertThrowsError(try DestinationVolumeReplacementProtocol.install(
+            locator: installSetup.transaction.locator,
+            destinationParentURL: installSetup.destinationParent,
+            fault: .afterInstallSwap
+        )) { error in
+            XCTAssertEqual(
+                error as? DestinationVolumeReplacementFailure,
+                .injectedFailure
+            )
+        }
+        XCTAssertEqual(
+            try DestinationVolumeReplacementProtocol.recover(
+                locator: installSetup.transaction.locator,
+                destinationParentURL: installSetup.destinationParent
+            ),
+            .newBundleInstalled
+        )
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: installSetup.transaction.locator
+            ).state,
+            .newBundleInstalled
+        )
+
+        XCTAssertThrowsError(try DestinationVolumeReplacementProtocol.rollback(
+            locator: installSetup.transaction.locator,
+            destinationParentURL: installSetup.destinationParent,
+            fault: .afterRollbackSwap
+        )) { error in
+            XCTAssertEqual(
+                error as? DestinationVolumeReplacementFailure,
+                .injectedFailure
+            )
+        }
+        XCTAssertEqual(
+            try DestinationVolumeReplacementProtocol.recover(
+                locator: installSetup.transaction.locator,
+                destinationParentURL: installSetup.destinationParent
+            ),
+            .rolledBack
+        )
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: installSetup.transaction.locator
+            ).state,
+            .rolledBack
+        )
+    }
+
+    func testDestinationVolumeReplacementResumesBeforeEitherSwap() throws {
+        let installSetup = try makeDestinationVolumeReplacementSetup(
+            name: "replacement-before-install"
+        )
+        XCTAssertThrowsError(try DestinationVolumeReplacementProtocol.install(
+            locator: installSetup.transaction.locator,
+            destinationParentURL: installSetup.destinationParent,
+            fault: .afterReplacementStarted
+        )) { error in
+            XCTAssertEqual(error as? DestinationVolumeReplacementFailure, .injectedFailure)
+        }
+        XCTAssertEqual(
+            try DestinationVolumeReplacementProtocol.recover(
+                locator: installSetup.transaction.locator,
+                destinationParentURL: installSetup.destinationParent
+            ),
+            .newBundleInstalled
+        )
+
+        XCTAssertThrowsError(try DestinationVolumeReplacementProtocol.rollback(
+            locator: installSetup.transaction.locator,
+            destinationParentURL: installSetup.destinationParent,
+            fault: .afterRollbackStarted
+        )) { error in
+            XCTAssertEqual(error as? DestinationVolumeReplacementFailure, .injectedFailure)
+        }
+        XCTAssertEqual(
+            try DestinationVolumeReplacementProtocol.recover(
+                locator: installSetup.transaction.locator,
+                destinationParentURL: installSetup.destinationParent
+            ),
+            .rolledBack
+        )
+    }
+
+    func testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate() throws {
+        let scopeSetup = try makeDestinationVolumeReplacementSetup(
+            name: "replacement-scope"
+        )
+        XCTAssertThrowsError(try DestinationVolumeReplacementProtocol.install(
+            locator: scopeSetup.transaction.locator,
+            destinationParentURL: URL(fileURLWithPath: "/private/tmp", isDirectory: true)
+        )) { error in
+            XCTAssertEqual(
+                error as? DestinationVolumeReplacementFailure,
+                .nonShippingScopeRequired
+            )
+        }
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: scopeSetup.transaction.locator
+            ).state,
+            .prepared
+        )
+
+        let symlinkSetup = try makeDestinationVolumeReplacementSetup(
+            name: "replacement-symlink"
+        )
+        try FileManager.default.removeItem(at: symlinkSetup.candidateBundle)
+        try FileManager.default.createSymbolicLink(
+            at: symlinkSetup.candidateBundle,
+            withDestinationURL: symlinkSetup.installedBundle
+        )
+        XCTAssertThrowsError(try DestinationVolumeReplacementProtocol.install(
+            locator: symlinkSetup.transaction.locator,
+            destinationParentURL: symlinkSetup.destinationParent
+        ))
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(
+                locator: symlinkSetup.transaction.locator
+            ).state,
+            .prepared
+        )
+    }
+
+    private func makeDestinationVolumeReplacementSetup(
+        name: String
+    ) throws -> (
+        fixture: SignedReleaseManifestFixture,
+        transaction: PreparedExternalRecoveryTransaction,
+        destinationParent: URL,
+        installedBundle: URL,
+        candidateBundle: URL,
+        currentPolicy: ExistingBundleInspectionPolicy,
+        targetPolicy: ExistingBundleInspectionPolicy
+    ) {
+        let fixture = try SignedReleaseManifestFixture(
+            artifactName: "TidyDrop-1.4.0-community-preview-macos-universal.dmg",
+            currentTag: "v1.3.0-community.2",
+            nextTag: "v1.4.0-community.1"
+        )
+        let authenticated = try fixture.authenticated()
+        let configurationURL = fixture.workspace.root.appendingPathComponent("\(name)-config.json")
+        var configuration = try fixture.workspace.makeConfig().config
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configurationURL)
+        let recoveryParent = try privateRecoveryParent(
+            fixture: fixture,
+            name: "\(name)-recovery"
+        )
+        let snapshot = try PrivateUpdateRecoverySnapshotBuilder.prepare(
+            configurationURL: configurationURL,
+            recoveryParent: recoveryParent,
+            currentVersion: "1.3.0",
+            authenticatedTarget: authenticated
+        )
+        let currentRoot = try makeInspectionImageRoot(
+            workspace: fixture.workspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true,
+            marketingVersion: "1.3.0"
+        )
+        let current = currentRoot.appendingPathComponent("TidyDrop.app", isDirectory: true)
+        let currentPolicy = ExistingBundleInspectionPolicy(
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            marketingVersion: "1.3.0",
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\""
+        )
+        let transaction = try CurrentBundleRetentionBuilder.prepare(
+            snapshot: snapshot,
+            currentBundleURL: current,
+            currentBundlePolicy: currentPolicy,
+            authenticatedTarget: authenticated
+        )
+
+        let destination = fixture.workspace.root.appendingPathComponent(
+            "\(name)-destination",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: destination.path
+        )
+        let installed = destination.appendingPathComponent("TidyDrop.app", isDirectory: true)
+        try FileManager.default.copyItem(at: current, to: installed)
+
+        let targetRoot = try makeInspectionImageRoot(
+            workspace: fixture.workspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true,
+            marketingVersion: "1.4.0"
+        )
+        let target = targetRoot.appendingPathComponent("TidyDrop.app", isDirectory: true)
+        let candidateContainerName = try DestinationVolumeReplacementProtocol.candidateContainerName(
+            transactionID: transaction.journal.transactionID
+        )
+        let candidateContainer = destination.appendingPathComponent(
+            candidateContainerName,
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(
+            at: candidateContainer,
+            withIntermediateDirectories: false
+        )
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o700))],
+            ofItemAtPath: candidateContainer.path
+        )
+        let candidate = candidateContainer.appendingPathComponent(
+            "TidyDrop.app",
+            isDirectory: true
+        )
+        try FileManager.default.copyItem(at: target, to: candidate)
+        let targetPolicy = ExistingBundleInspectionPolicy(
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            marketingVersion: "1.4.0",
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\""
+        )
+        return (
+            fixture,
+            transaction,
+            destination,
+            installed,
+            candidate,
+            currentPolicy,
+            targetPolicy
+        )
+    }
+
     private func makeCurrentBundleRetentionSetup(
         name: String
     ) throws -> (
@@ -4283,6 +4566,10 @@ private let tests: [(String, () throws -> Void)] = [
     ("testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree", suite.testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree),
     ("testExternalRecoveryJournalRecoversSynchronizedNextStateAndRejectsReplay", suite.testExternalRecoveryJournalRecoversSynchronizedNextStateAndRejectsReplay),
     ("testExistingBundleInspectorRejectsWrongVersionAndBundleSymlink", suite.testExistingBundleInspectorRejectsWrongVersionAndBundleSymlink),
+    ("testDestinationVolumeReplacementAtomicallyInstallsAndRollsBack", suite.testDestinationVolumeReplacementAtomicallyInstallsAndRollsBack),
+    ("testDestinationVolumeReplacementRecoversBothInterruptedSwaps", suite.testDestinationVolumeReplacementRecoversBothInterruptedSwaps),
+    ("testDestinationVolumeReplacementResumesBeforeEitherSwap", suite.testDestinationVolumeReplacementResumesBeforeEitherSwap),
+    ("testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate", suite.testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate),
 ]
 
 private let selectedTests: [(String, () throws -> Void)]

@@ -203,7 +203,7 @@ the updater.
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
 | Private no-follow staging, transport and inspection | 2 | Descriptor-bound writer, fixed-origin ephemeral streaming and authenticated read-only DMG/bundle inspection implemented outside shipping targets; production key/signing identity and installation remain gated |
 | Prior verified bundle and state backup | 2 | Private dry-run state plus descriptor-copied, signed Universal 2 prior bundle are revalidated and tree-digested |
-| Out-of-process recovery | 2 | Durable strict-transition journal implemented; signed external executor and kill/crash/power-loss replacement tests remain |
+| Out-of-process recovery | 2 | Separate helper and temporary-scope atomic install/rollback implemented; stable helper signing, installed scope and kill/reboot matrix remain |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
 
 ## Risk register
@@ -286,3 +286,13 @@ with exact forward transitions. An injected interruption after the durable
 `.next` write is recovered once; tampering, symlinks, replay and overwrite of a
 prior recovery are rejected. No external executor or app replacement exists, so
 R7 and R8 remain open.
+
+ADR-0021 adds a separate SwiftPM recovery-helper executable and proves atomic
+install/rollback with descriptor-relative `renameatx_np(RENAME_SWAP)` below a
+hard private `/private/tmp` boundary. The protocol records intent before each
+swap, fsyncs both directories, reinspects both signed versions and reconciles
+interruptions immediately before or after the physical mutation. Device/inode
+is fixed after inspection and checked again immediately before swapping. The
+helper is not packaged or signed for production and cannot address an installed
+app, so R7 and R8 remain open pending the subprocess kill/reboot matrix, live
+state restoration, U6 and stable Developer ID.

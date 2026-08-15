@@ -80,6 +80,23 @@ public struct PreparedExternalRecoveryTransaction: Equatable, Sendable {
     public let retainedBundleURL: URL
     public let journalURL: URL
     public let journal: ExternalRecoveryJournal
+
+    public var locator: ExternalRecoveryTransactionLocator {
+        ExternalRecoveryTransactionLocator(
+            workspaceURL: workspaceURL,
+            transactionID: journal.transactionID
+        )
+    }
+}
+
+public struct ExternalRecoveryTransactionLocator: Equatable, Sendable {
+    public let workspaceURL: URL
+    public let transactionID: String
+
+    public init(workspaceURL: URL, transactionID: String) {
+        self.workspaceURL = workspaceURL
+        self.transactionID = transactionID
+    }
 }
 
 /// Retains an already-verified current bundle inside the private state-snapshot
@@ -308,11 +325,17 @@ public enum CurrentBundleRetentionBuilder {
     public static func loadRecovering(
         transaction: PreparedExternalRecoveryTransaction
     ) throws -> ExternalRecoveryJournal {
-        let descriptor = try openPrivateWorkspace(transaction.workspaceURL)
+        try loadRecovering(locator: transaction.locator)
+    }
+
+    public static func loadRecovering(
+        locator: ExternalRecoveryTransactionLocator
+    ) throws -> ExternalRecoveryJournal {
+        let descriptor = try openPrivateWorkspace(locator.workspaceURL)
         defer { _ = Darwin.close(descriptor) }
         return try loadRecovering(
             directoryDescriptor: descriptor,
-            expectedTransactionID: transaction.journal.transactionID
+            expectedTransactionID: locator.transactionID
         )
     }
 
@@ -320,7 +343,14 @@ public enum CurrentBundleRetentionBuilder {
         transaction: PreparedExternalRecoveryTransaction,
         to newState: ExternalRecoveryState
     ) throws -> ExternalRecoveryJournal {
-        try advance(transaction: transaction, to: newState, fault: .none)
+        try advance(locator: transaction.locator, to: newState, fault: .none)
+    }
+
+    public static func advance(
+        locator: ExternalRecoveryTransactionLocator,
+        to newState: ExternalRecoveryState
+    ) throws -> ExternalRecoveryJournal {
+        try advance(locator: locator, to: newState, fault: .none)
     }
 
     @_spi(Testing)
@@ -329,11 +359,20 @@ public enum CurrentBundleRetentionBuilder {
         to newState: ExternalRecoveryState,
         fault: CurrentBundleRetentionFault
     ) throws -> ExternalRecoveryJournal {
-        let descriptor = try openPrivateWorkspace(transaction.workspaceURL)
+        try advance(locator: transaction.locator, to: newState, fault: fault)
+    }
+
+    @_spi(Testing)
+    public static func advance(
+        locator: ExternalRecoveryTransactionLocator,
+        to newState: ExternalRecoveryState,
+        fault: CurrentBundleRetentionFault
+    ) throws -> ExternalRecoveryJournal {
+        let descriptor = try openPrivateWorkspace(locator.workspaceURL)
         defer { _ = Darwin.close(descriptor) }
         let current = try loadRecovering(
             directoryDescriptor: descriptor,
-            expectedTransactionID: transaction.journal.transactionID
+            expectedTransactionID: locator.transactionID
         )
         guard allowedTransition(from: current.state, to: newState) else {
             throw CurrentBundleRetentionFailure.journalTransitionRejected

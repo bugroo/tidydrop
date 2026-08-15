@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Adds a separate non-shipping `tidydrop-recovery-helper` and a fail-closed
+  destination-volume replacement protocol restricted to private
+  `/private/tmp/TidyDropIntegration.*` fixtures. It uses descriptor-relative
+  `RENAME_SWAP`, no-follow descriptor anchoring, pre-swap device/inode pinning,
+  directory fsync, strict bundle reinspection, interrupted-install recovery and
+  symmetric rollback. It is not included in the app or DMG and has no authority
+  over an installed application.
 - Adds non-shipping descriptor-bound retention of the verified current
   `TidyDrop.app`, including pre/post source inspection, retained-copy inspection,
   complete tree digest, exact cleanup and refusal to overwrite prior recovery.

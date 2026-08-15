@@ -61,6 +61,12 @@ Products:
     Targets:
         TidyDropAgent
 
+    Name: tidydrop-recovery-helper
+    Type:
+        Executable: nil
+    Targets:
+        TidyDropRecoveryHelper
+
     Name: tidydrop-self-test
     Type:
         Executable: nil
@@ -96,6 +102,7 @@ Targets:
         TidyDropUpdateTransport
         TidyDropUpdateInspection
         TidyDropUpdateRecovery
+        tidydrop-recovery-helper
         tidydrop-self-test
 
     Name: TidyDropUpdateRecovery
@@ -104,6 +111,7 @@ Targets:
     Module type: SwiftTarget
     Path: Sources/TidyDropUpdateRecovery
     Sources:
+        DestinationVolumeReplacement.swift
         PrivateRecoveryStateSnapshot.swift
         RetainedCurrentBundle.swift
     Target dependencies:
@@ -112,6 +120,7 @@ Targets:
         TidyDropUpdateInspection
     Product memberships:
         TidyDropUpdateRecovery
+        tidydrop-recovery-helper
         tidydrop-self-test
 
     Name: TidyDropUpdateInspection
@@ -126,6 +135,7 @@ Targets:
     Product memberships:
         TidyDropUpdateInspection
         TidyDropUpdateRecovery
+        tidydrop-recovery-helper
         tidydrop-self-test
 
     Name: TidyDropSelfTests
@@ -143,6 +153,18 @@ Targets:
         TidyDropUpdateRecovery
     Product memberships:
         tidydrop-self-test
+
+    Name: TidyDropRecoveryHelper
+    Type: executable
+    C99name: TidyDropRecoveryHelper
+    Module type: SwiftTarget
+    Path: Sources/TidyDropRecoveryHelper
+    Sources:
+        main.swift
+    Target dependencies:
+        TidyDropUpdateRecovery
+    Product memberships:
+        tidydrop-recovery-helper
 
     Name: TidyDropCore
     Type: library
@@ -178,6 +200,7 @@ Targets:
         TidyDropApp
         tidydrop
         tidydrop-agent
+        tidydrop-recovery-helper
         tidydrop-self-test
 
     Name: TidyDropApp

@@ -138,6 +138,16 @@ publicación `.next` duradera mediante `fsync`/`rename`. No reemplaza, abre,
 registra ni ejecuta aplicaciones; el helper externo y el rollback real siguen
 bloqueados.
 
+[ADR-0021](adr/0021-external-recovery-helper-and-atomic-swap.md) añade un
+ejecutable externo mínimo y un protocolo de intercambio atómico todavía no
+distribuidos. Ambos bundles se inspeccionan, se fijan por device/inode y se
+intercambian con `renameatx_np(RENAME_SWAP)` relativo a dos descriptores; las
+transiciones anterior y posterior permiten reanudar sin adivinar. Esta base
+solo acepta jerarquías privadas `TidyDropIntegration.*` en `/private/tmp`, falla
+si el filesystem no soporta el intercambio y no se incluye en la app ni el DMG.
+Firma estable del helper, restauración del estado live, kill/reboot, agente y
+TCC continúan bloqueados.
+
 ## Fuera de alcance
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.
