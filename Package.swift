@@ -46,7 +46,11 @@ let package = Package(
         ),
         .target(
             name: "TidyDropUpdateRecovery",
-            dependencies: ["TidyDropCore", "TidyDropUpdateSecurity"],
+            dependencies: [
+                "TidyDropCore",
+                "TidyDropUpdateSecurity",
+                "TidyDropUpdateInspection"
+            ],
             path: "Sources/TidyDropUpdateRecovery"
         ),
         .executableTarget(

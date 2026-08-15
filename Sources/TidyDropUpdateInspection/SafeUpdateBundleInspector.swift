@@ -76,6 +76,28 @@ public struct InspectedUpdateBundle: Equatable, Sendable {
     }
 }
 
+public struct ExistingBundleInspectionPolicy: Equatable, Sendable {
+    public let bundleIdentifier: String
+    public let marketingVersion: String
+    public let codeSigningRequirement: String
+    public let maximumEntries: Int
+    public let maximumUncompressedBytes: UInt64
+
+    public init(
+        bundleIdentifier: String,
+        marketingVersion: String,
+        codeSigningRequirement: String,
+        maximumEntries: Int = 4_096,
+        maximumUncompressedBytes: UInt64 = 1_024 * 1_024 * 1_024
+    ) {
+        self.bundleIdentifier = bundleIdentifier
+        self.marketingVersion = marketingVersion
+        self.codeSigningRequirement = codeSigningRequirement
+        self.maximumEntries = maximumEntries
+        self.maximumUncompressedBytes = maximumUncompressedBytes
+    }
+}
+
 /// A non-shipping inspection boundary for an authenticated staged DMG.
 ///
 /// The image is rehashed, verified, mounted read-only into its private staging
@@ -141,6 +163,44 @@ public enum SafeUpdateBundleInspector {
         return try inspectionResult.get()
     }
 
+    /// Applies the same bounded metadata, architecture, tree, and code-signing
+    /// checks to an already-installed or retained application bundle. This is
+    /// used only by the non-shipping recovery foundation.
+    public static func inspectExistingBundle(
+        at bundleURL: URL,
+        policy: ExistingBundleInspectionPolicy
+    ) throws -> InspectedUpdateBundle {
+        try validateExistingPolicyBounds(policy)
+        guard bundleURL.isFileURL, bundleURL.lastPathComponent == expectedAppName else {
+            throw UpdateBundleInspectionFailure.invalidPolicy
+        }
+        let descriptor = bundleURL.withUnsafeFileSystemRepresentation { path -> Int32 in
+            guard let path else { return -1 }
+            return Darwin.open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
+        }
+        guard descriptor >= 0 else {
+            throw UpdateBundleInspectionFailure.unsafeBundleEntry
+        }
+        defer { _ = Darwin.close(descriptor) }
+        var metadata = stat()
+        guard Darwin.fstat(descriptor, &metadata) == 0,
+              (metadata.st_mode & S_IFMT) == S_IFDIR else {
+            throw UpdateBundleInspectionFailure.unsafeBundleEntry
+        }
+        return try inspectOpenedBundle(
+            descriptor: descriptor,
+            bundleURL: bundleURL,
+            rootDevice: metadata.st_dev,
+            policy: BundleValidationPolicy(
+                bundleIdentifier: policy.bundleIdentifier,
+                marketingVersion: policy.marketingVersion,
+                codeSigningRequirement: policy.codeSigningRequirement,
+                maximumEntries: policy.maximumEntries,
+                maximumUncompressedBytes: policy.maximumUncompressedBytes
+            )
+        )
+    }
+
     @_spi(Testing)
     public static func inspectMountedRootForTesting(
         _ rootURL: URL,
@@ -165,6 +225,23 @@ public enum SafeUpdateBundleInspector {
     }
 
     private static func validatePolicyBounds(_ policy: UpdateBundleInspectionPolicy) throws {
+        guard !policy.bundleIdentifier.isEmpty,
+              policy.bundleIdentifier.utf8.count <= 128,
+              !policy.marketingVersion.isEmpty,
+              policy.marketingVersion.utf8.count <= 64,
+              !policy.codeSigningRequirement.isEmpty,
+              policy.codeSigningRequirement.utf8.count <= 8_192,
+              policy.maximumEntries > 0,
+              policy.maximumEntries <= UpdateBundleInspectionPolicy.maximumAllowedEntries,
+              policy.maximumUncompressedBytes > 0,
+              policy.maximumUncompressedBytes <= UpdateBundleInspectionPolicy.maximumAllowedUncompressedBytes else {
+            throw UpdateBundleInspectionFailure.invalidPolicy
+        }
+    }
+
+    private static func validateExistingPolicyBounds(
+        _ policy: ExistingBundleInspectionPolicy
+    ) throws {
         guard !policy.bundleIdentifier.isEmpty,
               policy.bundleIdentifier.utf8.count <= 128,
               !policy.marketingVersion.isEmpty,
@@ -214,8 +291,37 @@ public enum SafeUpdateBundleInspector {
             throw UpdateBundleInspectionFailure.unsafeImageLayout
         }
 
-        var tree = BundleTreeInspector(
+        let appURL = rootURL.appendingPathComponent(expectedAppName, isDirectory: true)
+        return try inspectOpenedBundle(
+            descriptor: appDescriptor,
+            bundleURL: appURL,
             rootDevice: appMetadata.st_dev,
+            policy: BundleValidationPolicy(
+                bundleIdentifier: policy.bundleIdentifier,
+                marketingVersion: policy.marketingVersion,
+                codeSigningRequirement: policy.codeSigningRequirement,
+                maximumEntries: policy.maximumEntries,
+                maximumUncompressedBytes: policy.maximumUncompressedBytes
+            )
+        )
+    }
+
+    private struct BundleValidationPolicy {
+        let bundleIdentifier: String
+        let marketingVersion: String
+        let codeSigningRequirement: String
+        let maximumEntries: Int
+        let maximumUncompressedBytes: UInt64
+    }
+
+    private static func inspectOpenedBundle(
+        descriptor appDescriptor: Int32,
+        bundleURL: URL,
+        rootDevice: dev_t,
+        policy: BundleValidationPolicy
+    ) throws -> InspectedUpdateBundle {
+        var tree = BundleTreeInspector(
+            rootDevice: rootDevice,
             maximumEntries: policy.maximumEntries,
             maximumBytes: policy.maximumUncompressedBytes
         )
@@ -234,9 +340,7 @@ public enum SafeUpdateBundleInspector {
             executableName: metadata.executable
         )
         defer { _ = Darwin.close(executableDescriptor) }
-        let architectures = try validateRequiredArchitectures(
-            descriptor: executableDescriptor
-        )
+        let architectures = try validateRequiredArchitectures(descriptor: executableDescriptor)
         for resourceName in requiredResourceExecutables {
             let resourceDescriptor = try openResourceExecutable(
                 appDescriptor: appDescriptor,
@@ -246,8 +350,7 @@ public enum SafeUpdateBundleInspector {
             _ = try validateRequiredArchitectures(descriptor: resourceDescriptor)
         }
 
-        let appURL = rootURL.appendingPathComponent(expectedAppName, isDirectory: true)
-        try validateCodeSignature(appURL: appURL, requirementText: policy.codeSigningRequirement)
+        try validateCodeSignature(appURL: bundleURL, requirementText: policy.codeSigningRequirement)
 
         return InspectedUpdateBundle(
             bundleIdentifier: metadata.identifier,

@@ -17,6 +17,7 @@ TidyDrop — auditoría estática local
 Fixed-origin authenticated update transport: PASS (ephemeral, injected tests, non-shipping)
 Safe authenticated DMG and bundle inspection: PASS (read-only, bounded, non-shipping)
 Private update recovery state snapshot: PASS (dry-run backup, SQLite-consistent, non-shipping)
+Retained current bundle and external recovery journal: PASS (descriptor-bound, non-shipping)
 [OK] Red runtime limitada; transporte e inspección autenticados, aislados y no distribuidos
 [OK] Sin utilidades de red ejecutadas por scripts
 [OK] Sin borrado en la carpeta activa; solo retención propia y señal interna exacta

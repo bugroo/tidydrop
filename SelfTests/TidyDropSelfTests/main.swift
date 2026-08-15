@@ -3845,6 +3845,264 @@ private final class TidyDropCoreTests {
         )
     }
 
+    func testCurrentBundleRetentionPreservesVerifiedUniversalAppAndPublishesDryRunJournal() throws {
+        let setup = try makeCurrentBundleRetentionSetup(name: "retention-success")
+        let transaction = try CurrentBundleRetentionBuilder.prepare(
+            snapshot: setup.snapshot,
+            currentBundleURL: setup.currentBundleURL,
+            currentBundlePolicy: setup.policy,
+            authenticatedTarget: setup.authenticated
+        )
+        XCTAssertEqual(transaction.journal.state, .prepared)
+        XCTAssertEqual(transaction.journal.sequence, 0)
+        XCTAssertFalse(transaction.journal.applyEnabled)
+        XCTAssertEqual(transaction.journal.currentVersion, "1.3.0")
+        XCTAssertTrue(transaction.journal.retainedBundleEntryCount > 0)
+        XCTAssertTrue(transaction.journal.retainedBundleBytes > 0)
+        XCTAssertEqual(transaction.journal.retainedBundleTreeSHA256.utf8.count, 64)
+        XCTAssertEqual(transaction.journal.stateSnapshotManifestSHA256.utf8.count, 64)
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(transaction: transaction),
+            transaction.journal
+        )
+        let retained = try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: transaction.retainedBundleURL,
+            policy: setup.policy
+        )
+        XCTAssertEqual(Set(retained.architectures), Set(["arm64", "x86_64"]))
+        XCTAssertEqual(retained.entryCount, transaction.journal.retainedBundleEntryCount)
+        XCTAssertEqual(retained.uncompressedRegularBytes, transaction.journal.retainedBundleBytes)
+        let workspaceAttributes = try FileManager.default.attributesOfItem(
+            atPath: transaction.workspaceURL.path
+        )
+        let journalAttributes = try FileManager.default.attributesOfItem(
+            atPath: transaction.journalURL.path
+        )
+        XCTAssertEqual(
+            (workspaceAttributes[.posixPermissions] as? NSNumber)?.intValue,
+            0o700
+        )
+        XCTAssertEqual(
+            (journalAttributes[.posixPermissions] as? NSNumber)?.intValue,
+            0o600
+        )
+        XCTAssertThrowsError(try CurrentBundleRetentionBuilder.prepare(
+            snapshot: setup.snapshot,
+            currentBundleURL: setup.currentBundleURL,
+            currentBundlePolicy: setup.policy,
+            authenticatedTarget: setup.authenticated
+        )) { error in
+            XCTAssertEqual(error as? CurrentBundleRetentionFailure, .invalidRequest)
+        }
+        XCTAssertEqual(
+            try CurrentBundleRetentionBuilder.loadRecovering(transaction: transaction),
+            transaction.journal
+        )
+    }
+
+    func testCurrentBundleRetentionFaultsCleanOnlyRetainedArtifacts() throws {
+        for fault in [
+            CurrentBundleRetentionFault.afterDestinationCreation,
+            .duringBundleCopy,
+            .beforeJournalPublication
+        ] {
+            let setup = try makeCurrentBundleRetentionSetup(
+                name: "retention-fault-\(UUID().uuidString)"
+            )
+            XCTAssertThrowsError(try CurrentBundleRetentionBuilder.prepare(
+                snapshot: setup.snapshot,
+                currentBundleURL: setup.currentBundleURL,
+                currentBundlePolicy: setup.policy,
+                authenticatedTarget: setup.authenticated,
+                fault: fault
+            )) { error in
+                XCTAssertEqual(error as? CurrentBundleRetentionFailure, .injectedFailure)
+            }
+            let names = Set(try FileManager.default.contentsOfDirectory(
+                atPath: setup.snapshot.workspaceURL.path
+            ))
+            XCTAssertTrue(names.contains("config.dry-run.json"))
+            XCTAssertTrue(names.contains("recovery-manifest.json"))
+            XCTAssertFalse(names.contains("TidyDrop.app"))
+            XCTAssertFalse(names.contains("external-recovery-journal.json"))
+            XCTAssertFalse(names.contains("external-recovery-journal.next"))
+        }
+    }
+
+    func testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree() throws {
+        let symlinkSetup = try makeCurrentBundleRetentionSetup(name: "retention-symlink")
+        let linkedParent = symlinkSetup.snapshot.workspaceURL.deletingLastPathComponent()
+            .appendingPathComponent("linked-current", isDirectory: true)
+        try FileManager.default.createDirectory(at: linkedParent, withIntermediateDirectories: false)
+        let linkedBundle = linkedParent.appendingPathComponent("TidyDrop.app")
+        try FileManager.default.createSymbolicLink(
+            atPath: linkedBundle.path,
+            withDestinationPath: symlinkSetup.currentBundleURL.path
+        )
+        XCTAssertThrowsError(try CurrentBundleRetentionBuilder.prepare(
+            snapshot: symlinkSetup.snapshot,
+            currentBundleURL: linkedBundle,
+            currentBundlePolicy: symlinkSetup.policy,
+            authenticatedTarget: symlinkSetup.authenticated
+        )) { error in
+            XCTAssertEqual(error as? CurrentBundleRetentionFailure, .sourceBundleRejected)
+        }
+
+        let tamperSetup = try makeCurrentBundleRetentionSetup(name: "retention-tamper")
+        let transaction = try CurrentBundleRetentionBuilder.prepare(
+            snapshot: tamperSetup.snapshot,
+            currentBundleURL: tamperSetup.currentBundleURL,
+            currentBundlePolicy: tamperSetup.policy,
+            authenticatedTarget: tamperSetup.authenticated
+        )
+        try Data("tampered-retained-copy".utf8).write(
+            to: transaction.retainedBundleURL.appendingPathComponent(
+                "Contents/Resources/signed-resource.txt"
+            )
+        )
+        XCTAssertThrowsError(
+            try CurrentBundleRetentionBuilder.loadRecovering(transaction: transaction)
+        ) { error in
+            XCTAssertEqual(error as? CurrentBundleRetentionFailure, .journalInvalid)
+        }
+    }
+
+    func testExternalRecoveryJournalRecoversSynchronizedNextStateAndRejectsReplay() throws {
+        let setup = try makeCurrentBundleRetentionSetup(name: "recovery-journal")
+        let transaction = try CurrentBundleRetentionBuilder.prepare(
+            snapshot: setup.snapshot,
+            currentBundleURL: setup.currentBundleURL,
+            currentBundlePolicy: setup.policy,
+            authenticatedTarget: setup.authenticated
+        )
+        let replacement = try CurrentBundleRetentionBuilder.advance(
+            transaction: transaction,
+            to: .replacementStarted
+        )
+        XCTAssertEqual(replacement.sequence, 1)
+        XCTAssertEqual(replacement.state, .replacementStarted)
+
+        XCTAssertThrowsError(try CurrentBundleRetentionBuilder.advance(
+            transaction: transaction,
+            to: .newBundleInstalled,
+            fault: .afterNextJournalSynchronization
+        )) { error in
+            XCTAssertEqual(error as? CurrentBundleRetentionFailure, .injectedFailure)
+        }
+        let recovered = try CurrentBundleRetentionBuilder.loadRecovering(transaction: transaction)
+        XCTAssertEqual(recovered.sequence, 2)
+        XCTAssertEqual(recovered.state, .newBundleInstalled)
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: transaction.workspaceURL.appendingPathComponent(
+                "external-recovery-journal.next"
+            ).path
+        ))
+
+        let rollbackStarted = try CurrentBundleRetentionBuilder.advance(
+            transaction: transaction,
+            to: .rollbackStarted
+        )
+        XCTAssertEqual(rollbackStarted.state, .rollbackStarted)
+        let rolledBack = try CurrentBundleRetentionBuilder.advance(
+            transaction: transaction,
+            to: .rolledBack
+        )
+        XCTAssertEqual(rolledBack.state, .rolledBack)
+        let committed = try CurrentBundleRetentionBuilder.advance(
+            transaction: transaction,
+            to: .committed
+        )
+        XCTAssertEqual(committed.state, .committed)
+        XCTAssertFalse(committed.applyEnabled)
+        XCTAssertThrowsError(try CurrentBundleRetentionBuilder.advance(
+            transaction: transaction,
+            to: .replacementStarted
+        )) { error in
+            XCTAssertEqual(
+                error as? CurrentBundleRetentionFailure,
+                .journalTransitionRejected
+            )
+        }
+    }
+
+    func testExistingBundleInspectorRejectsWrongVersionAndBundleSymlink() throws {
+        let setup = try makeCurrentBundleRetentionSetup(name: "existing-inspection")
+        let wrongVersion = ExistingBundleInspectionPolicy(
+            bundleIdentifier: setup.policy.bundleIdentifier,
+            marketingVersion: "9.9.9",
+            codeSigningRequirement: setup.policy.codeSigningRequirement,
+            maximumEntries: setup.policy.maximumEntries,
+            maximumUncompressedBytes: setup.policy.maximumUncompressedBytes
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: setup.currentBundleURL,
+            policy: wrongVersion
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .wrongBundleVersion)
+        }
+
+        let linkedBundle = setup.currentBundleURL.deletingLastPathComponent()
+            .appendingPathComponent("linked", isDirectory: true)
+            .appendingPathComponent("TidyDrop.app", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: linkedBundle.deletingLastPathComponent(),
+            withIntermediateDirectories: false
+        )
+        try FileManager.default.createSymbolicLink(
+            atPath: linkedBundle.path,
+            withDestinationPath: setup.currentBundleURL.path
+        )
+        XCTAssertThrowsError(try SafeUpdateBundleInspector.inspectExistingBundle(
+            at: linkedBundle,
+            policy: setup.policy
+        )) { error in
+            XCTAssertEqual(error as? UpdateBundleInspectionFailure, .unsafeBundleEntry)
+        }
+    }
+
+    private func makeCurrentBundleRetentionSetup(
+        name: String
+    ) throws -> (
+        fixture: SignedReleaseManifestFixture,
+        snapshot: PreparedUpdateRecoverySnapshot,
+        currentBundleURL: URL,
+        policy: ExistingBundleInspectionPolicy,
+        authenticated: AuthenticatedReleaseManifest
+    ) {
+        let fixture = try SignedReleaseManifestFixture()
+        let authenticated = try fixture.authenticated()
+        let configurationURL = fixture.workspace.root.appendingPathComponent(
+            "\(name)-config.json"
+        )
+        var configuration = try fixture.workspace.makeConfig().config
+        configuration.automation.applyEnabled = true
+        try ConfigurationIO.save(configuration, to: configurationURL)
+        let recoveryParent = try privateRecoveryParent(
+            fixture: fixture,
+            name: "\(name)-recovery"
+        )
+        let snapshot = try PrivateUpdateRecoverySnapshotBuilder.prepare(
+            configurationURL: configurationURL,
+            recoveryParent: recoveryParent,
+            currentVersion: "1.3.0",
+            authenticatedTarget: authenticated
+        )
+        let imageRoot = try makeInspectionImageRoot(
+            workspace: fixture.workspace,
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            universal: true
+        )
+        let bundle = imageRoot.appendingPathComponent("TidyDrop.app", isDirectory: true)
+        let policy = ExistingBundleInspectionPolicy(
+            bundleIdentifier: "io.github.bugroo.tidydrop",
+            marketingVersion: "1.3.0",
+            codeSigningRequirement: "identifier \"io.github.bugroo.tidydrop\"",
+            maximumEntries: 1_024,
+            maximumUncompressedBytes: 256 * 1_024 * 1_024
+        )
+        return (fixture, snapshot, bundle, policy, authenticated)
+    }
+
     private func privateRecoveryParent(
         fixture: SignedReleaseManifestFixture,
         name: String
@@ -4020,6 +4278,11 @@ private let tests: [(String, () throws -> Void)] = [
     ("testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace", suite.testPrivateRecoverySnapshotFaultsLeaveNoPublishedWorkspace),
     ("testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase", suite.testPrivateRecoverySnapshotRejectsSymlinkParentAndDatabase),
     ("testAgentActivityDatabaseBackupHandlesPhysicalTmpPath", suite.testAgentActivityDatabaseBackupHandlesPhysicalTmpPath),
+    ("testCurrentBundleRetentionPreservesVerifiedUniversalAppAndPublishesDryRunJournal", suite.testCurrentBundleRetentionPreservesVerifiedUniversalAppAndPublishesDryRunJournal),
+    ("testCurrentBundleRetentionFaultsCleanOnlyRetainedArtifacts", suite.testCurrentBundleRetentionFaultsCleanOnlyRetainedArtifacts),
+    ("testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree", suite.testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree),
+    ("testExternalRecoveryJournalRecoversSynchronizedNextStateAndRejectsReplay", suite.testExternalRecoveryJournalRecoversSynchronizedNextStateAndRejectsReplay),
+    ("testExistingBundleInspectorRejectsWrongVersionAndBundleSymlink", suite.testExistingBundleInspectorRejectsWrongVersionAndBundleSymlink),
 ]
 
 private let selectedTests: [(String, () throws -> Void)]

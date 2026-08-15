@@ -1,0 +1,1 @@
+Retained current bundle and external recovery journal: PASS (descriptor-bound, non-shipping)

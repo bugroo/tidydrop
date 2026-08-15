@@ -127,6 +127,17 @@ que la canonicalización `/private/tmp` → `/tmp` de macOS no debilite
 La app instalada, el agente y las carpetas personales no participan; retención
 del bundle anterior, recovery externo y reemplazo atómico continúan bloqueados.
 
+[ADR-0020](adr/0020-retained-current-bundle-and-recovery-journal.md) añade la
+retención del bundle actual sin distribuir autoridad de instalación. El mismo
+inspector comprueba identidad, versión, Universal 2 y firma antes de la copia,
+vuelve a validar la fuente, inspecciona la copia y registra un hash determinista
+del árbol completo. La copia usa descriptores, `O_NOFOLLOW`, creación exclusiva
+y `fcopyfile`; no acepta symlinks, hardlinks ni entradas especiales. Un journal
+privado fuerza dry-run, usa transiciones permitidas y recupera una única
+publicación `.next` duradera mediante `fsync`/`rename`. No reemplaza, abre,
+registra ni ejecuta aplicaciones; el helper externo y el rollback real siguen
+bloqueados.
+
 ## Fuera de alcance
 
 TidyDrop no intenta defenderse de un usuario local malicioso con la misma cuenta capaz de modificar binarios y configuración. Tampoco puede impedir que un proceso vuelva a abrir y editar un archivo inmediatamente después del movimiento.
