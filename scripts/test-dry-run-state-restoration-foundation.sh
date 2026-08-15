@@ -16,6 +16,7 @@ test -f "$RESTORATION_SOURCE" || fail "missing dry-run state restoration protoco
 
 for token in \
     'DryRunStateRestorationProtocol' \
+    'DryRunStateRestorationCheckpoint' \
     'stateRestorationStarted' \
     'configurationRestored' \
     'stateRestored' \
@@ -66,6 +67,19 @@ for test_name in \
 do
     /usr/bin/grep -Fq "$test_name" "$SELF_TESTS" \
         || fail "missing state-restoration regression: $test_name"
+done
+
+for process_token in \
+    'case restoreState = "restore-state"' \
+    'testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary' \
+    'state_candidates_synchronized' \
+    'state_configuration_swap_synchronized' \
+    'state_activity_swap_synchronized'
+do
+    /usr/bin/grep -Fq "$process_token" \
+        "$PROJECT_ROOT/Sources/TidyDropRecoveryHelper/main.swift" \
+        "$RESTORATION_SOURCE" "$SELF_TESTS" \
+        || fail "missing state-restoration process gate: $process_token"
 done
 
 printf '%s\n' \

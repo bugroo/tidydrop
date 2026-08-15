@@ -120,6 +120,10 @@ capture "$EVIDENCE_DIR/recovery-helper-kill-relaunch.txt" env \
     TIDYDROP_DEBUG_BIN_DIR="$DEBUG_BIN_DIR" \
     TIDYDROP_SELF_TEST_BIN="$SELF_TEST_BINARY" \
     "$SCRIPT_DIR/test-recovery-helper-kill-relaunch.sh"
+capture "$EVIDENCE_DIR/state-restoration-kill-relaunch.txt" env \
+    TIDYDROP_DEBUG_BIN_DIR="$DEBUG_BIN_DIR" \
+    TIDYDROP_SELF_TEST_BIN="$SELF_TEST_BINARY" \
+    "$SCRIPT_DIR/test-state-restoration-kill-relaunch.sh"
 capture "$EVIDENCE_DIR/release-pipeline.txt" "$SCRIPT_DIR/test-release-pipeline.sh"
 package_description=$(swift package describe)
 printf '%s\n' "$package_description" >"$EVIDENCE_DIR/package-description.txt"

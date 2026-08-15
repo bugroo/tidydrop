@@ -7,6 +7,26 @@ private enum HelperCommand: String {
     case install
     case recover
     case rollback
+    case restoreState = "restore-state"
+}
+
+private enum ConfiguredTestCheckpoint: Equatable {
+    case bundle(DestinationVolumeReplacementCheckpoint)
+    case state(DryRunStateRestorationCheckpoint)
+
+    var rawValue: String {
+        switch self {
+        case let .bundle(checkpoint): checkpoint.rawValue
+        case let .state(checkpoint): checkpoint.rawValue
+        }
+    }
+
+    var markerFileName: String {
+        switch self {
+        case let .bundle(checkpoint): checkpoint.markerFileName
+        case let .state(checkpoint): checkpoint.markerFileName
+        }
+    }
 }
 
 private enum HelperFailure: Error {
@@ -20,9 +40,15 @@ private let integrationRootPrefix = "/private/tmp/TidyDropIntegration."
 
 private func configuredTestCheckpoint(
     command: HelperCommand
-) throws -> DestinationVolumeReplacementCheckpoint? {
+) throws -> ConfiguredTestCheckpoint? {
     guard let rawValue = ProcessInfo.processInfo.environment[testCheckpointEnvironment] else {
         return nil
+    }
+    if command == .restoreState {
+        guard let checkpoint = DryRunStateRestorationCheckpoint(rawValue: rawValue) else {
+            throw HelperFailure.invalidTestCheckpoint
+        }
+        return .state(checkpoint)
     }
     guard let checkpoint = DestinationVolumeReplacementCheckpoint(rawValue: rawValue) else {
         throw HelperFailure.invalidTestCheckpoint
@@ -38,7 +64,7 @@ private func configuredTestCheckpoint(
     guard allowed else {
         throw HelperFailure.invalidTestCheckpoint
     }
-    return checkpoint
+    return .bundle(checkpoint)
 }
 
 private func writeAll(_ data: Data, to descriptor: Int32) throws {
@@ -62,7 +88,7 @@ private func writeAll(_ data: Data, to descriptor: Int32) throws {
 }
 
 private func stopAtCheckpoint(
-    _ checkpoint: DestinationVolumeReplacementCheckpoint,
+    _ checkpoint: ConfiguredTestCheckpoint,
     locator: ExternalRecoveryTransactionLocator
 ) throws -> Never {
     var resolvedBuffer = [CChar](repeating: 0, count: Int(PATH_MAX))
@@ -123,13 +149,13 @@ private func stopAtCheckpoint(
 
 private func usage() -> Never {
     FileHandle.standardError.write(Data(
-        "Usage: tidydrop-recovery-helper <status|install|recover|rollback> WORKSPACE TRANSACTION_ID [DESTINATION_PARENT]\n".utf8
+        "Usage: tidydrop-recovery-helper <status|install|recover|rollback> WORKSPACE TRANSACTION_ID [DESTINATION_PARENT]\n       tidydrop-recovery-helper restore-state WORKSPACE TRANSACTION_ID CONFIGURATION HOME\n".utf8
     ))
     exit(2)
 }
 
 let arguments = Array(CommandLine.arguments.dropFirst())
-guard arguments.count == 3 || arguments.count == 4,
+guard (3...5).contains(arguments.count),
       let command = HelperCommand(rawValue: arguments[0]) else {
     usage()
 }
@@ -140,45 +166,81 @@ let locator = ExternalRecoveryTransactionLocator(
 
 do {
     let testCheckpoint = try configuredTestCheckpoint(command: command)
-    if command == .status {
+    switch command {
+    case .status:
         guard arguments.count == 3 else { usage() }
         let journal = try CurrentBundleRetentionBuilder.loadRecovering(locator: locator)
         print("state=\(journal.state.rawValue) sequence=\(journal.sequence) apply_enabled=false")
-        exit(0)
-    }
-    guard arguments.count == 4 else { usage() }
-    let parent = URL(fileURLWithPath: arguments[3], isDirectory: true)
-    let outcome: DestinationVolumeReplacementOutcome
-    switch command {
     case .install:
-        outcome = try DestinationVolumeReplacementProtocol.install(
+        guard arguments.count == 4 else { usage() }
+        let parent = URL(fileURLWithPath: arguments[3], isDirectory: true)
+        let expectedCheckpoint: DestinationVolumeReplacementCheckpoint?
+        if case let .bundle(checkpoint) = testCheckpoint {
+            expectedCheckpoint = checkpoint
+        } else {
+            expectedCheckpoint = nil
+        }
+        let outcome = try DestinationVolumeReplacementProtocol.install(
             locator: locator,
             destinationParentURL: parent,
             fault: .none,
             checkpointHandler: { checkpoint in
-                guard checkpoint == testCheckpoint else { return }
-                try stopAtCheckpoint(checkpoint, locator: locator)
+                guard checkpoint == expectedCheckpoint else { return }
+                try stopAtCheckpoint(.bundle(checkpoint), locator: locator)
             }
         )
+        print("outcome=\(outcome) apply_enabled=false")
     case .recover:
-        outcome = try DestinationVolumeReplacementProtocol.recover(
+        guard arguments.count == 4, testCheckpoint == nil else { usage() }
+        let parent = URL(fileURLWithPath: arguments[3], isDirectory: true)
+        let outcome = try DestinationVolumeReplacementProtocol.recover(
             locator: locator,
             destinationParentURL: parent
         )
+        print("outcome=\(outcome) apply_enabled=false")
     case .rollback:
-        outcome = try DestinationVolumeReplacementProtocol.rollback(
+        guard arguments.count == 4 else { usage() }
+        let parent = URL(fileURLWithPath: arguments[3], isDirectory: true)
+        let expectedCheckpoint: DestinationVolumeReplacementCheckpoint?
+        if case let .bundle(checkpoint) = testCheckpoint {
+            expectedCheckpoint = checkpoint
+        } else {
+            expectedCheckpoint = nil
+        }
+        let outcome = try DestinationVolumeReplacementProtocol.rollback(
             locator: locator,
             destinationParentURL: parent,
             fault: .none,
             checkpointHandler: { checkpoint in
-                guard checkpoint == testCheckpoint else { return }
-                try stopAtCheckpoint(checkpoint, locator: locator)
+                guard checkpoint == expectedCheckpoint else { return }
+                try stopAtCheckpoint(.bundle(checkpoint), locator: locator)
             }
         )
-    case .status:
-        usage()
+        print("outcome=\(outcome) apply_enabled=false")
+    case .restoreState:
+        guard arguments.count == 5 else { usage() }
+        let configurationURL = URL(fileURLWithPath: arguments[3])
+        let homeDirectory = URL(fileURLWithPath: arguments[4], isDirectory: true)
+        let expectedCheckpoint: DryRunStateRestorationCheckpoint?
+        if case let .state(checkpoint) = testCheckpoint {
+            expectedCheckpoint = checkpoint
+        } else {
+            expectedCheckpoint = nil
+        }
+        let outcome = try DryRunStateRestorationProtocol.restore(
+            locator: locator,
+            configurationURL: configurationURL,
+            homeDirectory: homeDirectory,
+            supportedConfigurationSchemaVersion: 1,
+            supportedActivitySchemaVersion: 1,
+            fault: .none,
+            checkpointHandler: { checkpoint in
+                guard checkpoint == expectedCheckpoint else { return }
+                try stopAtCheckpoint(.state(checkpoint), locator: locator)
+            }
+        )
+        print("outcome=\(outcome.state.rawValue) apply_enabled=\(outcome.applyEnabled)")
     }
-    print("outcome=\(outcome) apply_enabled=false")
 } catch {
     FileHandle.standardError.write(Data("recovery-helper-failed: \(error)\n".utf8))
     exit(1)

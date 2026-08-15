@@ -140,16 +140,16 @@ Dependencies: Apple Developer Program identity, signing-key custody, U6.
 | U2 | Complete | Keep static/network gates green |
 | U3 | 2 complete, 1 partial, 2 pending | Approve custody; sign release assets; pin the production public key; rehearse rotation and revocation; integrate only after those gates |
 | U4 | Technical foundation complete; activation blocked | Fixed-origin transport, private descriptor-bound staging, authenticated length/digest, cancellation/disk-full cleanup and read-only DMG/bundle inspection pass with ephemeral test keys. Product activation still depends on U3 key custody and U7's stable Developer ID requirement |
-| U5 | 5 complete, 1 partial | Private state backup, verified current-bundle retention, the separate helper, non-replay dry-run state restoration and the no-privilege boundary pass. A real helper is killed and relaunched at all four durable bundle-swap boundaries, five times per gate, under a hard `/private/tmp` boundary. State-restoration process-kill coverage, stable helper signing, real destination staging, reboot injection and installed-scope orchestration remain |
+| U5 | 5 complete, 1 partial | Private state backup, verified current-bundle retention, the separate helper, non-replay dry-run state restoration and the no-privilege boundary pass. Real helper death/relaunch covers all four durable bundle-swap and all five state-restoration boundaries, repeated five times under a hard `/private/tmp` boundary. Stable helper signing, real destination staging, reboot injection and installed-scope orchestration remain |
 | U6 | 5 of 6 behaviors demonstrated manually; updater orchestration not built | Build 10 demonstrated old-agent removal, exact-agent registration, stale-agent absence, independent CLI/agent access, ready zero-move dry-run and owner-approved apply restoration. Integration with U5 recovery and in-product post-update confirmation remains unbuilt |
 | U7 | Blocked externally and technically | Apple Developer Program identity, Developer ID/notarization, stable signing requirement, physical Intel and full TCC/macOS-upgrade matrix |
 
 ADR-0013 deliberately stops before production key creation and shipping-target
 activation. Production signing cannot be completed safely without an
-owner-approved custody procedure. The next autonomous task that does not require
-that authority is extending the schema-compatible dry-run restoration fault
-matrix to real process death. Installed-app authority remains blocked until
-stable signing, the complete reboot fault matrix, U6
+owner-approved custody procedure. Further autonomous work is limited to
+foundations that do not require installed-app or production-signing authority.
+Installed-app authority remains blocked until
+stable signing, the real reboot fault matrix, U6
 reconciliation and U7 pass.
 
 The build-10 installed audit is recorded in
@@ -181,8 +181,9 @@ complete repetitions. ADR-0023 restores only the authenticated, compatible
 configuration and optional SQLite state after bundle rollback, normalizes the
 SQLite snapshot out of WAL mode, preserves residual live sidecars away from the
 restored filename, and verifies that apply remains disabled without invoking
-personal-file undo.
+personal-file undo. ADR-0024 kills the helper at each of those five durable
+restoration boundaries and proves recovery from a fresh process, five times per
+boundary.
 The protocol is hard-restricted to private
 `/private/tmp/TidyDropIntegration.*` fixtures and the helper is not packaged, so
-state-restoration process-kill testing, reboot recovery and installed-app
-authority remain unimplemented.
+real reboot recovery and installed-app authority remain unimplemented.

@@ -1,0 +1,21 @@
+State restoration kill/relaunch iteration 1/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+State restoration kill/relaunch iteration 2/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+State restoration kill/relaunch iteration 3/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+State restoration kill/relaunch iteration 4/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+State restoration kill/relaunch iteration 5/5
+TidyDrop self-tests — sin XCTest
+PASS  testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary
+Resultado: 1 PASS, 0 SKIP, 0 FAIL; total=1
+State restoration process kill/relaunch: PASS (25 forced kills across 5 durable boundaries)

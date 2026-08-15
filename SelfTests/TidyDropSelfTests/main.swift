@@ -4615,6 +4615,57 @@ private final class TidyDropCoreTests {
         }
     }
 
+    func testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary() throws {
+        let helperURL = try recoveryHelperExecutableURL()
+        for checkpoint in DryRunStateRestorationCheckpoint.allCases {
+            let setup = try makeDryRunStateRestorationSetup(
+                name: "state-process-kill-\(checkpoint.rawValue)",
+                includeActivityBackup: true
+            )
+            let transactionBefore = try Data(contentsOf: setup.transactionSentinel)
+            let personalBefore = try Data(contentsOf: setup.personalFile)
+            let arguments = stateRestorationHelperArguments(setup: setup)
+
+            try killRecoveryHelperProcess(
+                helperURL: helperURL,
+                arguments: arguments,
+                checkpointRawValue: checkpoint.rawValue,
+                markerFileName: checkpoint.markerFileName,
+                workspaceURL: setup.transaction.locator.workspaceURL
+            )
+            let recovered = try runRecoveryHelperProcess(
+                helperURL: helperURL,
+                arguments: arguments
+            )
+            guard recovered.status == 0,
+                  recovered.output.contains("outcome=state_restored"),
+                  recovered.output.contains("apply_enabled=false") else {
+                throw processHarnessError("state restoration recovery failed: \(recovered.error)")
+            }
+            XCTAssertEqual(
+                try CurrentBundleRetentionBuilder.loadRecovering(
+                    locator: setup.transaction.locator
+                ).state,
+                .stateRestored
+            )
+            XCTAssertFalse(
+                try ConfigurationIO.load(
+                    from: setup.configurationURL,
+                    homeDirectory: setup.fixture.workspace.root
+                ).config.automation.applyEnabled
+            )
+            XCTAssertEqual(
+                try AgentActivityDatabase.recentRuns(
+                    at: setup.activityDatabaseURL,
+                    limit: 10
+                ).map(\.runID),
+                ["before-update-run"]
+            )
+            XCTAssertEqual(try Data(contentsOf: setup.transactionSentinel), transactionBefore)
+            XCTAssertEqual(try Data(contentsOf: setup.personalFile), personalBefore)
+        }
+    }
+
     private struct RecoveryHelperResult {
         let status: Int32
         let output: String
@@ -4656,15 +4707,37 @@ private final class TidyDropCoreTests {
         locator: ExternalRecoveryTransactionLocator,
         destinationParent: URL
     ) throws -> RecoveryHelperResult {
+        try runRecoveryHelperProcess(
+            helperURL: helperURL,
+            arguments: recoveryHelperArguments(
+                command: command,
+                locator: locator,
+                destinationParent: destinationParent
+            )
+        )
+    }
+
+    private func stateRestorationHelperArguments(
+        setup: DryRunRestorationSetup
+    ) -> [String] {
+        [
+            "restore-state",
+            setup.transaction.locator.workspaceURL.path,
+            setup.transaction.locator.transactionID,
+            setup.configurationURL.path,
+            setup.fixture.workspace.root.path
+        ]
+    }
+
+    private func runRecoveryHelperProcess(
+        helperURL: URL,
+        arguments: [String]
+    ) throws -> RecoveryHelperResult {
         let process = Process()
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = helperURL
-        process.arguments = recoveryHelperArguments(
-            command: command,
-            locator: locator,
-            destinationParent: destinationParent
-        )
+        process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
         environment.removeValue(forKey: "TIDYDROP_RECOVERY_TEST_STOP_AFTER")
         process.environment = environment
@@ -4694,23 +4767,39 @@ private final class TidyDropCoreTests {
         locator: ExternalRecoveryTransactionLocator,
         destinationParent: URL
     ) throws {
+        try killRecoveryHelperProcess(
+            helperURL: helperURL,
+            arguments: recoveryHelperArguments(
+                command: command,
+                locator: locator,
+                destinationParent: destinationParent
+            ),
+            checkpointRawValue: checkpoint.rawValue,
+            markerFileName: checkpoint.markerFileName,
+            workspaceURL: locator.workspaceURL
+        )
+    }
+
+    private func killRecoveryHelperProcess(
+        helperURL: URL,
+        arguments: [String],
+        checkpointRawValue: String,
+        markerFileName: String,
+        workspaceURL: URL
+    ) throws {
         let process = Process()
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.executableURL = helperURL
-        process.arguments = recoveryHelperArguments(
-            command: command,
-            locator: locator,
-            destinationParent: destinationParent
-        )
+        process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
-        environment["TIDYDROP_RECOVERY_TEST_STOP_AFTER"] = checkpoint.rawValue
+        environment["TIDYDROP_RECOVERY_TEST_STOP_AFTER"] = checkpointRawValue
         process.environment = environment
         process.standardOutput = outputPipe
         process.standardError = errorPipe
         try process.run()
 
-        let markerURL = locator.workspaceURL.appendingPathComponent(checkpoint.markerFileName)
+        let markerURL = workspaceURL.appendingPathComponent(markerFileName)
         let deadline = Date().addingTimeInterval(15)
         var markerMetadata = stat()
         var markerReady = false
@@ -4727,7 +4816,7 @@ private final class TidyDropCoreTests {
               markerMetadata.st_uid == Darwin.geteuid(),
               markerMetadata.st_mode & 0o777 == 0o600,
               try String(contentsOf: markerURL, encoding: .utf8)
-                == "\(checkpoint.rawValue)\n" else {
+                == "\(checkpointRawValue)\n" else {
             if process.isRunning {
                 _ = Darwin.kill(process.processIdentifier, SIGKILL)
             }
@@ -5223,6 +5312,10 @@ private let recoveryHelperProcessTests: [(String, () throws -> Void)] = {
         (
             "testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary",
             suite.testRecoveryHelperSurvivesProcessKillAtEveryDurableBoundary
+        ),
+        (
+            "testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary",
+            suite.testRecoveryHelperRestoresStateAfterProcessKillAtEveryBoundary
         )
     ]
 }()

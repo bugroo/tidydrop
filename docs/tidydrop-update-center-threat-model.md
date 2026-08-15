@@ -203,7 +203,7 @@ the updater.
 | Independent signed manifest | 2 | Offline verifier foundation and negative tests implemented; release signing, pinned production key and rotation remain gated |
 | Private no-follow staging, transport and inspection | 2 | Descriptor-bound writer, fixed-origin ephemeral streaming and authenticated read-only DMG/bundle inspection implemented outside shipping targets; production key/signing identity and installation remain gated |
 | Prior verified bundle and state backup | 2 | Private dry-run state plus descriptor-copied, signed Universal 2 prior bundle are revalidated and tree-digested |
-| Out-of-process recovery | 2 | Separate helper, temporary-scope atomic install/rollback, repeated process-kill bundle recovery and schema-bound dry-run state restoration implemented; stable helper signing, installed scope, state-restoration process-kill and reboot matrices remain |
+| Out-of-process recovery | 2 | Separate helper, temporary-scope atomic install/rollback, schema-bound dry-run state restoration, and repeated process-kill recovery across all nine durable bundle/state boundaries implemented; stable helper signing, installed scope and real reboot matrix remain |
 | Developer ID + notarization + stable DR | 3 | codesign, spctl, stapler, and real-Mac gates |
 
 ## Risk register
@@ -298,5 +298,6 @@ app. ADR-0022 proves fresh-process recovery after `SIGKILL` at all four durable
 bundle-swap boundaries. ADR-0023 restores authenticated compatible
 configuration and SQLite state without personal-file undo, always with apply
 disabled, and reconciles five injected restoration boundaries. R7 and R8 remain
-open pending state-restoration process-kill and reboot matrices, installed-scope
-orchestration, U6 and stable Developer ID.
+open pending the real reboot matrix, installed-scope orchestration, U6 and
+stable Developer ID. ADR-0024 additionally repeats real helper `SIGKILL` and
+fresh-process recovery at all five state-restoration boundaries.
