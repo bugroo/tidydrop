@@ -15,6 +15,10 @@ let package = Package(
         .executable(name: "TidyDropApp", targets: ["TidyDropApp"]),
         .executable(name: "tidydrop", targets: ["TidyDrop"]),
         .executable(name: "tidydrop-agent", targets: ["TidyDropAgent"]),
+        .executable(
+            name: "tidydrop-recovery-helper",
+            targets: ["TidyDropRecoveryHelper"]
+        ),
         .executable(name: "tidydrop-self-test", targets: ["TidyDropSelfTests"])
     ],
     targets: [
@@ -67,6 +71,11 @@ let package = Package(
             name: "TidyDropAgent",
             dependencies: ["TidyDropCore"],
             path: "Sources/TidyDropAgent"
+        ),
+        .executableTarget(
+            name: "TidyDropRecoveryHelper",
+            dependencies: ["TidyDropUpdateRecovery"],
+            path: "Sources/TidyDropRecoveryHelper"
         ),
         .executableTarget(
             name: "TidyDropSelfTests",

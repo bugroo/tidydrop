@@ -122,4 +122,8 @@ PASS  testCurrentBundleRetentionFaultsCleanOnlyRetainedArtifacts
 PASS  testCurrentBundleRetentionRejectsSymlinkAndTamperedRetainedTree
 PASS  testExternalRecoveryJournalRecoversSynchronizedNextStateAndRejectsReplay
 PASS  testExistingBundleInspectorRejectsWrongVersionAndBundleSymlink
-Resultado: 123 PASS, 0 SKIP, 0 FAIL; total=123
+PASS  testDestinationVolumeReplacementAtomicallyInstallsAndRollsBack
+PASS  testDestinationVolumeReplacementRecoversBothInterruptedSwaps
+PASS  testDestinationVolumeReplacementResumesBeforeEitherSwap
+PASS  testDestinationVolumeReplacementRejectsInstalledScopeAndSymlinkCandidate
+Resultado: 127 PASS, 0 SKIP, 0 FAIL; total=127
